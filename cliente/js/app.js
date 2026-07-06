@@ -239,7 +239,7 @@ function abrirBuilderPizza(tamanhoId) {
 function renderBuilder() {
     const titulo = document.getElementById('modalOpcoesTitulo');
     const body = document.getElementById('opcoesBody');
-    titulo.innerHTML = `🍕 Pizza ${pizzaBuilder.tamanho.nome} <button class="modal-close" onclick="fecharOpcoes()">×</button>`;
+    titulo.innerHTML = `🍕 Pizza ${pizzaBuilder.tamanho.nome}`;
 
     const saboresSalgados = cardapio.sabores.filter(s => s.cat === 'salgada');
     const saboresDoces = cardapio.sabores.filter(s => s.cat === 'doce');
@@ -817,4 +817,4 @@ function toggleTheme() {
 
 document.addEventListener('DOMContentLoaded', init);
 
-// rebuild-1783315911
+// rebuild-1783316260
