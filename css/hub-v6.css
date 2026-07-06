@@ -1,0 +1,220 @@
+/* ============================================
+   NONNA PIZZARIA — Hub
+   Visual: italiano clássico, claro, elegante
+   Paleta Nonna: #2F4A2C (verde-oliva), #D84A32 (tomate),
+                 #F7F2EA (creme), #2C2C2C (texto)
+   ============================================ */
+
+:root {
+    --green:        #2F4A2C;   /* verde-oliva escuro (logo) */
+    --green-light:  #5C7A3F;   /* verde claro (hover/destaque) */
+    --red:          #D84A32;   /* vermelho tomate (logo) */
+    --red-dark:     #A03828;   /* tomate escuro (hover) */
+    --cream:        #F7F2EA;   /* creme (fundo principal) */
+    --cream-2:      #EFE8DC;   /* creme escuro (cards) */
+    --text:         #2C2C2C;   /* texto principal */
+    --text-soft:    #6B6B6B;   /* texto secundário */
+    --border:       #D9D0BE;   /* bordas suaves */
+    --whatsapp:     #25D366;
+    --shadow-sm:    0 2px 8px rgba(47, 74, 44, 0.06);
+    --shadow-md:    0 8px 24px rgba(47, 74, 44, 0.10);
+    --shadow-lg:    0 16px 48px rgba(47, 74, 44, 0.14);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--cream);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* Decoração sutil de fundo (sem grade exagerada) */
+.bg-decoration {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background:
+        radial-gradient(circle at 15% 10%, rgba(216, 74, 50, 0.05), transparent 50%),
+        radial-gradient(circle at 85% 90%, rgba(47, 74, 44, 0.06), transparent 50%);
+    pointer-events: none;
+}
+
+/* Layout */
+.hub {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 60px 24px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* Brand */
+.hub-brand {
+    text-align: center;
+    margin-bottom: 56px;
+    animation: fadeDown 0.8s ease-out;
+}
+
+@keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.brand-logo {
+    width: 96px;          /* tamanho proporcional e elegante */
+    height: auto;
+    margin: 0 auto 16px;
+    display: block;
+    filter: drop-shadow(0 4px 12px rgba(47, 74, 44, 0.15));
+    animation: float 4s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-4px); }
+}
+
+.hub-brand h1 {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 2.6rem;
+    font-weight: 700;
+    color: var(--green);
+    letter-spacing: 4px;
+    margin-bottom: 6px;
+}
+
+.brand-tag {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-style: italic;
+    color: var(--red);
+    font-size: 1.05rem;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+}
+
+.brand-sub {
+    color: var(--text-soft);
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+}
+
+/* Grid de cards */
+.hub-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 22px;
+    margin-bottom: 40px;
+}
+
+.hub-card {
+    background: var(--cream-2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 24px;
+    text-decoration: none;
+    color: var(--text);
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    position: relative;
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow-sm);
+}
+
+.hub-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--green);
+    background: #fff;
+}
+
+.hub-card.cliente:hover      { border-color: var(--red); }
+.hub-card.pizzaria:hover     { border-color: var(--green); }
+.hub-card.motoboy:hover      { border-color: var(--red); }
+
+.card-icon {
+    font-size: 2.2rem;
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--cream);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+}
+
+.hub-card.cliente .card-icon    { color: var(--red); }
+.hub-card.pizzaria .card-icon   { color: var(--green); }
+.hub-card.motoboy .card-icon    { color: var(--red); }
+
+.card-content { flex: 1; }
+.card-content h2 {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 1.4rem;
+    color: var(--green);
+    margin-bottom: 4px;
+}
+.card-content > p {
+    color: var(--text-soft);
+    font-size: 0.9rem;
+    margin-bottom: 14px;
+}
+
+.card-features {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.card-features li {
+    font-size: 0.85rem;
+    color: var(--text);
+    padding-left: 4px;
+}
+.card-features li::before {
+    content: "✓";
+    color: var(--green);
+    font-weight: 700;
+    margin-right: 8px;
+}
+
+.card-arrow {
+    align-self: center;
+    color: var(--text-soft);
+    font-size: 1.2rem;
+    transition: transform 0.3s, color 0.3s;
+}
+.hub-card:hover .card-arrow {
+    transform: translateX(4px);
+    color: var(--green);
+}
+
+/* Footer */
+.hub-footer {
+    text-align: center;
+    color: var(--text-soft);
+    font-size: 0.85rem;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+}
+.hub-footer strong {
+    color: var(--green);
+    font-weight: 600;
+}
+
+/* Responsivo */
+@media (max-width: 900px) {
+    .hub-grid { grid-template-columns: 1fr; }
+    .hub-brand h1 { font-size: 2.2rem; }
+    .brand-logo { width: 80px; }
+    .hub { padding: 40px 20px; }
+}
