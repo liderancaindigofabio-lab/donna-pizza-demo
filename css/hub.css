@@ -1,13 +1,13 @@
 /* ============================================
-   DONNA PIZZA — Hub Premium
+   NONNA PIZZARIA — Hub Premium
    Visual: italiano moderno, escuro, dourado
    ============================================ */
 
 :root {
-    --red: #c8202a;
-    --red-dark: #8b131a;
-    --gold: #d4a574;
-    --gold-bright: #f4c542;
+    --red: #D84A32;
+    --red-dark: #A03828;
+    --gold: #2F4A2C;
+    --gold-bright: #5C7A3F;
     --dark: #0a0a0a;
     --dark-2: #161616;
     --dark-3: #1f1f1f;
@@ -75,9 +75,10 @@ body {
 }
 
 .brand-logo {
-    font-size: 5rem;
+    width: 140px;
+    height: auto;
     margin-bottom: 10px;
-    filter: drop-shadow(0 4px 20px rgba(200, 32, 42, 0.4));
+    filter: drop-shadow(0 4px 20px rgba(47, 74, 44, 0.5));
     animation: float 3s ease-in-out infinite;
 }
 
@@ -240,11 +241,9 @@ body {
 @media (max-width: 768px) {
     .hub { padding: 40px 16px; }
     .hub-brand h1 { font-size: 2.5rem; }
-    .brand-logo { font-size: 4rem; }
+    .brand-logo { width: 110px; }
     .hub-card { padding: 24px; }
     .card-content h2 { font-size: 1.5rem; }
     .card-icon { font-size: 3rem; }
     .card-arrow { display: none; }
 }
-
-/* rebuild-1783316260 */

@@ -1,5 +1,5 @@
 /* ============================================
-   DONNA PIZZA — App do Motoboy
+   NONNA PIZZARIA — App do Motoboy
    COM MÚLTIPLAS ENTREGAS + ROTEIRIZAÇÃO OTIMIZADA
    ============================================ */
 
@@ -150,7 +150,7 @@ function initMapa() {
         iconAnchor: [18, 36],
     });
     markerPizza = L.marker(PIZZARIA_COORDS, { icon: pizzaIcon }).addTo(mapa);
-    markerPizza.bindPopup('<b>🍕 Donna Pizza</b><br>Ponto de retirada');
+    markerPizza.bindPopup('<b>🍕 Nonna Pizzaria</b><br>Ponto de retirada');
 
     // Marcador do motoboy
     const mbIcon = L.divIcon({
@@ -584,5 +584,3 @@ function tocarSom(tipo) {
 const BRL = (v) => 'R$ ' + v.toFixed(2).replace('.', ',');
 
 document.addEventListener('DOMContentLoaded', init);
-
-// rebuild-1783316260

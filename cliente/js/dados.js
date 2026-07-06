@@ -1,5 +1,5 @@
 /* ============================================
-   DONNA PIZZA — Dados do cardápio
+   NONNA PIZZARIA — Dados do cardápio
    Com imagens SVG geradas (sem precisar de arquivo externo)
    ============================================ */
 
@@ -318,5 +318,3 @@ const CARDAPIO = {
         'FAMILIA': { tipo: 'fixo', valor: 15, desc: '🎁 R$ 15 de desconto' },
     }
 };
-
-// rebuild-1783316260

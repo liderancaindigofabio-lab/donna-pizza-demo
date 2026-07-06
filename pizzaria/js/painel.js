@@ -1,5 +1,5 @@
 /* ============================================
-   DONNA PIZZA — Painel de gestão v2
+   NONNA PIZZARIA — Painel de gestão v2
    - Abas: Pedidos + Cardápio
    - Card de cliente clicável (mostra histórico)
    - Mostrar motoboy em todos os status
@@ -777,5 +777,3 @@ function tocarSom(tipo = 'novo') {
 const BRL = (v) => 'R$ ' + v.toFixed(2).replace('.', ',');
 
 document.addEventListener('DOMContentLoaded', init);
-
-// rebuild-1783316260

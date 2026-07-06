@@ -1,12 +1,12 @@
 /* ============================================
-   DONNA PIZZA — Painel da Pizzaria
+   NONNA PIZZARIA — Painel da Pizzaria
    ============================================ */
 
 :root {
-    --red: #c8202a;
-    --red-dark: #8b131a;
-    --gold: #d4a574;
-    --gold-bright: #f4c542;
+    --red: #D84A32;
+    --red-dark: #A03828;
+    --gold: #2F4A2C;
+    --gold-bright: #5C7A3F;
     --dark: #0d0d0d;
     --dark-2: #1a1a1a;
     --dark-3: #242424;
@@ -64,8 +64,9 @@ body {
 }
 
 .brand-icon {
-    font-size: 2.2rem;
-    filter: drop-shadow(0 4px 12px rgba(200, 32, 42, 0.4));
+    width: 55px;
+    height: auto;
+    filter: drop-shadow(0 4px 12px rgba(47, 74, 44, 0.5));
 }
 
 .header-brand h1 {
@@ -1096,5 +1097,3 @@ body {
     font-weight: normal;
     font-size: 0.85em;
 }
-
-/* fix-modal-1783316795 */

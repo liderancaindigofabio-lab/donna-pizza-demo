@@ -1,12 +1,12 @@
 /* ============================================
-   DONNA PIZZA — Cliente (Premium)
+   NONNA PIZZARIA — Cliente (Premium)
    ============================================ */
 
 :root {
-    --red: #c8202a;
-    --red-dark: #8b131a;
-    --gold: #d4a574;
-    --gold-bright: #f4c542;
+    --red: #D84A32;
+    --red-dark: #A03828;
+    --gold: #2F4A2C;
+    --gold-bright: #5C7A3F;
     --dark: #0d0d0d;
     --dark-2: #1a1a1a;
     --dark-3: #242424;
@@ -87,8 +87,9 @@ body {
 }
 
 .brand-emoji {
-    font-size: 3rem;
-    filter: drop-shadow(0 4px 12px rgba(200, 32, 42, 0.4));
+    width: 70px;
+    height: auto;
+    filter: drop-shadow(0 4px 12px rgba(47, 74, 44, 0.5));
 }
 
 .header-brand h1 {
@@ -927,7 +928,7 @@ body {
 /* Mobile */
 @media (max-width: 600px) {
     .header-brand h1 { font-size: 1.5rem; }
-    .brand-emoji { font-size: 2.5rem; }
+    .brand-emoji { width: 55px; }
     .produto { flex-direction: row; }
     .produto-img { width: 100px; min-height: 110px; font-size: 2.8rem; }
     .carrinho-fab { width: 56px; height: 56px; font-size: 1.5rem; }
@@ -1308,5 +1309,3 @@ body {
 }
 
 .produto-tags { margin-top: 4px; }
-
-/* overflow-y-modal-content-1783317028 */

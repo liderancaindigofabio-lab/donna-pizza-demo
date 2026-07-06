@@ -1,11 +1,13 @@
 /* ============================================
-   DONNA PIZZA — App do Motoboy
+   NONNA PIZZARIA — App do Motoboy
    Mobile-first (usado em movimento!)
    ============================================ */
 
 :root {
-    --red: #c8202a;
-    --gold: #d4a574;
+    --red: #D84A32;
+    --red-dark: #A03828;
+    --gold: #2F4A2C;
+    --gold-bright: #5C7A3F;
     --dark: #0d0d0d;
     --dark-2: #1a1a1a;
     --dark-3: #242424;
@@ -738,5 +740,3 @@ body {
     .contador-numero { font-size: 1.2rem; }
     .pac-acoes, .pac-acoes-3 { grid-template-columns: 1fr; }
 }
-
-/* rebuild-1783316260 */

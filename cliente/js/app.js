@@ -1,5 +1,5 @@
 /* ============================================
-   DONNA PIZZA — Lógica do cliente (v2)
+   NONNA PIZZARIA — Lógica do cliente (v2)
    - Fluxo: TAMANHO → SABOR (até 2)
    - Salva cliente automaticamente
    - Histórico de pedidos
@@ -625,7 +625,7 @@ function finalizarPedido() {
     localStorage.setItem('donna_meu_pedido', meuPedidoId);
 
     // Mensagem WhatsApp
-    let msg = `🍕 *NOVO PEDIDO - DONNA PIZZA* #${pedidoSalvo.id.toString().slice(-5)}\n\n`;
+    let msg = `🍕 *NOVO PEDIDO - NONNA PIZZARIA* #${pedidoSalvo.id.toString().slice(-5)}\n\n`;
     msg += `👤 *Cliente:* ${nome}\n`;
     msg += `📞 *Telefone:* ${tel}\n`;
     msg += `📍 *Endereço:* ${end}${cep ? ` (CEP ${cep})` : ''}\n`;
@@ -816,5 +816,3 @@ function toggleTheme() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
-
-// fix-modal-1783316795

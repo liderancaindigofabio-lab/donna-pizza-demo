@@ -103,7 +103,7 @@ const DB = {
         }
         if (!localStorage.getItem(this.KEY_CONFIG)) {
             localStorage.setItem(this.KEY_CONFIG, JSON.stringify({
-                nome: 'Donna Pizza',
+                nome: 'Nonna Pizzaria',
                 endereco: 'Rua Principal, 123 - Centro, Pé de Serra - BA',
                 whatsapp: '5500900000000',
                 taxaEntrega: 7.00,
@@ -318,5 +318,3 @@ const DB = {
 };
 
 DB.init();
-
-// rebuild-1783316260
