@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donna Pizza - Cardápio Digital</title>
+    <meta name="description" content="A melhor pizza artesanal de Pé de Serra. Peça pelo WhatsApp e receba quentinha na sua casa!">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍕</text></svg>">
+</head>
+<body>
+
+<!-- HERO / CABEÇALHO -->
+<header class="hero">
+    <div class="logo">🍕 DONNA PIZZA</div>
+    <div class="logo-sub">Tradição italiana desde 2010</div>
+    <div class="hero-info">
+        <span>⭐ 4.9 (327 avaliações)</span>
+        <span>🕐 25-40 min</span>
+        <span id="statusLoja" class="status-aberto">● Aberto</span>
+    </div>
+</header>
+
+<!-- CUPOM -->
+<div class="cupom-banner" onclick="aplicarCupomDestaque()">
+    🎁 PRIMEIRA COMPRA? Use o cupom <span class="code">DONNA10</span> e ganhe 10% OFF!
+</div>
+
+<!-- CATEGORIAS -->
+<nav class="categorias">
+    <div class="categorias-inner" id="categorias"></div>
+</nav>
+
+<!-- CONTAINER DE PRODUTOS -->
+<main class="container" id="produtos"></main>
+
+<!-- BOTÃO FLUTUANTE DO CARRINHO -->
+<button class="carrinho-flutuante" onclick="abrirCarrinho()" title="Ver carrinho">
+    🛒
+    <span class="carrinho-count" id="carrinhoCount" style="display:none">0</span>
+</button>
+
+<!-- MODAL CARRINHO -->
+<div class="modal" id="modalCarrinho">
+    <div class="modal-content">
+        <h2>
+            🛒 Seu Pedido
+            <button class="modal-close" onclick="fecharCarrinho()">×</button>
+        </h2>
+        <div id="carrinhoLista"></div>
+        <div class="cupom-input-group">
+            <input type="text" id="cupomInput" placeholder="Cupom de desconto">
+            <button onclick="aplicarCupom()">Aplicar</button>
+        </div>
+        <div id="cupomMsg"></div>
+        <div class="carrinho-total" id="carrinhoTotal">R$ 0,00</div>
+        <button class="btn-finalizar" onclick="abrirCheckout()">📱 Finalizar pelo WhatsApp</button>
+    </div>
+</div>
+
+<!-- MODAL TAMANHO / SABOR -->
+<div class="modal" id="modalOpcoes">
+    <div class="modal-content">
+        <h2 id="modalOpcoesTitulo">
+            Escolha o tamanho
+            <button class="modal-close" onclick="fecharOpcoes()">×</button>
+        </h2>
+        <div id="opcoesBody"></div>
+        <button class="btn-finalizar" id="btnConfirmarOpcoes" onclick="confirmarOpcoes()" style="margin-top:14px;background:var(--primary);">✓ Adicionar ao carrinho</button>
+    </div>
+</div>
+
+<!-- MODAL CHECKOUT -->
+<div class="modal" id="modalCheckout">
+    <div class="modal-content">
+        <h2>
+            📍 Quase lá!
+            <button class="modal-close" onclick="fecharCheckout()">×</button>
+        </h2>
+        <div class="form-group">
+            <label>Seu nome</label>
+            <input type="text" id="cliNome" placeholder="Ex: João Silva">
+        </div>
+        <div class="form-group">
+            <label>Telefone</label>
+            <input type="tel" id="cliTel" placeholder="(00) 90000-0000">
+        </div>
+        <div class="form-group">
+            <label>Endereço de entrega</label>
+            <input type="text" id="cliEnd" placeholder="Rua, número, bairro">
+        </div>
+        <div class="form-group">
+            <label>Forma de pagamento</label>
+            <select id="cliPag">
+                <option value="Dinheiro (troco para ?)">💵 Dinheiro</option>
+                <option value="Pix">📱 Pix</option>
+                <option value="Cartão na entrega (débito)">💳 Cartão Débito</option>
+                <option value="Cartão na entrega (crédito)">💳 Cartão Crédito</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Observações (opcional)</label>
+            <textarea id="cliObs" rows="2" placeholder="Ex: sem cebola, massa fina..."></textarea>
+        </div>
+        <button class="btn-finalizar" onclick="finalizarPedido()">🚀 Enviar pedido pelo WhatsApp</button>
+    </div>
+</div>
+
+<!-- FOOTER -->
+<footer class="footer">
+    <div class="footer-info">
+        <h3>📍 Onde estamos</h3>
+        <p>Rua Principal, 123 - Centro</p>
+        <p>Pé de Serra - BA</p>
+        <p>📞 (00) 90000-0000</p>
+        <p>🕐 Seg-Dom: 18h às 23h</p>
+    </div>
+    <div class="social-icons">
+        <a href="#" title="Instagram">📷</a>
+        <a href="#" title="Facebook">📘</a>
+        <a href="#" title="WhatsApp">📱</a>
+    </div>
+    <div class="footer-copy">
+        © 2026 Donna Pizza — Todos os direitos reservados<br>
+        Cardápio digital desenvolvido por <strong>Zapia Sites</strong>
+    </div>
+</footer>
+
+<script src="js/dados.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
