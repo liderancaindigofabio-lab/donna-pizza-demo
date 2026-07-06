@@ -1,15 +1,14 @@
 /* ============================================
    DONNA PIZZA — App do Motoboy
-   Com mapa Leaflet + rota otimizada
+   COM MÚLTIPLAS ENTREGAS + ROTEIRIZAÇÃO OTIMIZADA
    ============================================ */
 
 let motoboyAtual = null;
 let mapa = null;
 let markerPizza = null;
-let markerCliente = null;
+let markersClientes = [];
 let markerMotoboy = null;
 let rotaLayer = null;
-let pedidoEmEntrega = null;
 let watchId = null;
 
 // Coordenadas da pizzaria (Pé de Serra - BA)
@@ -17,7 +16,6 @@ const PIZZARIA_COORDS = [-11.8345, -39.6125];
 
 // ===== INIT =====
 function init() {
-    // Verificar se já tem motoboy logado
     const saved = localStorage.getItem('donna_motoboy_logado');
     if (saved) {
         motoboyAtual = parseInt(saved);
@@ -50,11 +48,6 @@ function login(id) {
     iniciarApp();
 }
 
-function logout() {
-    localStorage.removeItem('donna_motoboy_logado');
-    location.reload();
-}
-
 function iniciarApp() {
     const m = DB.getMotoboy(motoboyAtual);
     document.getElementById('loginScreen').style.display = 'none';
@@ -64,23 +57,30 @@ function iniciarApp() {
     atualizarStatusVisual();
     atualizarContadorEntregas();
     renderHistorico();
-    renderPedidoAtual();
+    renderPedidosAtuais();
     initMapa();
 
     // Escutar mudanças
     DB.onChange(({ tipo, data }) => {
         if (tipo === 'pedido_novo') {
-            // Novo pedido - mas só notifica se for pra mim
             if (data.motoboyId === motoboyAtual) {
-                toast('🆕 Novo pedido pra você!', 'success');
-                tocarSom('novo');
+                const qtd = DB.getPedidosMotoboy(motoboyAtual).length;
+                if (qtd === 1) {
+                    toast('🆕 Novo pedido pra você!', 'success');
+                    tocarSom('novo');
+                } else {
+                    toast(`🆕 +1 entrega! Total: ${qtd}`, 'success');
+                    tocarSom('novo');
+                }
             }
         } else if (tipo === 'pedido_update') {
-            if (data.motoboyId === motoboyAtual || data.status === 'entregue') {
-                renderPedidoAtual();
+            if (data.motoboyId === motoboyAtual) {
+                renderPedidosAtuais();
                 atualizarContadorEntregas();
                 renderHistorico();
             }
+        } else if (tipo === 'motoboy_update') {
+            if (data.id === motoboyAtual) atualizarStatusVisual();
         }
         atualizarStatusVisual();
     });
@@ -98,12 +98,13 @@ function toggleStatus() {
 function atualizarStatusVisual() {
     const m = DB.getMotoboy(motoboyAtual);
     const el = document.getElementById('statusToggle');
+    const qtdRota = DB.getPedidosMotoboy(motoboyAtual).length;
     if (m.status === 'disponivel') {
         el.className = 'motoboy-status-toggle';
         el.innerHTML = '<span class="status-dot"></span> Disponível';
     } else if (m.status === 'entregando') {
         el.className = 'motoboy-status-toggle';
-        el.innerHTML = '<span class="status-dot"></span> Em entrega';
+        el.innerHTML = `<span class="status-dot"></span> Em rota (${qtdRota})`;
     } else {
         el.className = 'motoboy-status-toggle indisponivel';
         el.innerHTML = '<span class="status-dot"></span> Em pausa';
@@ -119,7 +120,6 @@ function initMapa() {
         attributionControl: true,
     }).setView(PIZZARIA_COORDS, 14);
 
-    // Tile dark (CartoDB Dark Matter)
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
         attribution: '© OpenStreetMap, © CartoDB',
         maxZoom: 19,
@@ -129,13 +129,13 @@ function initMapa() {
     const pizzaIcon = L.divIcon({
         html: '<div class="marker-pizza"></div>',
         className: '',
-        iconSize: [32, 32],
-        iconAnchor: [16, 32],
+        iconSize: [36, 36],
+        iconAnchor: [18, 36],
     });
     markerPizza = L.marker(PIZZARIA_COORDS, { icon: pizzaIcon }).addTo(mapa);
     markerPizza.bindPopup('<b>🍕 Donna Pizza</b><br>Ponto de retirada');
 
-    // Marcador do motoboy (posição inicial aleatória próxima)
+    // Marcador do motoboy
     const mbIcon = L.divIcon({
         html: '<div class="marker-motoboy">🛵</div>',
         className: '',
@@ -146,14 +146,12 @@ function initMapa() {
     markerMotoboy = L.marker(mbPos, { icon: mbIcon, draggable: true }).addTo(mapa);
     markerMotoboy.bindPopup('<b>🛵 Você está aqui</b><br>Arraste pra simular movimento');
 
-    // Atualiza posição se arrastar
-    markerMotoboy.on('dragend', (e) => {
-        if (pedidoEmEntrega) {
-            recalcularRota();
+    markerMotoboy.on('dragend', () => {
+        if (DB.getPedidosMotoboy(motoboyAtual).length > 0) {
+            otimizarERenderizarRota();
         }
     });
 
-    // Tenta geolocalização real
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             (pos) => {
@@ -161,103 +159,213 @@ function initMapa() {
                 markerMotoboy.setLatLng([latitude, longitude]);
                 mapa.setView([latitude, longitude], 14);
             },
-            (err) => {
-                console.log('Geolocalização negada, usando posição padrão');
-            }
+            (err) => console.log('Geolocalização negada')
         );
     }
 }
 
-function mostrarClienteNoMapa(coords) {
-    if (!mapa) return;
-    if (markerCliente) mapa.removeLayer(markerCliente);
+// ===== ROTEIRIZAÇÃO INTELIGENTE =====
+// Recebe várias entregas e calcula a melhor ordem (vizinho mais próximo)
+function otimizarERenderizarRota() {
+    if (!mapa || !markerMotoboy) return;
 
+    const pedidos = DB.getPedidosMotoboy(motoboyAtual);
+    if (pedidos.length === 0) {
+        // Sem entregas: limpa mapa
+        markersClientes.forEach(m => mapa.removeLayer(m.marker));
+        markersClientes = [];
+        if (rotaLayer) { mapa.removeLayer(rotaLayer); rotaLayer = null; }
+        document.getElementById('mapaInfo').classList.remove('show');
+        document.getElementById('btnRecalcular').style.display = 'none';
+        return;
+    }
+
+    if (pedidos.length === 1) {
+        // 1 entrega: rota direta
+        renderizarRotaSimples(pedidos[0]);
+        return;
+    }
+
+    // Várias entregas: OTIMIZAR com vizinho mais próximo
+    const pontoAtual = markerMotoboy.getLatLng();
+    const ordenados = vizinhoMaisProximo(pontoAtual, pedidos);
+    renderizarRotaMultipla(ordenados, pontoAtual);
+}
+
+// Algoritmo do vizinho mais próximo (Nearest Neighbor)
+function vizinhoMaisProximo(origem, pedidos) {
+    if (!pedidos.length) return [];
+    const restantes = [...pedidos];
+    const rota = [];
+    let atual = origem;
+
+    while (restantes.length > 0) {
+        let menorDist = Infinity;
+        let idxProx = 0;
+        for (let i = 0; i < restantes.length; i++) {
+            const c = restantes[i].coords;
+            const d = calcularDistanciaHaversine(
+                atual.lat, atual.lng,
+                c.lat, c.lng
+            );
+            if (d < menorDist) {
+                menorDist = d;
+                idxProx = i;
+            }
+        }
+        const prox = restantes.splice(idxProx, 1)[0];
+        prox.distancia = menorDist;
+        rota.push(prox);
+        atual = L.latLng(prox.coords.lat, prox.coords.lng);
+    }
+    return rota;
+}
+
+function renderizarRotaSimples(pedido) {
+    // Limpa markers anteriores
+    markersClientes.forEach(m => mapa.removeLayer(m.marker));
+    markersClientes = [];
+
+    const destino = [pedido.coords.lat, pedido.coords.lng];
+    const marker = adicionarMarkerCliente(destino, 1, pedido, false);
+    markersClientes.push({ marker, pedido });
+
+    calcularRotaOSRM([markerMotoboy.getLatLng()], [destino])
+        .then(({ distancia, duracao, coords }) => {
+            if (rotaLayer) mapa.removeLayer(rotaLayer);
+            rotaLayer = L.polyline(coords, {
+                color: '#d4a574', weight: 5, opacity: 0.8, lineCap: 'round', lineJoin: 'round'
+            }).addTo(mapa);
+            mapa.fitBounds(rotaLayer.getBounds(), { padding: [80, 80] });
+            atualizarInfoMapa(distancia, duracao, 1);
+            document.getElementById('btnRecalcular').style.display = 'block';
+        });
+}
+
+async function renderizarRotaMultipla(pedidosOrdenados, origem) {
+    // Limpa markers
+    markersClientes.forEach(m => mapa.removeLayer(m.marker));
+    markersClientes = [];
+
+    // Adiciona markers numerados
+    pedidosOrdenados.forEach((p, i) => {
+        const ehProximo = i === 0;
+        const marker = adicionarMarkerCliente([p.coords.lat, p.coords.lng], i + 1, p, ehProximo);
+        markersClientes.push({ marker, pedido: p });
+    });
+
+    // Calcula rota completa (motoboy → 1 → 2 → 3...)
+    const waypoints = [origem, ...pedidosOrdenados.map(p => L.latLng(p.coords.lat, p.coords.lng))];
+    const result = await calcularRotaOSRM(waypoints);
+
+    if (result && rotaLayer) mapa.removeLayer(rotaLayer);
+
+    if (result) {
+        rotaLayer = L.polyline(result.coords, {
+            color: '#d4a574', weight: 5, opacity: 0.8, lineCap: 'round', lineJoin: 'round'
+        }).addTo(mapa);
+
+        // Ajusta zoom
+        mapa.fitBounds(rotaLayer.getBounds(), { padding: [80, 80] });
+
+        // Atualiza info
+        atualizarInfoMapa(result.distancia, result.duracao, pedidosOrdenados.length);
+        document.getElementById('btnRecalcular').style.display = 'block';
+
+        // Salva a ordem otimizada em cada pedido (pra UI mostrar)
+        pedidosOrdenados.forEach((p, i) => {
+            DB.updatePedido(p.id, { ordemEntrega: i + 1 });
+        });
+    }
+}
+
+function adicionarMarkerCliente(coords, numero, pedido, emDestaque) {
     const clienteIcon = L.divIcon({
-        html: '<div class="marker-cliente"></div>',
+        html: `<div class="marker-cliente ${emDestaque ? 'destaque' : ''}">${numero}</div>`,
         className: '',
         iconSize: [36, 36],
         iconAnchor: [18, 36],
     });
-    markerCliente = L.marker(coords, { icon: clienteIcon }).addTo(mapa);
-    markerCliente.bindPopup('<b>🏠 Cliente</b><br>Destino da entrega');
-
-    // Ajusta zoom pra ver tudo
-    const group = L.featureGroup([markerPizza, markerMotoboy, markerCliente]);
-    mapa.fitBounds(group.getBounds(), { padding: [50, 50] });
-
-    // Calcula e mostra rota
-    calcularRota(coords);
+    const marker = L.marker(coords, { icon: clienteIcon }).addTo(mapa);
+    marker.bindPopup(`
+        <b>${numero}. ${pedido.cliente.nome}</b><br>
+        📍 ${pedido.cliente.end}<br>
+        💰 ${BRL(pedido.total)}<br>
+        ${emDestaque ? '<b>🟢 PRÓXIMA ENTREGA</b>' : ''}
+    `);
+    return marker;
 }
 
-async function calcularRota(destino) {
-    if (!markerMotoboy) return;
-    const origem = markerMotoboy.getLatLng();
+async function calcularRotaOSRM(waypoints) {
+    if (waypoints.length < 2) return null;
 
-    // Remove rota anterior
-    if (rotaLayer) mapa.removeLayer(rotaLayer);
+    // Se tem 2 pontos, rota direta
+    if (waypoints.length === 2) {
+        const url = `https://router.project-osrm.org/route/v1/driving/${waypoints[0].lng},${waypoints[0].lat};${waypoints[1].lng},${waypoints[1].lat}?overview=full&geometries=geojson`;
+        try {
+            const r = await fetch(url);
+            const d = await r.json();
+            if (d.routes && d.routes[0]) {
+                return {
+                    distancia: d.routes[0].distance,
+                    duracao: d.routes[0].duration,
+                    coords: d.routes[0].geometry.coordinates.map(c => [c[1], c[0]])
+                };
+            }
+        } catch (e) { return fallbackReta(waypoints); }
+    }
+
+    // 3+ pontos: usa waypoints do OSRM (rota otimizada automaticamente por eles)
+    const coordsStr = waypoints.map(w => `${w.lng},${w.lat}`).join(';');
+    const url = `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson&steps=true&annotations=duration,distance`;
 
     try {
-        // OSRM (Open Source Routing Machine) - grátis, sem token
-        const url = `https://router.project-osrm.org/route/v1/driving/${origem.lng},${origem.lat};${destino[1]},${destino[0]}?overview=full&geometries=geojson&steps=true`;
-        const response = await fetch(url);
-        const data = await response.json();
-
-        if (data.routes && data.routes[0]) {
-            const rota = data.routes[0];
-            const coords = rota.geometry.coordinates.map(c => [c[1], c[0]]);
-
-            // Desenha a rota
-            rotaLayer = L.polyline(coords, {
-                color: '#d4a574',
-                weight: 5,
-                opacity: 0.8,
-                lineCap: 'round',
-                lineJoin: 'round',
-            }).addTo(mapa);
-
-            // Ajusta zoom pra ver a rota toda
-            mapa.fitBounds(rotaLayer.getBounds(), { padding: [80, 80] });
-
-            // Mostra info
-            const distanciaKm = (rota.distance / 1000).toFixed(1);
-            const tempoMin = Math.ceil(rota.duration / 60);
-            document.getElementById('rotaDistancia').textContent = `${distanciaKm} km`;
-            document.getElementById('rotaTempo').textContent = `~${tempoMin} min de moto`;
-            document.getElementById('mapaInfo').classList.add('show');
-            document.getElementById('btnRecalcular').style.display = 'block';
-
-            return { distancia: rota.distance, duracao: rota.duration };
+        const r = await fetch(url);
+        const d = await r.json();
+        if (d.routes && d.routes[0]) {
+            return {
+                distancia: d.routes[0].distance,
+                duracao: d.routes[0].duration,
+                coords: d.routes[0].geometry.coordinates.map(c => [c[1], c[0]])
+            };
         }
     } catch (e) {
-        console.error('Erro ao calcular rota:', e);
-        // Fallback: linha reta
-        rotaLayer = L.polyline([origem, destino], {
-            color: '#d4a574',
-            weight: 4,
-            opacity: 0.8,
-            dashArray: '10, 10',
-        }).addTo(mapa);
-
-        // Distância em linha reta (haversine)
-        const dist = calcularDistanciaHaversine(origem.lat, origem.lng, destino[0], destino[1]);
-        const tempo = Math.ceil(dist / 30 * 60); // ~30 km/h média de moto
-        document.getElementById('rotaDistancia').textContent = `${dist.toFixed(1)} km`;
-        document.getElementById('rotaTempo').textContent = `~${tempo} min (estimado)`;
-        document.getElementById('mapaInfo').classList.add('show');
-        document.getElementById('btnRecalcular').style.display = 'block';
-
-        return { distancia: dist * 1000, duracao: tempo * 60 };
+        return fallbackReta(waypoints);
     }
+    return fallbackReta(waypoints);
+}
+
+function fallbackReta(waypoints) {
+    // Fallback: linha reta entre pontos + cálculo haversine
+    const coords = waypoints.map(w => [w.lat, w.lng]);
+    let dist = 0;
+    for (let i = 0; i < coords.length - 1; i++) {
+        dist += calcularDistanciaHaversine(coords[i][0], coords[i][1], coords[i+1][0], coords[i+1][1]);
+    }
+    return {
+        distancia: dist * 1000,
+        duracao: dist * 2 * 60, // ~30 km/h
+        coords
+    };
+}
+
+function atualizarInfoMapa(distanciaMetros, duracaoSegundos, qtdEntregas) {
+    const km = (distanciaMetros / 1000).toFixed(1);
+    const min = Math.ceil(duracaoSegundos / 60);
+    document.getElementById('rotaDistancia').textContent = `${km} km total`;
+    document.getElementById('rotaTempo').textContent = qtdEntregas > 1
+        ? `~${min} min • ${qtdEntregas} entregas`
+        : `~${min} min`;
+    document.getElementById('mapaInfo').classList.add('show');
 }
 
 function recalcularRota() {
-    if (pedidoEmEntrega && pedidoEmEntrega.coords) {
-        mostrarClienteNoMapa([pedidoEmEntrega.coords.lat, pedidoEmEntrega.coords.lng]);
-    }
+    otimizarERenderizarRota();
+    toast('🔄 Rota recalculada!', 'success');
 }
 
 function calcularDistanciaHaversine(lat1, lon1, lat2, lon2) {
-    const R = 6371; // km
+    const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -267,95 +375,123 @@ function calcularDistanciaHaversine(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
-// ===== PEDIDO ATUAL =====
-function renderPedidoAtual() {
+// ===== LISTA DE PEDIDOS ATUAIS (a nova tela principal) =====
+function renderPedidosAtuais() {
     const container = document.getElementById('pedidoAtual');
+    const pedidos = DB.getPedidosMotoboy(motoboyAtual);
 
-    // Buscar pedido em entrega pra esse motoboy
-    const pedido = DB.getPedidos().find(p =>
-        p.motoboyId === motoboyAtual && p.status === 'em_entrega'
-    );
-
-    if (!pedido) {
-        pedidoEmEntrega = null;
-        if (markerCliente) {
-            mapa.removeLayer(markerCliente);
-            markerCliente = null;
-        }
-        if (rotaLayer) {
-            mapa.removeLayer(rotaLayer);
-            rotaLayer = null;
-        }
-        document.getElementById('mapaInfo').classList.remove('show');
-        document.getElementById('btnRecalcular').style.display = 'none';
+    if (pedidos.length === 0) {
         container.innerHTML = `
         <div class="empty-state-mobile">
             <div class="empty-state-icon">⏳</div>
             <h3>Sem entregas no momento</h3>
-            <p>Você está disponível. Quando a pizzaria despachar um pedido, ele aparece aqui.</p>
+            <p>Você está disponível. Quando a pizzaria despachar pedidos, eles aparecem aqui em ordem otimizada.</p>
         </div>`;
+        otimizarERenderizarRota();
         return;
     }
 
-    pedidoEmEntrega = pedido;
-    const minutos = Math.floor((Date.now() - new Date(pedido.criadoEm).getTime()) / 60000);
-    const itens = pedido.itens.map(i => `
-        <div class="pac-item">
-            <span>${i.nome} (${i.tipo})</span>
-            <span>${BRL(i.preco)}</span>
-        </div>
-    `).join('');
+    // Calcula ordem otimizada pra mostrar a UI
+    const pontoAtual = markerMotoboy ? markerMotoboy.getLatLng() : L.latLng(PIZARRIA_COORDS[0], PIZZARIA_COORDS[1]);
+    const ordenados = vizinhoMaisProximo(pontoAtual, pedidos);
 
-    container.innerHTML = `
-    <div class="pedido-atual-card">
-        <div class="pac-header">
-            <span class="pac-id">#${pedido.id.toString().slice(-5)}</span>
-            <span class="pac-tempo">⏱️ há ${minutos} min</span>
+    // Header com resumo
+    const headerHtml = `
+        <div class="rota-resumo">
+            <div class="rota-resumo-titulo">
+                🗺️ <span>Rota otimizada</span>
+                <span class="rota-badge">${ordenados.length} ${ordenados.length === 1 ? 'entrega' : 'entregas'}</span>
+            </div>
+            <p class="rota-resumo-desc">Entregas organizadas por proximidade. A primeira é a mais perto de você.</p>
         </div>
-        <div class="pac-cliente">
-            <div class="pac-cliente-nome">${pedido.cliente.nome}</div>
-            <div class="pac-cliente-end">📍 ${pedido.cliente.end}</div>
-            <a class="pac-cliente-tel" href="https://wa.me/55${pedido.cliente.tel.replace(/\D/g, '')}" target="_blank">
-                📞 ${pedido.cliente.tel} (chamar)
-            </a>
-        </div>
-        <div class="pac-itens">${itens}</div>
-        <div class="pac-total">${BRL(pedido.total)} • ${pedido.cliente.pag}</div>
-        <div class="pac-acoes pac-acoes-3">
-            <button class="btn-mb secondary" onclick="abrirNavegacao()">🧭 Navegar</button>
-            <button class="btn-mb primary" onclick="ligarCliente()">📞 Ligar</button>
-            <button class="btn-mb success" onclick="finalizarEntrega(${pedido.id})">✅ Entreguei</button>
-        </div>
-        ${pedido.cliente.obs ? `<div class="peduto-obs" style="background:rgba(212,165,116,0.08);border-left:3px solid var(--gold);padding:10px;border-radius:6px;margin-top:12px;font-size:0.85rem;color:var(--gray);"><strong>Obs:</strong> ${pedido.cliente.obs}</div>` : ''}
-    </div>
     `;
 
-    // Mostra no mapa
-    if (pedido.coords) {
-        mostrarClienteNoMapa([pedido.coords.lat, pedido.coords.lng]);
-    }
+    // Lista de cards
+    const cardsHtml = ordenados.map((p, i) => {
+        const ehProxima = i === 0;
+        const minutos = Math.floor((Date.now() - new Date(p.criadoEm).getTime()) / 60000);
+        const itens = p.itens.map(it => `
+            <div class="pac-item">
+                <span>${it.nome} (${it.tipo})</span>
+                <span>${BRL(it.preco)}</span>
+            </div>
+        `).join('');
+
+        return `
+        <div class="pedido-atual-card ${ehProxima ? 'proxima' : ''}">
+            ${ehProxima ? '<div class="proxima-tag">📍 PRÓXIMA ENTREGA</div>' : ''}
+            <div class="ordem-numero">${i + 1}</div>
+            <div class="pac-header">
+                <span class="pac-id">#${p.id.toString().slice(-5)}</span>
+                <span class="pac-tempo">⏱️ há ${minutos} min</span>
+            </div>
+            <div class="pac-cliente">
+                <div class="pac-cliente-nome">${p.cliente.nome}</div>
+                <div class="pac-cliente-end">📍 ${p.cliente.end}</div>
+                <a class="pac-cliente-tel" href="https://wa.me/55${p.cliente.tel.replace(/\D/g, '')}" target="_blank">
+                    📞 ${p.cliente.tel}
+                </a>
+            </div>
+            <div class="pac-itens">${itens}</div>
+            <div class="pac-total">${BRL(p.total)} • ${p.cliente.pag}</div>
+            ${p.cliente.obs ? `<div class="pac-obs"><strong>Obs:</strong> ${p.cliente.obs}</div>` : ''}
+            <div class="pac-acoes">
+                <button class="btn-mb secondary" onclick="abrirNavegacao(${p.id})">🧭 Navegar</button>
+                <button class="btn-mb primary" onclick="ligarCliente(${p.id})">📞 Ligar</button>
+                ${ehProxima ? `<button class="btn-mb success" onclick="finalizarEntrega(${p.id})">✅ Entreguei</button>` : ''}
+            </div>
+        </div>
+        `;
+    }).join('');
+
+    // Botão de navegação "ir pra primeira entrega"
+    const irParaProxima = ordenados.length > 0 ? `
+        <button class="btn-ir-proxima" onclick="irParaProximaEntrega()">
+            🧭 Navegar até a próxima entrega (${ordenados[0].cliente.nome.split(' ')[0]})
+        </button>
+    ` : '';
+
+    container.innerHTML = headerHtml + cardsHtml + irParaProxima;
+
+    // Atualiza mapa
+    otimizarERenderizarRota();
 }
 
-// ===== AÇÕES DO MOTOBOY =====
-function abrirNavegacao() {
-    if (!pedidoEmEntrega || !pedidoEmEntrega.coords) return;
-    const { lat, lng } = pedidoEmEntrega.coords;
-    // Abre no Google Maps
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+function irParaProximaEntrega() {
+    const pedidos = DB.getPedidosMotoboy(motoboyAtual);
+    if (pedidos.length === 0) return;
+    const pontoAtual = markerMotoboy.getLatLng();
+    const ordenados = vizinhoMaisProximo(pontoAtual, pedidos);
+    const proxima = ordenados[0];
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${proxima.coords.lat},${proxima.coords.lng}&travelmode=driving`;
     window.open(url, '_blank');
 }
 
-function ligarCliente() {
-    if (!pedidoEmEntrega) return;
-    const tel = pedidoEmEntrega.cliente.tel.replace(/\D/g, '');
+// ===== AÇÕES =====
+function abrirNavegacao(pedidoId) {
+    const p = DB.getPedidos().find(x => x.id === pedidoId);
+    if (!p || !p.coords) return;
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${p.coords.lat},${p.coords.lng}&travelmode=driving`;
+    window.open(url, '_blank');
+}
+
+function ligarCliente(pedidoId) {
+    const p = DB.getPedidos().find(x => x.id === pedidoId);
+    if (!p) return;
+    const tel = p.cliente.tel.replace(/\D/g, '');
     window.location.href = `tel:+55${tel}`;
 }
 
 function finalizarEntrega(id) {
-    if (!confirm('Confirmar que a entrega foi feita?')) return;
-    DB.updatePedido(id, { status: 'entregue' });
-    // Libera o motoboy
-    DB.updateMotoboy(motoboyAtual, { status: 'disponivel' });
+    if (!confirm('Confirmar que essa entrega foi feita?')) return;
+    DB.updatePedido(id, { status: 'entregue', entregueEm: new Date().toISOString() });
+
+    // Se não tem mais entregas, libera o motoboy
+    const restantes = DB.getPedidosMotoboy(motoboyAtual);
+    if (restantes.length === 0) {
+        DB.updateMotoboy(motoboyAtual, { status: 'disponivel' });
+    }
+
     toast('🎉 Entrega finalizada!', 'success');
     tocarSom('ok');
 }
@@ -383,7 +519,7 @@ function renderHistorico() {
 
     container.innerHTML = historico.map(p => `
         <div class="historico-item">
-            <div class="historico-emoji">🍕</div>
+            <div class="historico-emoji">✅</div>
             <div class="historico-info">
                 <div class="historico-cliente">${p.cliente.nome}</div>
                 <div class="historico-end">${p.cliente.end.substring(0, 40)}...</div>
@@ -403,7 +539,6 @@ function toast(texto, tipo = '') {
     setTimeout(() => el.remove(), 4000);
 }
 
-// ===== SOM =====
 function tocarSom(tipo) {
     try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -420,7 +555,6 @@ function tocarSom(tipo) {
     } catch (e) {}
 }
 
-// ===== UTIL =====
 const BRL = (v) => 'R$ ' + v.toFixed(2).replace('.', ',');
 
 document.addEventListener('DOMContentLoaded', init);
