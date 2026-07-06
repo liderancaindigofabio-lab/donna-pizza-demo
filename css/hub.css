@@ -1,51 +1,44 @@
 /* ============================================
-   NONNA PIZZARIA — Hub Premium
-   Visual: italiano moderno, escuro, dourado
+   NONNA PIZZARIA — Hub
+   Visual: italiano clássico, claro, elegante
+   Paleta Nonna: #2F4A2C (verde-oliva), #D84A32 (tomate),
+                 #F7F2EA (creme), #2C2C2C (texto)
    ============================================ */
 
 :root {
-    --red: #D84A32;
-    --red-dark: #A03828;
-    --gold: #2F4A2C;
-    --gold-bright: #5C7A3F;
-    --dark: #0a0a0a;
-    --dark-2: #161616;
-    --dark-3: #1f1f1f;
-    --light: #faf6f0;
-    --gray: #888;
-    --border: #2a2a2a;
-    --whatsapp: #25d366;
+    --green:        #2F4A2C;   /* verde-oliva escuro (logo) */
+    --green-light:  #5C7A3F;   /* verde claro (hover/destaque) */
+    --red:          #D84A32;   /* vermelho tomate (logo) */
+    --red-dark:     #A03828;   /* tomate escuro (hover) */
+    --cream:        #F7F2EA;   /* creme (fundo principal) */
+    --cream-2:      #EFE8DC;   /* creme escuro (cards) */
+    --text:         #2C2C2C;   /* texto principal */
+    --text-soft:    #6B6B6B;   /* texto secundário */
+    --border:       #D9D0BE;   /* bordas suaves */
+    --whatsapp:     #25D366;
+    --shadow-sm:    0 2px 8px rgba(47, 74, 44, 0.06);
+    --shadow-md:    0 8px 24px rgba(47, 74, 44, 0.10);
+    --shadow-lg:    0 16px 48px rgba(47, 74, 44, 0.14);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    background: var(--dark);
-    color: var(--light);
+    background: var(--cream);
+    color: var(--text);
     min-height: 100vh;
     overflow-x: hidden;
-    position: relative;
 }
 
-/* Fundo decorativo animado */
+/* Decoração sutil de fundo (sem grade exagerada) */
 .bg-decoration {
     position: fixed;
     inset: 0;
     z-index: 0;
     background:
-        radial-gradient(circle at 20% 10%, rgba(200, 32, 42, 0.15), transparent 40%),
-        radial-gradient(circle at 80% 80%, rgba(212, 165, 116, 0.1), transparent 40%);
-    pointer-events: none;
-}
-
-.bg-decoration::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background-image:
-        radial-gradient(circle at 50% 50%, rgba(212, 165, 116, 0.05) 1px, transparent 1px);
-    background-size: 30px 30px;
+        radial-gradient(circle at 15% 10%, rgba(216, 74, 50, 0.05), transparent 50%),
+        radial-gradient(circle at 85% 90%, rgba(47, 74, 44, 0.06), transparent 50%);
     pointer-events: none;
 }
 
@@ -53,9 +46,9 @@ body {
 .hub {
     position: relative;
     z-index: 1;
-    max-width: 1200px;
+    max-width: 1100px;
     margin: 0 auto;
-    padding: 60px 20px;
+    padding: 60px 24px;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -65,185 +58,163 @@ body {
 /* Brand */
 .hub-brand {
     text-align: center;
-    margin-bottom: 50px;
+    margin-bottom: 56px;
     animation: fadeDown 0.8s ease-out;
 }
 
 @keyframes fadeDown {
-    from { opacity: 0; transform: translateY(-20px); }
-    to { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: translateY(-12px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
 .brand-logo {
-    width: 140px;
+    width: 96px;          /* tamanho proporcional e elegante */
     height: auto;
-    margin-bottom: 10px;
-    filter: drop-shadow(0 4px 20px rgba(47, 74, 44, 0.5));
-    animation: float 3s ease-in-out infinite;
+    margin: 0 auto 16px;
+    display: block;
+    filter: drop-shadow(0 4px 12px rgba(47, 74, 44, 0.15));
+    animation: float 4s ease-in-out infinite;
 }
 
 @keyframes float {
     0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
+    50%      { transform: translateY(-4px); }
 }
 
 .hub-brand h1 {
-    font-family: 'Playfair Display', serif;
-    font-size: 3.5rem;
-    font-weight: 900;
-    background: linear-gradient(135deg, var(--gold) 0%, var(--gold-bright) 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    letter-spacing: 2px;
-    text-shadow: 0 2px 20px rgba(212, 165, 116, 0.3);
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 2.6rem;
+    font-weight: 700;
+    color: var(--green);
+    letter-spacing: 4px;
+    margin-bottom: 6px;
 }
 
 .brand-tag {
-    font-size: 1.1rem;
-    color: var(--gold);
-    font-weight: 500;
-    margin-top: 5px;
-    letter-spacing: 3px;
-    text-transform: uppercase;
+    font-family: 'Playfair Display', Georgia, serif;
+    font-style: italic;
+    color: var(--red);
+    font-size: 1.05rem;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
 }
 
 .brand-sub {
-    color: var(--gray);
+    color: var(--text-soft);
     font-size: 0.9rem;
-    margin-top: 15px;
+    letter-spacing: 1px;
 }
 
 /* Grid de cards */
 .hub-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 24px;
-    margin-bottom: 50px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 22px;
+    margin-bottom: 40px;
 }
 
 .hub-card {
-    background: linear-gradient(135deg, var(--dark-2), var(--dark-3));
+    background: var(--cream-2);
     border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 32px;
+    border-radius: 16px;
+    padding: 28px 24px;
     text-decoration: none;
-    color: var(--light);
+    color: var(--text);
     display: flex;
-    flex-direction: column;
-    gap: 20px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    align-items: flex-start;
+    gap: 16px;
     position: relative;
-    overflow: hidden;
-    cursor: pointer;
-    animation: fadeUp 0.8s ease-out backwards;
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow-sm);
 }
-
-.hub-card:nth-child(1) { animation-delay: 0.1s; }
-.hub-card:nth-child(2) { animation-delay: 0.2s; }
-.hub-card:nth-child(3) { animation-delay: 0.3s; }
-
-@keyframes fadeUp {
-    from { opacity: 0; transform: translateY(30px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.hub-card::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: var(--accent-color, var(--red));
-    opacity: 0;
-    transition: opacity 0.3s;
-    pointer-events: none;
-    z-index: 0;
-}
-
-.hub-card.cliente { --accent-color: linear-gradient(135deg, rgba(200, 32, 42, 0.2), rgba(139, 19, 26, 0.1)); }
-.hub-card.pizzaria { --accent-color: linear-gradient(135deg, rgba(212, 165, 116, 0.2), rgba(244, 197, 66, 0.1)); }
-.hub-card.motoboy { --accent-color: linear-gradient(135deg, rgba(37, 211, 102, 0.2), rgba(18, 140, 64, 0.1)); }
 
 .hub-card:hover {
-    transform: translateY(-8px);
-    border-color: var(--gold);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 30px rgba(212, 165, 116, 0.2);
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--green);
+    background: #fff;
 }
 
-.hub-card:hover::before { opacity: 1; }
-
-.hub-card > * { position: relative; z-index: 1; }
+.hub-card.cliente:hover      { border-color: var(--red); }
+.hub-card.pizzaria:hover     { border-color: var(--green); }
+.hub-card.motoboy:hover      { border-color: var(--red); }
 
 .card-icon {
-    font-size: 4rem;
-    line-height: 1;
-    margin-bottom: 8px;
-    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
+    font-size: 2.2rem;
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--cream);
+    border-radius: 12px;
+    border: 1px solid var(--border);
 }
 
+.hub-card.cliente .card-icon    { color: var(--red); }
+.hub-card.pizzaria .card-icon   { color: var(--green); }
+.hub-card.motoboy .card-icon    { color: var(--red); }
+
+.card-content { flex: 1; }
 .card-content h2 {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.8rem;
-    margin-bottom: 5px;
-    color: var(--light);
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 1.4rem;
+    color: var(--green);
+    margin-bottom: 4px;
 }
-
-.card-content p {
-    color: var(--gold);
-    font-size: 0.95rem;
-    margin-bottom: 15px;
-    font-weight: 500;
+.card-content > p {
+    color: var(--text-soft);
+    font-size: 0.9rem;
+    margin-bottom: 14px;
 }
 
 .card-features {
     list-style: none;
-    padding: 0;
-    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
-
 .card-features li {
-    color: #ccc;
-    font-size: 0.9rem;
-    padding: 6px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 0.85rem;
+    color: var(--text);
+    padding-left: 4px;
 }
-
-.card-features li:last-child { border-bottom: none; }
+.card-features li::before {
+    content: "✓";
+    color: var(--green);
+    font-weight: 700;
+    margin-right: 8px;
+}
 
 .card-arrow {
-    position: absolute;
-    top: 32px;
-    right: 32px;
-    font-size: 1.5rem;
-    color: var(--gold);
-    transition: transform 0.3s;
+    align-self: center;
+    color: var(--text-soft);
+    font-size: 1.2rem;
+    transition: transform 0.3s, color 0.3s;
 }
-
 .hub-card:hover .card-arrow {
-    transform: translateX(8px);
-    color: var(--gold-bright);
+    transform: translateX(4px);
+    color: var(--green);
 }
 
 /* Footer */
 .hub-footer {
     text-align: center;
-    padding: 30px 20px;
-    background: rgba(212, 165, 116, 0.05);
-    border: 1px solid rgba(212, 165, 116, 0.2);
-    border-radius: 12px;
-    color: var(--gray);
-    font-size: 0.9rem;
-    line-height: 1.7;
+    color: var(--text-soft);
+    font-size: 0.85rem;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+}
+.hub-footer strong {
+    color: var(--green);
+    font-weight: 600;
 }
 
-.hub-footer strong { color: var(--gold); }
-
-/* Mobile */
-@media (max-width: 768px) {
-    .hub { padding: 40px 16px; }
-    .hub-brand h1 { font-size: 2.5rem; }
-    .brand-logo { width: 110px; }
-    .hub-card { padding: 24px; }
-    .card-content h2 { font-size: 1.5rem; }
-    .card-icon { font-size: 3rem; }
-    .card-arrow { display: none; }
+/* Responsivo */
+@media (max-width: 900px) {
+    .hub-grid { grid-template-columns: 1fr; }
+    .hub-brand h1 { font-size: 2.2rem; }
+    .brand-logo { width: 80px; }
+    .hub { padding: 40px 20px; }
 }

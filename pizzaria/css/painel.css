@@ -7,12 +7,12 @@
     --red-dark: #A03828;
     --gold: #2F4A2C;
     --gold-bright: #5C7A3F;
-    --dark: #0d0d0d;
-    --dark-2: #1a1a1a;
-    --dark-3: #242424;
-    --light: #faf6f0;
+    --dark: #0f1410;
+    --dark-2: #1a201c;
+    --dark-3: #252b27;
+    --light: #F7F2EA;
     --gray: #888;
-    --border: #2a2a2a;
+    --border: #2f3833;
     --whatsapp: #25d366;
     --gradient-gold: linear-gradient(135deg, #d4a574, #f4c542);
     --gradient-red: linear-gradient(135deg, #c8202a, #8b131a);
@@ -64,9 +64,10 @@ body {
 }
 
 .brand-icon {
-    width: 55px;
+    width: 44px;
     height: auto;
-    filter: drop-shadow(0 4px 12px rgba(47, 74, 44, 0.5));
+    border-radius: 6px;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3));
 }
 
 .header-brand h1 {

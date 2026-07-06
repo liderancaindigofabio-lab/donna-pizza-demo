@@ -7,16 +7,16 @@
     --red-dark: #A03828;
     --gold: #2F4A2C;
     --gold-bright: #5C7A3F;
-    --dark: #0d0d0d;
-    --dark-2: #1a1a1a;
-    --dark-3: #242424;
-    --light: #faf6f0;
+    --dark: #0f1410;
+    --dark-2: #1a201c;
+    --dark-3: #252b27;
+    --light: #F7F2EA;
     --gray: #999;
-    --border: #2a2a2a;
+    --border: #2f3833;
     --whatsapp: #25d366;
     --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    --gradient-gold: linear-gradient(135deg, #d4a574, #f4c542);
-    --gradient-red: linear-gradient(135deg, #c8202a, #8b131a);
+    --gradient-gold: linear-gradient(135deg, #2F4A2C, #5C7A3F);
+    --gradient-red: linear-gradient(135deg, #D84A32, #A03828);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -87,9 +87,10 @@ body {
 }
 
 .brand-emoji {
-    width: 70px;
+    width: 52px;
     height: auto;
-    filter: drop-shadow(0 4px 12px rgba(47, 74, 44, 0.5));
+    border-radius: 8px;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3));
 }
 
 .header-brand h1 {
@@ -928,7 +929,7 @@ body {
 /* Mobile */
 @media (max-width: 600px) {
     .header-brand h1 { font-size: 1.5rem; }
-    .brand-emoji { width: 55px; }
+    .brand-emoji { width: 44px; }
     .produto { flex-direction: row; }
     .produto-img { width: 100px; min-height: 110px; font-size: 2.8rem; }
     .carrinho-fab { width: 56px; height: 56px; font-size: 1.5rem; }
