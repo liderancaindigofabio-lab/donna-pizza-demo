@@ -141,10 +141,11 @@ body {
     background: linear-gradient(135deg, var(--dark-2), var(--dark-3));
     border: 1px solid var(--border);
     border-radius: 16px;
-    padding: 20px 24px;
+    padding: 18px 22px;
     transition: all 0.3s;
     position: relative;
     overflow: hidden;
+    min-width: 0;
 }
 
 .metric-card::before {
@@ -174,14 +175,15 @@ body {
 }
 
 .metric-value {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.6rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 1.8rem;
     color: var(--gold);
-    font-weight: 900;
+    font-weight: 800;
     line-height: 1.1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    letter-spacing: -0.5px;
 }
 
 .metric-card.highlight .metric-value { color: var(--light); }
@@ -1095,4 +1097,4 @@ body {
     font-size: 0.85em;
 }
 
-/* fix-rs-1783316463 */
+/* fix-rs-final-1783316549 */
