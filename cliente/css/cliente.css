@@ -455,8 +455,8 @@ body {
     padding: 0;
     max-width: 540px;
     width: 100%;
-    max-height: 90vh;
-    overflow: hidden;
+    max-height: 92vh;
+    overflow-y: auto;
     border: 1px solid var(--border);
     box-shadow: var(--shadow);
     animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1309,4 +1309,4 @@ body {
 
 .produto-tags { margin-top: 4px; }
 
-/* flex-start-1783316906 */
+/* overflow-y-modal-content-1783317028 */
