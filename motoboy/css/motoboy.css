@@ -331,20 +331,32 @@ body {
 .marker-cliente {
     background: var(--azul);
     border: 3px solid white;
-    border-radius: 50% 50% 50% 0;
+    border-radius: 50%;
     width: 36px;
     height: 36px;
-    transform: rotate(-45deg);
     display: flex;
     align-items: center;
     justify-content: center;
     box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+    color: white;
+    font-weight: 800;
+    font-size: 1rem;
+    font-family: 'Inter', sans-serif;
 }
 
-.marker-cliente::after {
-    content: "🏠";
-    transform: rotate(45deg);
-    font-size: 1.1rem;
+.marker-cliente.destaque {
+    background: var(--whatsapp);
+    border-color: var(--gold);
+    width: 44px;
+    height: 44px;
+    font-size: 1.2rem;
+    box-shadow: 0 0 24px rgba(37, 211, 102, 0.6);
+    animation: markerPulse 2s infinite;
+}
+
+@keyframes markerPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.6); }
+    50% { box-shadow: 0 0 0 12px rgba(37, 211, 102, 0); }
 }
 
 .marker-motoboy {
@@ -363,17 +375,84 @@ body {
 /* ===== PEDIDO ATUAL ===== */
 .pedido-atual {
     margin: 16px;
-    background: linear-gradient(135deg, var(--dark-2), var(--dark-3));
+    background: transparent;
     border-radius: 16px;
-    padding: 20px;
-    border: 1px solid var(--border);
 }
 
 .empty-state-mobile {
     text-align: center;
     padding: 40px 20px;
     color: var(--gray);
+    background: linear-gradient(135deg, var(--dark-2), var(--dark-3));
+    border-radius: 16px;
+    border: 1px solid var(--border);
 }
+
+/* Resumo da rota */
+.rota-resumo {
+    background: linear-gradient(135deg, rgba(212, 165, 116, 0.15), rgba(244, 197, 66, 0.05));
+    border: 1px solid var(--gold);
+    border-radius: 14px;
+    padding: 14px 18px;
+    margin-bottom: 14px;
+    position: relative;
+    overflow: hidden;
+}
+
+.rota-resumo::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px; height: 100%;
+    background: var(--gradient-gold);
+}
+
+.rota-resumo-titulo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--gold);
+    font-weight: 700;
+    font-size: 1.05rem;
+    margin-bottom: 4px;
+}
+
+.rota-resumo-titulo span:first-child { flex: 1; }
+
+.rota-badge {
+    background: var(--whatsapp);
+    color: white;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.rota-resumo-desc {
+    color: var(--gray);
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+/* Botão ir para próxima */
+.btn-ir-proxima {
+    width: 100%;
+    background: linear-gradient(135deg, #2196f3, #1976d2);
+    color: white;
+    border: none;
+    padding: 16px;
+    border-radius: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-top: 14px;
+    box-shadow: 0 4px 16px rgba(33, 150, 243, 0.4);
+    transition: all 0.2s;
+}
+
+.btn-ir-proxima:hover { transform: translateY(-1px); }
+.btn-ir-proxima:active { transform: scale(0.98); }
 
 .empty-state-icon {
     font-size: 4rem;
@@ -449,6 +528,66 @@ body {
     font-weight: 600;
     font-size: 0.95rem;
     display: inline-block;
+}
+
+/* Card "próxima entrega" em destaque */
+.pedido-atual-card.proxima {
+    background: linear-gradient(135deg, rgba(37, 211, 102, 0.12), var(--dark-3));
+    border: 2px solid var(--whatsapp);
+    box-shadow: 0 0 20px rgba(37, 211, 102, 0.2);
+}
+
+.proxima-tag {
+    background: var(--whatsapp);
+    color: white;
+    text-align: center;
+    padding: 8px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin-bottom: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.ordem-numero {
+    position: absolute;
+    top: 50px;
+    right: 20px;
+    background: var(--gradient-gold);
+    color: var(--dark);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem;
+    font-weight: 900;
+    z-index: 5;
+    box-shadow: 0 4px 12px rgba(212, 165, 116, 0.4);
+}
+
+.pedido-atual-card.proxima .ordem-numero {
+    background: var(--whatsapp);
+    color: white;
+    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4);
+}
+
+.pedido-atual-card {
+    position: relative;
+}
+
+.pac-obs {
+    background: rgba(212, 165, 116, 0.08);
+    border-left: 3px solid var(--gold);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: var(--gray);
+    margin-bottom: 12px;
+    line-height: 1.4;
 }
 
 .pac-itens {
