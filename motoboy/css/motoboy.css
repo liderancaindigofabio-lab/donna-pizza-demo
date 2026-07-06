@@ -16,8 +16,8 @@
     --border: #2f3833;
     --whatsapp: #25d366;
     --azul: #2196f3;
-    --gradient-gold: linear-gradient(135deg, #d4a574, #f4c542);
-    --gradient-red: linear-gradient(135deg, #c8202a, #8b131a);
+    --gradient-gold: linear-gradient(135deg, #2F4A2C, #5C7A3F);
+    --gradient-red: linear-gradient(135deg, #D84A32, #A03828);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -38,7 +38,7 @@ body {
     justify-content: center;
     padding: 20px;
     background:
-        radial-gradient(circle at 20% 20%, rgba(212, 165, 116, 0.1), transparent 40%),
+        radial-gradient(circle at 20% 20%, rgba(47, 74, 44, 0.1), transparent 40%),
         radial-gradient(circle at 80% 80%, rgba(33, 150, 243, 0.1), transparent 40%),
         var(--dark);
 }
@@ -157,7 +157,7 @@ body {
     border-radius: 16px;
 }
 
-.back-link:hover { background: rgba(212, 165, 116, 0.1); }
+.back-link:hover { background: rgba(47, 74, 44, 0.1); }
 
 .motoboy-info-header {
     display: flex;
@@ -392,7 +392,7 @@ body {
 
 /* Resumo da rota */
 .rota-resumo {
-    background: linear-gradient(135deg, rgba(212, 165, 116, 0.15), rgba(244, 197, 66, 0.05));
+    background: linear-gradient(135deg, rgba(47, 74, 44, 0.15), rgba(244, 197, 66, 0.05));
     border: 1px solid var(--gold);
     border-radius: 14px;
     padding: 14px 18px;
@@ -568,7 +568,7 @@ body {
     font-size: 1.3rem;
     font-weight: 900;
     z-index: 5;
-    box-shadow: 0 4px 12px rgba(212, 165, 116, 0.4);
+    box-shadow: 0 4px 12px rgba(47, 74, 44, 0.4);
 }
 
 .pedido-atual-card.proxima .ordem-numero {
@@ -582,7 +582,7 @@ body {
 }
 
 .pac-obs {
-    background: rgba(212, 165, 116, 0.08);
+    background: rgba(47, 74, 44, 0.08);
     border-left: 3px solid var(--gold);
     padding: 8px 12px;
     border-radius: 6px;

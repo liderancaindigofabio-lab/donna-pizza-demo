@@ -14,8 +14,8 @@
     --gray: #888;
     --border: #2f3833;
     --whatsapp: #25d366;
-    --gradient-gold: linear-gradient(135deg, #d4a574, #f4c542);
-    --gradient-red: linear-gradient(135deg, #c8202a, #8b131a);
+    --gradient-gold: linear-gradient(135deg, #2F4A2C, #5C7A3F);
+    --gradient-red: linear-gradient(135deg, #D84A32, #A03828);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -55,7 +55,7 @@ body {
     transition: background 0.2s;
 }
 
-.back-link:hover { background: rgba(212, 165, 116, 0.1); }
+.back-link:hover { background: rgba(47, 74, 44, 0.1); }
 
 .header-brand {
     display: flex;
@@ -161,7 +161,7 @@ body {
 }
 
 .metric-card.highlight {
-    background: linear-gradient(135deg, rgba(200, 32, 42, 0.15), var(--dark-3));
+    background: linear-gradient(135deg, rgba(216, 74, 50, 0.15), var(--dark-3));
     border-color: var(--red);
 }
 
@@ -233,7 +233,7 @@ body {
     background: var(--gradient-red);
     border-color: var(--red);
     color: white;
-    box-shadow: 0 4px 12px rgba(200, 32, 42, 0.3);
+    box-shadow: 0 4px 12px rgba(216, 74, 50, 0.3);
 }
 
 .tab-count {
@@ -307,8 +307,8 @@ body {
 
 .pedido-card.novo {
     border-color: var(--red);
-    background: linear-gradient(135deg, rgba(200, 32, 42, 0.1), var(--dark-3));
-    box-shadow: 0 0 30px rgba(200, 32, 42, 0.2);
+    background: linear-gradient(135deg, rgba(216, 74, 50, 0.1), var(--dark-3));
+    box-shadow: 0 0 30px rgba(216, 74, 50, 0.2);
 }
 
 .pedido-card.preparando {
@@ -409,7 +409,7 @@ body {
 .item-preco { color: var(--gray); }
 
 .peduto-obs {
-    background: rgba(212, 165, 116, 0.08);
+    background: rgba(47, 74, 44, 0.08);
     border-left: 3px solid var(--gold);
     padding: 8px 12px;
     border-radius: 6px;
@@ -565,7 +565,7 @@ body {
 }
 
 .dica-acumular {
-    background: linear-gradient(135deg, rgba(212, 165, 116, 0.12), rgba(244, 197, 66, 0.06));
+    background: linear-gradient(135deg, rgba(47, 74, 44, 0.12), rgba(244, 197, 66, 0.06));
     border: 1px solid var(--gold);
     border-radius: 10px;
     padding: 10px 14px;
@@ -886,7 +886,7 @@ body {
 }
 
 .editor-sabor {
-    background: linear-gradient(135deg, rgba(212, 165, 116, 0.05), var(--dark-3));
+    background: linear-gradient(135deg, rgba(47, 74, 44, 0.05), var(--dark-3));
 }
 
 .ei-header {
@@ -954,7 +954,7 @@ body {
 .cliente-historico-btn {
     display: inline-block;
     margin-top: 6px;
-    background: linear-gradient(135deg, rgba(212, 165, 116, 0.15), rgba(244, 197, 66, 0.05));
+    background: linear-gradient(135deg, rgba(47, 74, 44, 0.15), rgba(244, 197, 66, 0.05));
     border: 1px solid var(--gold);
     color: var(--gold);
     padding: 5px 10px;
@@ -967,7 +967,7 @@ body {
 }
 
 .cliente-historico-btn:hover {
-    background: linear-gradient(135deg, rgba(212, 165, 116, 0.25), rgba(244, 197, 66, 0.1));
+    background: linear-gradient(135deg, rgba(47, 74, 44, 0.25), rgba(244, 197, 66, 0.1));
 }
 
 .cliente-historico-tag {
