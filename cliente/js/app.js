@@ -811,8 +811,8 @@ function toast(texto, tipo = '') {
 }
 
 function toggleTheme() {
-    document.body.classList.toggle('light-theme');
-    toast(document.body.classList.contains('light-theme') ? '☀️ Tema claro' : '🌙 Tema escuro');
+    // Mantém o mesmo tom de creme/bege em todos os modos, sem inverter cores
+    toast('☀️ Nonna Pizzaria');
 }
 
 document.addEventListener('DOMContentLoaded', init);
