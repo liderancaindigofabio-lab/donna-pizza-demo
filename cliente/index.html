@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donna Pizza — Cardápio</title>
+    <link rel="stylesheet" href="css/cliente.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍕</text></svg>">
+</head>
+<body>
+
+<!-- HEADER PREMIUM -->
+<header class="cliente-header">
+    <div class="header-top">
+        <a href="../" class="back-link">← Voltar</a>
+        <div class="header-actions">
+            <button class="icon-btn" onclick="toggleTheme()" title="Tema">🌙</button>
+            <button class="icon-btn" onclick="abrirAcompanhamento()" title="Acompanhar pedido">📍</button>
+        </div>
+    </div>
+    <div class="header-brand">
+        <div class="brand-emoji">🍕</div>
+        <div>
+            <h1>DONNA PIZZA</h1>
+            <div class="brand-meta">
+                <span>⭐ 4.9 (327)</span>
+                <span>🕐 25-40 min</span>
+                <span class="status-badge" id="statusLoja">● Aberto</span>
+            </div>
+        </div>
+    </div>
+    <div class="header-search">
+        <input type="search" id="searchInput" placeholder="🔍 Buscar pizza, bebida..." oninput="filtrarProdutos()">
+    </div>
+</header>
+
+<!-- CUPOM -->
+<div class="cupom-hero" onclick="abrirCupom()">
+    <div class="cupom-content">
+        <div class="cupom-tag">🎁 CUPOM</div>
+        <div>
+            <strong>DONNA10</strong> — 10% OFF na primeira compra
+        </div>
+    </div>
+    <span>→</span>
+</div>
+
+<!-- CATEGORIAS STICKY -->
+<nav class="categorias-bar" id="categoriasBar"></nav>
+
+<!-- CONTAINER -->
+<main class="produtos-container" id="produtos"></main>
+
+<!-- CARRINHO FLUTUANTE -->
+<button class="carrinho-fab" onclick="abrirCarrinho()" aria-label="Carrinho">
+    🛒
+    <span class="carrinho-count" id="carrinhoCount" style="display:none">0</span>
+    <span class="carrinho-valor" id="carrinhoValor"></span>
+</button>
+
+<!-- MODAL CARRINHO -->
+<div class="modal" id="modalCarrinho">
+    <div class="modal-content">
+        <header class="modal-header">
+            <h2>🛒 Seu Pedido</h2>
+            <button class="modal-close" onclick="fecharCarrinho()">×</button>
+        </header>
+        <div id="carrinhoLista" class="carrinho-lista"></div>
+        <div class="cupom-area">
+            <div class="cupom-input-group">
+                <input type="text" id="cupomInput" placeholder="Cupom de desconto" autocapitalize="characters">
+                <button onclick="aplicarCupom()" class="btn-secondary">Aplicar</button>
+            </div>
+            <div id="cupomMsg" class="cupom-msg"></div>
+        </div>
+        <div class="carrinho-resumo">
+            <div class="resumo-linha">
+                <span>Subtotal</span>
+                <span id="resumoSubtotal">R$ 0,00</span>
+            </div>
+            <div class="resumo-linha">
+                <span>Taxa de entrega</span>
+                <span id="resumoTaxa">R$ 0,00</span>
+            </div>
+            <div class="resumo-linha desconto" id="linhaDesconto" style="display:none">
+                <span id="descLabel">Desconto</span>
+                <span id="resumoDesconto">-R$ 0,00</span>
+            </div>
+            <div class="resumo-linha total">
+                <span>Total</span>
+                <span id="resumoTotal">R$ 0,00</span>
+            </div>
+        </div>
+        <button class="btn-primary btn-finalizar" onclick="abrirCheckout()">
+            📱 Finalizar pedido
+        </button>
+    </div>
+</div>
+
+<!-- MODAL OPÇÕES (tamanho, sabor) -->
+<div class="modal" id="modalOpcoes">
+    <div class="modal-content">
+        <header class="modal-header">
+            <h2 id="modalOpcoesTitulo">Escolha o tamanho</h2>
+            <button class="modal-close" onclick="fecharOpcoes()">×</button>
+        </header>
+        <div id="opcoesBody" class="opcoes-body"></div>
+        <button class="btn-primary" onclick="confirmarOpcoes()" style="margin-top:16px">
+            ✓ Adicionar ao carrinho
+        </button>
+    </div>
+</div>
+
+<!-- MODAL CHECKOUT -->
+<div class="modal" id="modalCheckout">
+    <div class="modal-content">
+        <header class="modal-header">
+            <h2>📍 Dados da entrega</h2>
+            <button class="modal-close" onclick="fecharCheckout()">×</button>
+        </header>
+        <div class="form-grid">
+            <div class="form-group full">
+                <label>Seu nome *</label>
+                <input type="text" id="cliNome" placeholder="João Silva">
+            </div>
+            <div class="form-group">
+                <label>Telefone *</label>
+                <input type="tel" id="cliTel" placeholder="(00) 90000-0000">
+            </div>
+            <div class="form-group">
+                <label>CEP</label>
+                <input type="text" id="cliCep" placeholder="00000-000">
+            </div>
+            <div class="form-group full">
+                <label>Endereço completo *</label>
+                <input type="text" id="cliEnd" placeholder="Rua, número, bairro">
+            </div>
+            <div class="form-group full">
+                <label>Forma de pagamento *</label>
+                <select id="cliPag">
+                    <option value="Dinheiro">💵 Dinheiro (troco para ?)</option>
+                    <option value="Pix">📱 Pix</option>
+                    <option value="Cartão na entrega (Débito)">💳 Cartão Débito</option>
+                    <option value="Cartão na entrega (Crédito)">💳 Cartão Crédito</option>
+                </select>
+            </div>
+            <div class="form-group full">
+                <label>Observações</label>
+                <textarea id="cliObs" rows="2" placeholder="Sem cebola, massa fina, ponto da carne..."></textarea>
+            </div>
+        </div>
+        <div class="checkout-pagamento-info" id="pagInfo"></div>
+        <button class="btn-primary" onclick="finalizarPedido()">
+            🚀 Enviar pedido
+        </button>
+        <p class="checkout-aviso">Você será redirecionado para o WhatsApp da pizzaria para confirmar o pedido.</p>
+    </div>
+</div>
+
+<!-- MODAL ACOMPANHAR PEDIDO -->
+<div class="modal" id="modalAcompanhamento">
+    <div class="modal-content">
+        <header class="modal-header">
+            <h2>📍 Seu pedido</h2>
+            <button class="modal-close" onclick="fecharAcompanhamento()">×</button>
+        </header>
+        <div id="pedidoAcompanhamento"></div>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div id="toastContainer"></div>
+
+<script src="../js/storage.js"></script>
+<script src="js/dados.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
