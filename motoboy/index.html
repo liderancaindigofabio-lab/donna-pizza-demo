@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donna Pizza — App do Motoboy</title>
+    <link rel="stylesheet" href="css/motoboy.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛵</text></svg>">
+</head>
+<body>
+
+<!-- SELEÇÃO DE MOTOBOY (login simulado) -->
+<div class="login-screen" id="loginScreen">
+    <div class="login-content">
+        <div class="login-emoji">🛵</div>
+        <h1>App do Motoboy</h1>
+        <p>Escolha seu perfil pra entrar</p>
+        <div class="motoboy-login-list" id="motoboyLoginList"></div>
+    </div>
+</div>
+
+<!-- APP (aparece depois do login) -->
+<div class="app-screen" id="appScreen" style="display:none">
+
+    <!-- HEADER -->
+    <header class="motoboy-header">
+        <div class="header-left">
+            <a href="../" class="back-link">← Sair</a>
+            <div class="motoboy-info-header">
+                <div class="motoboy-avatar-small" id="motoboyAvatar">👨🏾</div>
+                <div>
+                    <div class="motoboy-nome-header" id="motoboyNome">Nome</div>
+                    <div class="motoboy-status-toggle" id="statusToggle" onclick="toggleStatus()">
+                        <span class="status-dot"></span> Disponível
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="entregas-contador" id="entregasContador">
+                <span class="contador-numero">0</span>
+                <span class="contador-label">hoje</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAPA -->
+    <div class="mapa-container">
+        <div id="mapa"></div>
+        <div class="mapa-info" id="mapaInfo">
+            <div class="mapa-info-content">
+                <strong id="rotaDistancia">--</strong>
+                <span id="rotaTempo">calculando rota...</span>
+            </div>
+        </div>
+        <button class="btn-recalcular" onclick="recalcularRota()" id="btnRecalcular" style="display:none">
+            🔄 Recalcular rota
+        </button>
+    </div>
+
+    <!-- PEDIDO ATUAL (em destaque) -->
+    <div class="pedido-atual" id="pedidoAtual">
+        <div class="empty-state-mobile">
+            <div class="empty-state-icon">⏳</div>
+            <h3>Sem entregas no momento</h3>
+            <p>Você está disponível. Quando a pizzaria despachar um pedido, ele aparece aqui.</p>
+        </div>
+    </div>
+
+    <!-- HISTÓRICO DO DIA -->
+    <section class="historico-section">
+        <h3 class="historico-titulo">📋 Histórico de hoje</h3>
+        <div class="historico-lista" id="historicoLista">
+            <p class="historico-vazio">Nenhuma entrega ainda hoje</p>
+        </div>
+    </section>
+
+</div>
+
+<!-- TOAST -->
+<div id="toastContainer"></div>
+
+<script src="../js/storage.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="js/motoboy.js"></script>
+</body>
+</html>
