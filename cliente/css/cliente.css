@@ -443,6 +443,7 @@ body {
     padding: 16px;
     animation: fadeIn 0.2s;
     backdrop-filter: blur(8px);
+    overflow-y: auto;
     -webkit-backdrop-filter: blur(8px);
 }
 
@@ -1308,4 +1309,4 @@ body {
 
 .produto-tags { margin-top: 4px; }
 
-/* rebuild-1783316260 */
+/* fix-modal-1783316795 */
