@@ -193,21 +193,37 @@ function abrirDespacho(pedidoId) {
 
     const motoboys = DB.getMotoboys();
     const motoboysHtml = motoboys.map(m => {
-        const ind = m.status !== 'disponivel';
+        // Agora motoboys "entregando" PODEM receber mais (vão acumular)
+        const emRota = DB.getPedidosMotoboy(m.id);
+        const qtdRota = emRota.length;
+        const isDisponivel = m.status === 'disponivel';
         return `
-        <div class="motoboy-card ${ind ? 'indisponivel' : ''}" onclick="${ind ? '' : `selecionarMotoboy(${m.id})`}" data-motoboy="${m.id}">
+        <div class="motoboy-card ${!isDisponivel && qtdRota === 0 ? 'indisponivel' : ''}" onclick="${qtdRota === 0 && !isDisponivel ? '' : `selecionarMotoboy(${m.id})`}" data-motoboy="${m.id}">
             <div class="motoboy-avatar">${m.foto}</div>
             <div class="motoboy-info">
                 <div class="motoboy-nome">${m.nome}</div>
                 <div class="motoboy-moto">${m.moto}</div>
                 <div class="motoboy-moto">📞 ${m.telefone}</div>
+                ${qtdRota > 0 ? `<div class="motoboy-carga">📦 ${qtdRota} entrega${qtdRota > 1 ? 's' : ''} em rota</div>` : ''}
             </div>
-            <span class="motoboy-status-tag ${m.status}">${m.status === 'disponivel' ? 'Disponível' : 'Em entrega'}</span>
+            <span class="motoboy-status-tag ${m.status}">${
+                m.status === 'disponivel' ? 'Disponível' :
+                qtdRota > 0 ? `🛵 Em rota (${qtdRota})` : 'Em entrega'
+            }</span>
         </div>
         `;
     }).join('');
 
+    // Dica visual: motoboys com pedidos em rota podem acumular mais
+    const temMotoboyEmRota = motoboys.some(m => DB.getPedidosMotoboy(m.id).length > 0);
+    const dicaAcumular = temMotoboyEmRota ? `
+        <div class="dica-acumular">
+            💡 <strong>Dica:</strong> motoboys com entregas em rota podem receber mais pedidos — o sistema calcula a melhor ordem automaticamente!
+        </div>
+    ` : '';
+
     document.getElementById('despachoBody').innerHTML = `
+        ${dicaAcumular}
         <div class="despacho-info-pedido">
             <h4>📦 Pedido #${pedido.id.toString().slice(-5)}</h4>
             <p><strong>Cliente:</strong> ${pedido.cliente.nome}</p>
@@ -237,9 +253,14 @@ function confirmarDespacho() {
         status: 'em_entrega',
         motoboyId: motoboySelecionado,
     });
+    // Mantém o motoboy como "entregando" (em rota) — não muda nada se já estava
     DB.updateMotoboy(motoboySelecionado, { status: 'entregando' });
     const motoboy = DB.getMotoboy(motoboySelecionado);
-    notificar(`🛵 Despachado para ${motoboy.nome}!`, 'success');
+    const qtdRota = DB.getPedidosMotoboy(motoboySelecionado).length;
+    const msg = qtdRota > 1
+        ? `🛵 ${qtdRota} entregas em rota com ${motoboy.nome}!`
+        : `🛵 Despachado para ${motoboy.nome}!`;
+    notificar(msg, 'success');
     fecharDespacho();
     filtrarStatus('em_entrega');
 }
