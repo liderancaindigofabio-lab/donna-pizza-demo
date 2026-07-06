@@ -175,10 +175,13 @@ body {
 
 .metric-value {
     font-family: 'Playfair Display', serif;
-    font-size: 2.2rem;
+    font-size: 1.6rem;
     color: var(--gold);
     font-weight: 900;
     line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .metric-card.highlight .metric-value { color: var(--light); }
@@ -1092,4 +1095,4 @@ body {
     font-size: 0.85em;
 }
 
-/* rebuild-1783315911 */
+/* rebuild-1783316260 */
