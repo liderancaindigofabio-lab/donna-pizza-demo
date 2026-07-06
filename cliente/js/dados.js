@@ -312,7 +312,7 @@ const CARDAPIO = {
     ],
 
     cupons: {
-        'DONNA10': { tipo: 'percentual', valor: 10, desc: '🎁 10% de desconto' },
+        'NONNA10': { tipo: 'percentual', valor: 10, desc: '🎁 10% de desconto' },
         'BEMVINDO': { tipo: 'percentual', valor: 15, desc: '🎁 15% de desconto' },
         'FOME10': { tipo: 'fixo', valor: 10, desc: '🎁 R$ 10 de desconto' },
         'FAMILIA': { tipo: 'fixo', valor: 15, desc: '🎁 R$ 15 de desconto' },

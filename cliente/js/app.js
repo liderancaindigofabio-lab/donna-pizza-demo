@@ -525,7 +525,7 @@ function aplicarCupom() {
 }
 
 function abrirCupom() {
-    document.getElementById('cupomInput').value = 'DONNA10';
+    document.getElementById('cupomInput').value = 'NONNA10';
     abrirCarrinho();
     setTimeout(() => aplicarCupom(), 200);
 }

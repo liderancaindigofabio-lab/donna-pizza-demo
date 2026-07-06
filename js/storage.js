@@ -83,7 +83,7 @@ const DB = {
         ],
         // Cupons
         cupons: [
-            { codigo: 'DONNA10',    desc: '10% OFF na primeira compra',   tipo: 'percentual', valor: 10 },
+            { codigo: 'NONNA10',    desc: '10% OFF na primeira compra',   tipo: 'percentual', valor: 10 },
             { codigo: 'BEMVINDO',   desc: 'R$ 5 OFF pra novos clientes',  tipo: 'fixo',       valor: 5 },
             { codigo: 'FOME10',     desc: '10% OFF em pedidos acima de R$ 50', tipo: 'percentual', valor: 10, minimo: 50 },
             { codigo: 'FAMILIA',    desc: 'R$ 15 OFF em combos',         tipo: 'fixo',       valor: 15, apenasCombos: true },
@@ -108,7 +108,7 @@ const DB = {
                 whatsapp: '5500900000000',
                 taxaEntrega: 7.00,
                 tempoPreparo: 25,
-                cuponsAtivos: ['DONNA10', 'BEMVINDO', 'FOME10', 'FAMILIA']
+                cuponsAtivos: ['NONNA10', 'BEMVINDO', 'FOME10', 'FAMILIA']
             }));
         }
         if (!localStorage.getItem(this.KEY_CARDAPIO)) {
