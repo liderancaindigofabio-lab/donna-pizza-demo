@@ -1,30 +1,42 @@
 /* ============================================
-   DONNA PIZZA — Lógica do cliente
+   DONNA PIZZA — Lógica do cliente (v2)
+   - Fluxo: TAMANHO → SABOR (até 2)
+   - Salva cliente automaticamente
+   - Histórico de pedidos
    ============================================ */
 
 let carrinho = [];
-let categoriaAtiva = 'mais-pedidos';
-let produtoEmEdicao = null;
-let tipoEscolhido = null;
+let categoriaAtiva = 'pizzas';
 let cupomAplicado = null;
-let meuPedidoId = null; // ID do pedido do cliente (pra acompanhar)
+let meuPedidoId = null;
+let clienteLogado = null; // cliente salvo (autopreenchimento)
+let pizzaBuilder = null;  // { tamanho, sabores: [], adicionais: [] }
 
 const BRL = (v) => 'R$ ' + v.toFixed(2).replace('.', ',');
 const config = DB.getConfig();
+const cardapio = DB.getCardapio();
 
 // ============ INIT ============
 function init() {
+    clienteLogado = DB.getClienteLogado();
     renderCategorias();
     renderProdutos();
+    renderHeaderCliente();
     verificarStatus();
     setInterval(verificarStatus, 60000);
     checarPedidoLocal();
 
-    // Escutar mudanças no storage (caso tenha pedido em outra aba)
-    DB.onChange(({ tipo }) => {
+    DB.onChange(({ tipo, data }) => {
+        if (tipo === 'cardapio_update') {
+            // recarrega cardápio se pizzaria editou
+            location.reload();
+        }
         if (tipo === 'pedido_update' && meuPedidoId) {
-            // Atualizar tracker se tiver pedido
             abrirAcompanhamento();
+        }
+        if (tipo === 'cliente_update' && clienteLogado && data.tel === clienteLogado.tel) {
+            clienteLogado = data;
+            renderHeaderCliente();
         }
     });
 }
@@ -41,11 +53,47 @@ function verificarStatus() {
     }
 }
 
+// ============ HEADER DO CLIENTE (se logado) ============
+function renderHeaderCliente() {
+    const el = document.getElementById('clienteHeader');
+    if (!el) return;
+    if (clienteLogado) {
+        el.style.display = 'flex';
+        el.innerHTML = `
+            <div class="cli-avatar">👤</div>
+            <div class="cli-info-header">
+                <div class="cli-nome-header">Olá, ${clienteLogado.nome.split(' ')[0]}!</div>
+                <div class="cli-tel-header">${clienteLogado.tel}</div>
+            </div>
+            <div class="cli-acoes">
+                <button class="btn-mini" onclick="abrirMeusPedidos()">📋 Meus pedidos</button>
+                <button class="btn-mini ghost" onclick="logoutCliente()">Sair</button>
+            </div>
+        `;
+    } else {
+        el.style.display = 'none';
+    }
+}
+
+function logoutCliente() {
+    if (!confirm('Sair da sua conta? Seus dados não serão mais preenchidos automaticamente.')) return;
+    DB.logoutCliente();
+    clienteLogado = null;
+    renderHeaderCliente();
+    toast('Você saiu da conta');
+}
+
 // ============ CATEGORIAS ============
 function renderCategorias() {
     const el = document.getElementById('categoriasBar');
+    const cats = [
+        { id: 'pizzas', nome: '🍕 Pizzas' },
+        { id: 'calzones', nome: '🥟 Calzones' },
+        { id: 'bebidas', nome: '🥤 Bebidas' },
+        { id: 'combos', nome: '🎁 Combos' },
+    ];
     el.innerHTML = `<div class="categorias-inner">${
-        CARDAPIO.categorias.map(c => `
+        cats.map(c => `
             <button class="cat-btn ${c.id === categoriaAtiva ? 'active' : ''}" onclick="trocarCategoria('${c.id}')">
                 ${c.nome}
             </button>
@@ -64,47 +112,107 @@ function trocarCategoria(id) {
 function renderProdutos(filtro = '') {
     const el = document.getElementById('produtos');
     const termo = filtro.toLowerCase();
-    let produtos = CARDAPIO.produtos.filter(p => p.cat === categoriaAtiva);
+    let produtos = [];
+    let titulo = '';
 
-    if (termo) {
-        produtos = CARDAPIO.produtos.filter(p =>
-            p.nome.toLowerCase().includes(termo) ||
-            p.desc.toLowerCase().includes(termo) ||
-            p.tags.some(t => t.toLowerCase().includes(termo))
-        );
+    if (categoriaAtiva === 'pizzas') {
+        titulo = '🍕 Monte sua Pizza';
+        // Pizza: mostra por tamanho, escolhe sabor depois
+        produtos = cardapio.tamanhos.map(t => {
+            const precos = Object.values(cardapio.precos_base).map(p => p[t.id]);
+            const precoMin = Math.min(...precos);
+            const precoMax = Math.max(...precos);
+            return {
+                tipo: 'tamanho',
+                id: `tam_${t.id}`,
+                tamanho: t,
+                nome: `Pizza ${t.nome}`,
+                desc: `${t.fatias} fatias • até ${t.qtdSabores} ${t.qtdSabores === 1 ? 'sabor' : 'sabores'}`,
+                precoMin, precoMax,
+                emoji: t.id === 'P' ? '🍕' : t.id === 'M' ? '🍕' : '🍕',
+            };
+        });
+    } else if (categoriaAtiva === 'calzones') {
+        titulo = '🥟 Calzones';
+        produtos = cardapio.calzones.map(c => ({
+            tipo: 'calzone',
+            ...c,
+        }));
+    } else if (categoriaAtiva === 'bebidas') {
+        titulo = '🥤 Bebidas';
+        produtos = cardapio.bebidas.map(b => ({
+            tipo: 'bebida',
+            ...b,
+        }));
+    } else if (categoriaAtiva === 'combos') {
+        titulo = '🎁 Combos Promocionais';
+        produtos = cardapio.combos.map(c => ({
+            tipo: 'combo',
+            ...c,
+        }));
     }
 
-    const cat = CARDAPIO.categorias.find(c => c.id === categoriaAtiva);
-    const titulo = termo ? `Resultados para "${filtro}"` : (cat ? cat.nome : '');
+    // Filtro
+    if (termo) {
+        produtos = produtos.filter(p => (p.nome || '').toLowerCase().includes(termo) || (p.desc || '').toLowerCase().includes(termo));
+    }
 
     let html = `<h2 class="categoria-titulo">${titulo}</h2>`;
 
     if (produtos.length === 0) {
-        html += `
-        <div class="empty-state">
-            <div class="empty-state-icon">🔍</div>
-            <p>Nenhum produto encontrado</p>
-        </div>`;
+        html += `<div class="empty-state"><div class="empty-state-icon">🔍</div><p>Nenhum produto encontrado</p></div>`;
     } else {
         html += produtos.map(p => {
-            const precoMin = p.preco || Math.min(...p.tipos.map(t => t.preco));
-            return `
-            <div class="produto" onclick='abrirOpcoes(${JSON.stringify(p).replace(/'/g, "&apos;")})'>
-                <div class="produto-img" style="background-image:url('${p.img}');background-size:cover;background-position:center;">${p.emoji}</div>
-                <div class="produto-info">
-                    <div>
-                        <div class="produto-nome">${p.nome}</div>
-                        <div class="produto-desc">${p.desc}</div>
-                        <div class="produto-tags">
-                            ${p.tags.map(t => `<span class="tag">${t}</span>`).join('')}
+            if (p.tipo === 'tamanho') {
+                const precoTexto = p.precoMin === p.precoMax
+                    ? BRL(p.precoMin)
+                    : `${BRL(p.precoMin)} — ${BRL(p.precoMax)}`;
+                return `
+                <div class="produto produto-tamanho" onclick="abrirBuilderPizza('${p.tamanho.id}')">
+                    <div class="produto-img">${p.emoji}</div>
+                    <div class="produto-info">
+                        <div>
+                            <div class="produto-nome">${p.nome}</div>
+                            <div class="produto-desc">${p.desc}</div>
+                        </div>
+                        <div class="produto-bottom">
+                            <span class="produto-preco">${precoTexto}</span>
+                            <button class="btn-add">Montar →</button>
                         </div>
                     </div>
-                    <div class="produto-bottom">
-                        <span class="produto-preco">${BRL(precoMin)}${!p.preco ? ' <small>a partir de</small>' : ''}</span>
-                        <button class="btn-add">+ Adicionar</button>
+                </div>`;
+            } else if (p.tipo === 'combo') {
+                return `
+                <div class="produto produto-combo" onclick='adicionarCombo(${JSON.stringify(p).replace(/'/g, "&apos;")})'>
+                    <div class="produto-img combo">${p.emoji}</div>
+                    <div class="produto-info">
+                        <div>
+                            <div class="produto-nome">${p.nome}</div>
+                            <div class="produto-desc">${p.desc}</div>
+                            <div class="produto-tags"><span class="tag combo">🎁 ECONOMIZE</span></div>
+                        </div>
+                        <div class="produto-bottom">
+                            <span class="produto-preco">${BRL(p.preco)}</span>
+                            <button class="btn-add">+ Adicionar</button>
+                        </div>
                     </div>
-                </div>
-            </div>`;
+                </div>`;
+            } else {
+                return `
+                <div class="produto" onclick='adicionarItemSimples(${JSON.stringify(p).replace(/'/g, "&apos;")})'>
+                    <div class="produto-img">${p.emoji || '🥟'}</div>
+                    <div class="produto-info">
+                        <div>
+                            <div class="produto-nome">${p.nome}</div>
+                            <div class="produto-desc">${p.desc || ''}</div>
+                        </div>
+                        <div class="produto-bottom">
+                            <span class="produto-preco">${BRL(p.preco)}</span>
+                            <button class="btn-add">+ Adicionar</button>
+                        </div>
+                    </div>
+                </div>`;
+            }
         }).join('');
     }
 
@@ -116,81 +224,206 @@ function filtrarProdutos() {
     renderProdutos(termo);
 }
 
-// ============ MODAL OPÇÕES ============
-function abrirOpcoes(p) {
-    produtoEmEdicao = p;
-    tipoEscolhido = null;
+// ============ BUILDER DE PIZZA (NOVO FLUXO) ============
+function abrirBuilderPizza(tamanhoId) {
+    const tamanho = cardapio.tamanhos.find(t => t.id === tamanhoId);
+    pizzaBuilder = {
+        tamanho,
+        sabores: [],
+        adicionais: [],
+    };
+    renderBuilder();
+    document.getElementById('modalOpcoes').style.display = 'flex';
+}
 
-    const modal = document.getElementById('modalOpcoes');
+function renderBuilder() {
     const titulo = document.getElementById('modalOpcoesTitulo');
     const body = document.getElementById('opcoesBody');
+    titulo.innerHTML = `🍕 Pizza ${pizzaBuilder.tamanho.nome} <button class="modal-close" onclick="fecharOpcoes()">×</button>`;
 
-    titulo.innerHTML = `${p.emoji} ${p.nome} <button class="modal-close" onclick="fecharOpcoes()">×</button>`;
+    const saboresSalgados = cardapio.sabores.filter(s => s.cat === 'salgada');
+    const saboresDoces = cardapio.sabores.filter(s => s.cat === 'doce');
+    const maxSabores = pizzaBuilder.tamanho.qtdSabores;
 
-    if (p.tipos) {
-        body.innerHTML = `
-            <p style="color:#999;margin-bottom:14px;font-size:0.9rem;">Escolha o tamanho:</p>
-            ${p.tipos.map(t => `
-                <div class="tamanho-opcao" onclick="escolherTipo('${t.id}')" data-tipo="${t.id}">
-                    <div class="tamanho-opcao-info">
-                        <div class="tamanho-opcao-nome">${t.nome}${t.bonus ? `<span class="bonus">${t.bonus}</span>` : ''}</div>
-                        <div class="tamanho-opcao-detalhe">${t.detalhe}</div>
-                    </div>
-                    <div class="tamanho-opcao-preco">${BRL(t.preco)}</div>
+    body.innerHTML = `
+    <div class="builder-tamanho-selecionado">
+        <div class="bts-info">
+            <strong>Tamanho:</strong> ${pizzaBuilder.tamanho.nome} (${pizzaBuilder.tamanho.fatias} fatias)
+        </div>
+        <div class="bts-info">
+            <strong>Sabores:</strong> <span id="btsCount">${pizzaBuilder.sabores.length}/${maxSabores}</span> — escolha até ${maxSabores}
+        </div>
+    </div>
+
+    <h3 class="builder-secao">1. Escolha ${maxSabores === 1 ? 'o sabor' : 'os sabores'} (${pizzaBuilder.sabores.length}/${maxSabores})</h3>
+
+    <div class="builder-grupo-titulo">🍕 Salgadas</div>
+    <div class="builder-sabores">
+        ${saboresSalgados.map(s => {
+            const preco = cardapio.precos_base[s.id]?.[pizzaBuilder.tamanho.id] || 0;
+            const selecionado = pizzaBuilder.sabores.find(x => x.id === s.id);
+            return `
+            <div class="sabor-opcao ${selecionado ? 'selected' : ''}" onclick="toggleSabor('${s.id}')">
+                <div class="sabor-info">
+                    <div class="sabor-nome">${s.nome}</div>
+                    <div class="sabor-desc">${s.desc}</div>
                 </div>
-            `).join('')}
-        `;
+                <div class="sabor-preco">${BRL(preco)}</div>
+            </div>`;
+        }).join('')}
+    </div>
+
+    <div class="builder-grupo-titulo">🍫 Doces</div>
+    <div class="builder-sabores">
+        ${saboresDoces.map(s => {
+            const preco = cardapio.precos_base[s.id]?.[pizzaBuilder.tamanho.id] || 0;
+            const selecionado = pizzaBuilder.sabores.find(x => x.id === s.id);
+            return `
+            <div class="sabor-opcao ${selecionado ? 'selected' : ''}" onclick="toggleSabor('${s.id}')">
+                <div class="sabor-info">
+                    <div class="sabor-nome">${s.nome}</div>
+                    <div class="sabor-desc">${s.desc}</div>
+                </div>
+                <div class="sabor-preco">${BRL(preco)}</div>
+            </div>`;
+        }).join('')}
+    </div>
+
+    <h3 class="builder-secao">2. Adicionais (opcional)</h3>
+    <div class="builder-adicionais">
+        ${cardapio.adicionais.map(a => {
+            const preco = a.preco[pizzaBuilder.tamanho.id] || 0;
+            const selecionado = pizzaBuilder.adicionais.find(x => x.id === a.id);
+            return `
+            <div class="adicional-opcao ${selecionado ? 'selected' : ''}" onclick="toggleAdicional('${a.id}')">
+                <div class="adicional-check">${selecionado ? '✓' : '+'}</div>
+                <div class="adicional-nome">${a.nome}</div>
+                <div class="adicional-preco">+${BRL(preco)}</div>
+            </div>`;
+        }).join('')}
+    </div>
+
+    <div class="builder-resumo">
+        <div class="builder-resumo-linha">
+            <span>Pizza ${pizzaBuilder.tamanho.nome}</span>
+            <span id="builderPrecoPizza">${BRL(calcularPrecoPizza())}</span>
+        </div>
+        <div class="builder-resumo-linha">
+            <span>Adicionais</span>
+            <span id="builderPrecoAdicionais">${BRL(calcularPrecoAdicionais())}</span>
+        </div>
+        <div class="builder-resumo-linha builder-resumo-total">
+            <span>Total desta pizza</span>
+            <span id="builderPrecoTotal">${BRL(calcularPrecoPizza() + calcularPrecoAdicionais())}</span>
+        </div>
+    </div>
+
+    <button class="btn-confirmar" onclick="confirmarBuilder()" ${pizzaBuilder.sabores.length === 0 ? 'disabled' : ''}>
+        ${pizzaBuilder.sabores.length === 0 ? 'Escolha pelo menos 1 sabor' : `Adicionar ao carrinho (${BRL(calcularPrecoPizza() + calcularPrecoAdicionais())})`}
+    </button>
+    `;
+}
+
+function toggleSabor(saborId) {
+    const idx = pizzaBuilder.sabores.findIndex(s => s.id === saborId);
+    if (idx >= 0) {
+        pizzaBuilder.sabores.splice(idx, 1);
     } else {
-        body.innerHTML = `
-            <p style="color:#999;margin-bottom:14px;">Item de preço único:</p>
-            <div class="tamanho-opcao selected">
-                <div class="tamanho-opcao-info">
-                    <div class="tamanho-opcao-nome">${p.nome}</div>
-                    <div class="tamanho-opcao-detalhe">${p.desc}</div>
-                </div>
-                <div class="tamanho-opcao-preco">${BRL(p.preco)}</div>
-            </div>
-        `;
-        tipoEscolhido = { id: 'unico', nome: p.nome, preco: p.preco, detalhe: '' };
+        if (pizzaBuilder.sabores.length >= pizzaBuilder.tamanho.qtdSabores) {
+            toast(`⚠️ ${pizzaBuilder.tamanho.nome} permite só ${pizzaBuilder.tamanho.qtdSabores} ${pizzaBuilder.tamanho.qtdSabores === 1 ? 'sabor' : 'sabores'}`, 'warning');
+            return;
+        }
+        const sabor = cardapio.sabores.find(s => s.id === saborId);
+        pizzaBuilder.sabores.push(sabor);
     }
-    modal.style.display = 'flex';
+    renderBuilder();
 }
 
-function escolherTipo(id) {
-    const tipo = produtoEmEdicao.tipos.find(t => t.id === id);
-    tipoEscolhido = tipo;
-    document.querySelectorAll('.tamanho-opcao').forEach(el => el.classList.remove('selected'));
-    document.querySelector(`[data-tipo="${id}"]`).classList.add('selected');
+function toggleAdicional(adId) {
+    const idx = pizzaBuilder.adicionais.findIndex(a => a.id === adId);
+    if (idx >= 0) {
+        pizzaBuilder.adicionais.splice(idx, 1);
+    } else {
+        const adicional = cardapio.adicionais.find(a => a.id === adId);
+        pizzaBuilder.adicionais.push(adicional);
+    }
+    renderBuilder();
 }
 
-function confirmarOpcoes() {
-    if (produtoEmEdicao.tipos && !tipoEscolhido) {
-        toast('⚠️ Escolha um tamanho', 'warning');
+function calcularPrecoPizza() {
+    if (pizzaBuilder.sabores.length === 0) return 0;
+    // Prevalecer o maior preço
+    const precos = pizzaBuilder.sabores.map(s => cardapio.precos_base[s.id]?.[pizzaBuilder.tamanho.id] || 0);
+    return Math.max(...precos);
+}
+
+function calcularPrecoAdicionais() {
+    return pizzaBuilder.adicionais.reduce((s, a) => s + (a.preco[pizzaBuilder.tamanho.id] || 0), 0);
+}
+
+function confirmarBuilder() {
+    if (pizzaBuilder.sabores.length === 0) {
+        toast('⚠️ Escolha pelo menos 1 sabor', 'warning');
         return;
     }
+    const saboresTexto = pizzaBuilder.sabores.map(s => s.nome).join(' + ');
+    const adicionaisTexto = pizzaBuilder.adicionais.length > 0
+        ? ' + ' + pizzaBuilder.adicionais.map(a => a.nome).join(', ')
+        : '';
+    const precoPizza = calcularPrecoPizza();
+    const precoAdic = calcularPrecoAdicionais();
+    const precoTotal = precoPizza + precoAdic;
+
     carrinho.push({
         uid: Date.now() + Math.random(),
-        produto: produtoEmEdicao,
-        tipo: tipoEscolhido,
+        tipo: 'pizza',
+        nome: `Pizza ${pizzaBuilder.tamanho.nome} (${saboresTexto}${adicionaisTexto ? ', ' + pizzaBuilder.adicionais.map(a => a.nome).join(', ') : ''})`,
+        descricao: `${pizzaBuilder.tamanho.fatias} fatias • ${pizzaBuilder.tamanho.qtdSabores} ${pizzaBuilder.tamanho.qtdSabores === 1 ? 'sabor' : 'sabores'}`,
+        sabores: pizzaBuilder.sabores.map(s => s.nome),
+        tamanho: pizzaBuilder.tamanho.nome,
+        adicionais: pizzaBuilder.adicionais.map(a => a.nome),
+        preco: precoTotal,
     });
     atualizarCarrinho();
     fecharOpcoes();
-    toast('✅ Adicionado ao carrinho!');
+    toast(`✅ Pizza ${pizzaBuilder.tamanho.nome} adicionada!`);
 }
 
 function fecharOpcoes() {
     document.getElementById('modalOpcoes').style.display = 'none';
-    produtoEmEdicao = null;
-    tipoEscolhido = null;
+    pizzaBuilder = null;
+}
+
+// ============ ITENS SIMPLES (calzone, bebida) ============
+function adicionarItemSimples(p) {
+    carrinho.push({
+        uid: Date.now() + Math.random(),
+        tipo: 'item',
+        nome: p.nome,
+        descricao: p.desc || '',
+        preco: p.preco,
+    });
+    atualizarCarrinho();
+    toast(`✅ ${p.nome} adicionado!`);
+}
+
+function adicionarCombo(p) {
+    carrinho.push({
+        uid: Date.now() + Math.random(),
+        tipo: 'combo',
+        nome: p.nome,
+        descricao: p.desc,
+        preco: p.preco,
+    });
+    atualizarCarrinho();
+    toast(`🎁 ${p.nome} adicionado!`);
 }
 
 // ============ CARRINHO ============
 function atualizarCarrinho() {
     const countEl = document.getElementById('carrinhoCount');
     const valorEl = document.getElementById('carrinhoValor');
-    const subtotal = carrinho.reduce((s, i) => s + i.tipo.preco, 0);
     const total = calcularTotal();
-
     if (carrinho.length > 0) {
         countEl.style.display = 'flex';
         countEl.textContent = carrinho.length;
@@ -217,37 +450,27 @@ function fecharCarrinho() {
 function renderCarrinho() {
     const lista = document.getElementById('carrinhoLista');
     if (carrinho.length === 0) {
-        lista.innerHTML = `
-        <div class="empty-state">
-            <div class="empty-state-icon">🛒</div>
-            <p>Seu carrinho está vazio</p>
-        </div>`;
+        lista.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🛒</div><p>Seu carrinho está vazio</p></div>`;
         return;
     }
-
-    lista.innerHTML = carrinho.map((item, idx) => {
-        const detalhe = item.tipo.detalhe ? ` • ${item.tipo.detalhe}` : '';
-        return `
+    lista.innerHTML = carrinho.map((item, idx) => `
         <div class="carrinho-item">
             <div class="carrinho-item-info">
-                <div class="carrinho-item-nome">${item.produto.emoji} ${item.produto.nome}</div>
-                <div class="carrinho-item-detalhe">${item.tipo.nome}${detalhe}</div>
+                <div class="carrinho-item-nome">${item.nome}</div>
+                ${item.descricao ? `<div class="carrinho-item-detalhe">${item.descricao}</div>` : ''}
             </div>
-            <span class="carrinho-item-preco">${BRL(item.tipo.preco)}</span>
+            <span class="carrinho-item-preco">${BRL(item.preco)}</span>
             <button class="btn-remover" onclick="removerItem(${idx})">🗑️</button>
         </div>
-        `;
-    }).join('');
+    `).join('');
 
     document.getElementById('resumoSubtotal').textContent = BRL(calcularSubtotal());
-    document.getElementById('resumoTaxa').textContent = BRL(config.taxaEntrega);
+    document.getElementById('resumoTaxa').textContent = BRL(config.taxaEntrega || 0);
     document.getElementById('resumoTotal').textContent = BRL(calcularTotal());
 
     if (cupomAplicado) {
         document.getElementById('linhaDesconto').style.display = 'flex';
-        const desc = cupomAplicado.tipo === 'percentual'
-            ? `-${cupomAplicado.valor}%`
-            : `-${BRL(cupomAplicado.valor)}`;
+        const desc = cupomAplicado.tipo === 'percentual' ? `-${cupomAplicado.valor}%` : `-${BRL(cupomAplicado.valor)}`;
         document.getElementById('descLabel').textContent = `Cupom (${desc})`;
         document.getElementById('resumoDesconto').textContent = cupomAplicado.tipo === 'percentual'
             ? `-${BRL(calcularSubtotal() * cupomAplicado.valor / 100)}`
@@ -268,7 +491,7 @@ function removerItem(idx) {
 }
 
 function calcularSubtotal() {
-    return carrinho.reduce((s, i) => s + i.tipo.preco, 0);
+    return carrinho.reduce((s, i) => s + i.preco, 0);
 }
 
 function calcularTotal() {
@@ -287,7 +510,7 @@ function calcularTotal() {
 function aplicarCupom() {
     const codigo = document.getElementById('cupomInput').value.trim().toUpperCase();
     const msg = document.getElementById('cupomMsg');
-    const cupom = CARDAPIO.cupons[codigo];
+    const cupom = cardapio.cupons[codigo];
     if (cupom) {
         cupomAplicado = cupom;
         msg.className = 'cupom-msg ok';
@@ -314,9 +537,23 @@ function abrirCheckout() {
         return;
     }
     fecharCarrinho();
+    // Preenche com dados salvos
+    if (clienteLogado) {
+        document.getElementById('cliNome').value = clienteLogado.nome || '';
+        document.getElementById('cliTel').value = clienteLogado.tel || '';
+        document.getElementById('cliEnd').value = clienteLogado.end || '';
+        document.getElementById('cliCep').value = clienteLogado.cep || '';
+        document.getElementById('cliRef').value = clienteLogado.ref || '';
+    } else {
+        document.getElementById('cliNome').value = '';
+        document.getElementById('cliTel').value = '';
+        document.getElementById('cliEnd').value = '';
+        document.getElementById('cliCep').value = '';
+        document.getElementById('cliRef').value = '';
+    }
     document.getElementById('modalCheckout').style.display = 'flex';
-    // Listener pra info de pagamento
     const sel = document.getElementById('cliPag');
+    sel.removeEventListener('change', atualizarPagInfo);
     sel.addEventListener('change', atualizarPagInfo);
     atualizarPagInfo();
 }
@@ -347,45 +584,57 @@ function finalizarPedido() {
     const pag = document.getElementById('cliPag').value;
     const obs = document.getElementById('cliObs').value.trim();
     const cep = document.getElementById('cliCep').value.trim();
+    const ref = document.getElementById('cliRef').value.trim();
 
     if (!nome || !tel || !end) {
         toast('⚠️ Preencha nome, telefone e endereço', 'error');
         return;
     }
+    if (tel.replace(/\D/g, '').length < 10) {
+        toast('⚠️ Telefone inválido', 'error');
+        return;
+    }
 
-    // Monta pedido
+    // Salva o cliente pra próxima vez
+    const clienteSalvo = DB.salvarCliente({ nome, tel, end, cep, ref });
+    DB.setClienteLogado(tel);
+    clienteLogado = clienteSalvo;
+    renderHeaderCliente();
+
     const pedido = {
-        cliente: { nome, tel, end, cep, pag, obs },
+        cliente: { nome, tel, end, cep, ref, pag, obs },
         itens: carrinho.map(i => ({
-            nome: i.produto.nome,
-            tipo: i.tipo.nome,
-            detalhe: i.tipo.detalhe,
-            preco: i.tipo.preco,
+            nome: i.nome,
+            descricao: i.descricao,
+            tipo: i.tipo,
+            sabores: i.sabores || [],
+            tamanho: i.tamanho,
+            adicionais: i.adicionais || [],
+            preco: i.preco,
         })),
         subtotal: calcularSubtotal(),
         taxa: config.taxaEntrega,
         desconto: cupomAplicado ? (cupomAplicado.tipo === 'percentual' ? calcularSubtotal() * cupomAplicado.valor / 100 : cupomAplicado.valor) : 0,
-        cupom: cupomAplicado ? cupomAplicado.desc : null,
+        cupom: cupomAplicado ? cupomAplicado.codigo || cupomAplicado.desc : null,
         total: calcularTotal(),
-        // Coordenadas aleatórias próximas a Pé de Serra - BA pra demo
         coords: coordsAleatorias(),
     };
 
-    // Salva no "banco"
     const pedidoSalvo = DB.addPedido(pedido);
     meuPedidoId = pedidoSalvo.id;
     localStorage.setItem('donna_meu_pedido', meuPedidoId);
 
-    // Monta msg WhatsApp
+    // Mensagem WhatsApp
     let msg = `🍕 *NOVO PEDIDO - DONNA PIZZA* #${pedidoSalvo.id.toString().slice(-5)}\n\n`;
     msg += `👤 *Cliente:* ${nome}\n`;
     msg += `📞 *Telefone:* ${tel}\n`;
     msg += `📍 *Endereço:* ${end}${cep ? ` (CEP ${cep})` : ''}\n`;
+    if (ref) msg += `🏠 *Referência:* ${ref}\n`;
     msg += `💳 *Pagamento:* ${pag}\n`;
     if (obs) msg += `📝 *Obs:* ${obs}\n`;
     msg += `\n*--- ITENS ---*\n`;
     pedido.itens.forEach((it, i) => {
-        msg += `${i+1}. ${it.nome} (${it.tipo})${it.detalhe ? ' • ' + it.detalhe : ''} — ${BRL(it.preco)}\n`;
+        msg += `${i + 1}. ${it.nome}${it.descricao ? ' — ' + it.descricao : ''} (${BRL(it.preco)})\n`;
     });
     msg += `\n*Subtotal:* ${BRL(pedido.subtotal)}\n`;
     msg += `*Taxa entrega:* ${BRL(pedido.taxa)}\n`;
@@ -396,30 +645,85 @@ function finalizarPedido() {
     const zap = config.whatsapp;
     const url = `https://wa.me/${zap}?text=${encodeURIComponent(msg)}`;
 
-    // Limpa
     carrinho = [];
     cupomAplicado = null;
     atualizarCarrinho();
     fecharCheckout();
 
     toast('🚀 Pedido enviado! Acompanhe aqui...');
-
-    // Abre o WhatsApp
     window.open(url, '_blank');
-
-    // Abre o tracker
     setTimeout(() => abrirAcompanhamento(), 500);
 }
 
-// Coordenadas aleatórias em volta de Pé de Serra - BA
 function coordsAleatorias() {
-    // Pé de Serra: aprox -11.83, -39.61
-    const baseLat = -11.83;
-    const baseLng = -39.61;
     return {
-        lat: baseLat + (Math.random() - 0.5) * 0.15,
-        lng: baseLng + (Math.random() - 0.5) * 0.15,
+        lat: -11.83 + (Math.random() - 0.5) * 0.15,
+        lng: -39.61 + (Math.random() - 0.5) * 0.15,
     };
+}
+
+// ============ HISTÓRICO DO CLIENTE ============
+function abrirMeusPedidos() {
+    if (!clienteLogado) {
+        toast('Faça um pedido primeiro pra ter histórico', 'warning');
+        return;
+    }
+    const pedidos = DB.getPedidosCliente(clienteLogado.tel);
+    const stats = DB.getEstatisticasCliente(clienteLogado.tel);
+
+    const modal = document.getElementById('modalMeusPedidos');
+    document.getElementById('meusPedidosBody').innerHTML = `
+        <div class="meus-pedidos-stats">
+            <div class="stat-mini">
+                <div class="stat-mini-num">${stats.total}</div>
+                <div class="stat-mini-label">Pedidos</div>
+            </div>
+            <div class="stat-mini">
+                <div class="stat-mini-num">${stats.entregues}</div>
+                <div class="stat-mini-label">Entregues</div>
+            </div>
+            <div class="stat-mini">
+                <div class="stat-mini-num">${BRL(stats.gastoTotal)}</div>
+                <div class="stat-mini-label">Gasto total</div>
+            </div>
+            <div class="stat-mini">
+                <div class="stat-mini-num">${BRL(stats.ticketMedio)}</div>
+                <div class="stat-mini-label">Ticket médio</div>
+            </div>
+        </div>
+
+        <h3 class="historico-titulo">📦 Seus pedidos</h3>
+        ${pedidos.length === 0 ? '<p class="historico-vazio">Nenhum pedido ainda</p>' :
+            pedidos.map(p => {
+                const statusLabel = {
+                    novo: { txt: 'Recebido', cor: 'novo' },
+                    preparando: { txt: 'Preparando', cor: 'preparando' },
+                    pronto: { txt: 'Pronto', cor: 'pronto' },
+                    em_entrega: { txt: 'A caminho', cor: 'entrega' },
+                    entregue: { txt: 'Entregue', cor: 'entregue' },
+                    cancelado: { txt: 'Cancelado', cor: 'cancelado' },
+                }[p.status] || { txt: p.status, cor: '' };
+                const motoboy = p.motoboyId ? DB.getMotoboy(p.motoboyId) : null;
+                return `
+                <div class="meu-pedido-item">
+                    <div class="mpi-header">
+                        <span class="mpi-id">#${p.id.toString().slice(-5)}</span>
+                        <span class="mpi-status ${statusLabel.cor}">${statusLabel.txt}</span>
+                    </div>
+                    <div class="mpi-itens">${p.itens.map(i => i.nome).join(', ')}</div>
+                    <div class="mpi-footer">
+                        <span>${BRL(p.total)} • ${new Date(p.criadoEm).toLocaleDateString('pt-BR')}</span>
+                        ${motoboy ? `<span class="mpi-motoboy">🛵 ${motoboy.nome}</span>` : ''}
+                    </div>
+                </div>`;
+            }).join('')
+        }
+    `;
+    modal.style.display = 'flex';
+}
+
+function fecharMeusPedidos() {
+    document.getElementById('modalMeusPedidos').style.display = 'none';
 }
 
 // ============ ACOMPANHAMENTO ============
@@ -429,7 +733,6 @@ function checarPedidoLocal() {
         meuPedidoId = parseInt(id);
         const pedido = DB.getPedidos().find(p => p.id === meuPedidoId);
         if (pedido && !['entregue', 'cancelado'].includes(pedido.status)) {
-            // Pedido ativo, mostra notificação
             setTimeout(() => {
                 if (confirm('Você tem um pedido em andamento! Quer acompanhar?')) {
                     abrirAcompanhamento();
@@ -446,60 +749,48 @@ function abrirAcompanhamento() {
     }
     const pedido = DB.getPedidos().find(p => p.id === meuPedidoId);
     if (!pedido) {
-        document.getElementById('pedidoAcompanhamento').innerHTML = `
-        <div class="empty-state">
-            <div class="empty-state-icon">📭</div>
-            <p>Pedido não encontrado</p>
-        </div>`;
+        document.getElementById('pedidoAcompanhamento').innerHTML = `<div class="empty-state"><div class="empty-state-icon">📭</div><p>Pedido não encontrado</p></div>`;
         document.getElementById('modalAcompanhamento').style.display = 'flex';
         return;
     }
 
     const statusInfo = {
-        novo: { label: 'Pedido recebido!', icon: '✅', tempo: 'Aguardando confirmação...' },
-        preparando: { label: 'Preparando', icon: '👨‍🍳', tempo: 'Tempo estimado: 20-30 min' },
-        pronto: { label: 'Pronto!', icon: '🍕', tempo: 'Saindo para entrega em breve' },
-        em_entrega: { label: 'A caminho!', icon: '🛵', tempo: 'O motoboy está indo até você' },
-        entregue: { label: 'Entregue!', icon: '🎉', tempo: 'Bom apetite!' },
+        novo: { label: 'Pedido recebido!', icon: '✅' },
+        preparando: { label: 'Preparando', icon: '👨‍🍳' },
+        pronto: { label: 'Pronto!', icon: '🍕' },
+        em_entrega: { label: 'A caminho!', icon: '🛵' },
+        entregue: { label: 'Entregue!', icon: '🎉' },
     };
     const info = statusInfo[pedido.status] || statusInfo.novo;
 
     const steps = [
-        { key: 'novo', label: 'Pedido recebido', desc: 'Aguardando pizzaria aceitar' },
-        { key: 'preparando', label: 'Preparando', desc: 'No forno!' },
-        { key: 'pronto', label: 'Saiu pra entrega', desc: 'Motoboy a caminho' },
-        { key: 'entregue', label: 'Entregue', desc: 'Bom apetite!' },
+        { key: 'novo', label: 'Pedido recebido', icon: '✅' },
+        { key: 'preparando', label: 'Preparando', icon: '👨‍🍳' },
+        { key: 'em_entrega', label: 'A caminho', icon: '🛵' },
+        { key: 'entregue', label: 'Entregue', icon: '🎉' },
     ];
 
     const stepAtual = ['novo', 'preparando', 'pronto', 'em_entrega', 'entregue'].indexOf(pedido.status);
+    const motoboy = pedido.motoboyId ? DB.getMotoboy(pedido.motoboyId) : null;
 
     let html = `
     <div class="pedido-tracker">
         <div class="tracker-header">
             <div class="tracker-id">PEDIDO #${pedido.id.toString().slice(-5)}</div>
             <div class="tracker-status">${info.icon} ${info.label}</div>
-            <div class="tracker-tempo">${info.tempo}</div>
+            ${motoboy ? `<div class="tracker-motoboy">🛵 Entregador: <strong>${motoboy.nome}</strong></div>` : ''}
         </div>
         <div class="tracker-steps">
             ${steps.map((s, i) => {
                 const status = i < stepAtual ? 'done' : (i === stepAtual ? 'active' : '');
-                const icon = i < stepAtual ? '✓' : (i === stepAtual ? info.icon : ['✅', '👨‍🍳', '🛵', '🎉'][i]);
-                return `
-                <div class="tracker-step ${status}">
+                const icon = i < stepAtual ? '✓' : (i === stepAtual ? info.icon : s.icon);
+                return `<div class="tracker-step ${status}">
                     <div class="tracker-step-icon">${icon}</div>
-                    <div class="tracker-step-info">
-                        <h4>${s.label}</h4>
-                        <p>${s.desc}</p>
-                    </div>
-                </div>
-                `;
+                    <div class="tracker-step-info"><h4>${s.label}</h4></div>
+                </div>`;
             }).join('')}
         </div>
-        <div style="margin-top:24px;text-align:center;color:var(--gray);font-size:0.85rem;">
-            Atualiza automaticamente
-        </div>
-    </div>
-    `;
+    </div>`;
 
     document.getElementById('pedidoAcompanhamento').innerHTML = html;
     document.getElementById('modalAcompanhamento').style.display = 'flex';
@@ -519,7 +810,6 @@ function toast(texto, tipo = '') {
     setTimeout(() => el.remove(), 3000);
 }
 
-// ============ TEMA ============
 function toggleTheme() {
     document.body.classList.toggle('light-theme');
     toast(document.body.classList.contains('light-theme') ? '☀️ Tema claro' : '🌙 Tema escuro');
