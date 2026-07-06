@@ -1,10 +1,14 @@
 /* ============================================
-   DONNA PIZZA — Painel de gestão
+   DONNA PIZZA — Painel de gestão v2
+   - Abas: Pedidos + Cardápio
+   - Card de cliente clicável (mostra histórico)
+   - Mostrar motoboy em todos os status
    ============================================ */
 
 let filtroStatus = 'novo';
 let pedidoSelecionado = null;
 let motoboySelecionado = null;
+let abaAtiva = 'pedidos';
 
 // ===== INIT =====
 function init() {
@@ -14,11 +18,13 @@ function init() {
     renderMetricas();
     renderContadores();
 
-    // Escutar mudanças no "banco"
     DB.onChange(({ tipo, data }) => {
         if (tipo === 'pedido_novo') {
             notificar(`🍕 Novo pedido de ${data.cliente.nome}!`, 'success');
             tocarSom();
+        }
+        if (tipo === 'cardapio_update' && abaAtiva === 'cardapio') {
+            renderEditorCardapio();
         }
         renderFila();
         renderMetricas();
@@ -32,7 +38,17 @@ function renderRelogio() {
         agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
-// ===== FILA =====
+// ===== ABAS =====
+function trocarAba(aba) {
+    abaAtiva = aba;
+    document.querySelectorAll('.nav-aba').forEach(b => b.classList.remove('active'));
+    document.querySelector(`[data-aba="${aba}"]`).classList.add('active');
+    document.getElementById('abaPedidos').style.display = aba === 'pedidos' ? 'block' : 'none';
+    document.getElementById('abaCardapio').style.display = aba === 'cardapio' ? 'block' : 'none';
+    if (aba === 'cardapio') renderEditorCardapio();
+}
+
+// ===== FILA DE PEDIDOS =====
 function renderFila() {
     const container = document.getElementById('filaPedidos');
     let pedidos = DB.getPedidos();
@@ -67,12 +83,49 @@ function renderPedidoCard(p) {
         cancelado: 'CANCELADO',
     }[p.status] || p.status.toUpperCase();
 
-    const itensHtml = p.itens.map(it => `
+    const itensHtml = p.itens.map(it => {
+        let detalhe = '';
+        if (it.sabores && it.sabores.length) {
+            detalhe = '🍕 ' + it.sabores.join(' + ');
+        } else if (it.descricao) {
+            detalhe = it.descricao;
+        }
+        if (it.adicionais && it.adicionais.length) {
+            detalhe += (detalhe ? ' • ' : '') + '➕ ' + it.adicionais.join(', ');
+        }
+        return `
         <div class="pedido-item">
-            <span class="item-nome">${it.nome} (${it.tipo})${it.detalhe ? ' • ' + it.detalhe : ''}</span>
+            <span class="item-nome">${it.nome}${detalhe ? ' <span class="item-detalhe">— ' + detalhe + '</span>' : ''}</span>
             <span class="item-preco">${BRL(it.preco)}</span>
-        </div>
-    `).join('');
+        </div>`;
+    }).join('');
+
+    // Mostra motoboy em qualquer status onde já foi despachado
+    let motoboyInfo = '';
+    if (p.motoboyId) {
+        const motoboy = DB.getMotoboy(p.motoboyId);
+        if (motoboy) {
+            const entregueEm = p.entregueEm ? new Date(p.entregueEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : null;
+            const acaoEntrega = entregueEm ? ` • Entregue às ${entregueEm}` : '';
+            motoboyInfo = `
+            <div class="pedido-motoboy-info">
+                🛵 <strong>${motoboy.nome}</strong> • ${motoboy.moto}${acaoEntrega}
+            </div>`;
+        }
+    }
+
+    // Cliente: total de pedidos + total gasto (se histórico)
+    const tel = (p.cliente.tel || '').replace(/\D/g, '');
+    const stats = tel ? DB.getEstatisticasCliente(tel) : null;
+    let clienteHistorico = '';
+    if (stats && stats.total > 1) {
+        clienteHistorico = `
+        <button class="cliente-historico-btn" onclick="abrirCliente('${p.cliente.tel}')" title="Ver histórico">
+            🏆 ${stats.total}º pedido • ${BRL(stats.gastoTotal)} total
+        </button>`;
+    } else if (stats && stats.total === 1) {
+        clienteHistorico = `<span class="cliente-historico-tag">🆕 Cliente novo</span>`;
+    }
 
     let actionsHtml = '';
     if (p.status === 'novo') {
@@ -95,21 +148,10 @@ function renderPedidoCard(p) {
         const motoboy = DB.getMotoboy(p.motoboyId);
         actionsHtml = `
             <button class="btn-acao" onclick="marcarEntregue(${p.id})">✅ Marcar como entregue</button>
-            <button class="btn-acao whatsapp" onclick="contatarMotoboy('${motoboy ? motoboy.telefone : ''}')">🛵</button>
+            ${motoboy ? `<button class="btn-acao whatsapp" onclick="contatarMotoboy('${motoboy.telefone}')">🛵</button>` : ''}
         `;
     } else if (p.status === 'entregue') {
         actionsHtml = `<button class="btn-acao entregue" disabled>✓ Pedido finalizado</button>`;
-    }
-
-    let motoboyInfo = '';
-    if (p.motoboyId && p.status === 'em_entrega') {
-        const motoboy = DB.getMotoboy(p.motoboyId);
-        if (motoboy) {
-            motoboyInfo = `
-            <div class="pedido-motoboy-info">
-                🛵 <strong>${motoboy.nome}</strong> • ${motoboy.moto}
-            </div>`;
-        }
     }
 
     return `
@@ -126,6 +168,7 @@ function renderPedidoCard(p) {
             <div class="cliente-nome">${p.cliente.nome}</div>
             <div class="cliente-endereco">📍 ${p.cliente.end}${p.cliente.cep ? ` • CEP ${p.cliente.cep}` : ''}</div>
             <a class="cliente-tel" href="https://wa.me/55${p.cliente.tel.replace(/\D/g, '')}" target="_blank">📞 ${p.cliente.tel}</a>
+            ${clienteHistorico}
         </div>
 
         <div class="pedido-itens">
@@ -169,13 +212,15 @@ function marcarPronto(id) {
 }
 
 function marcarEntregue(id) {
-    DB.updatePedido(id, { status: 'entregue' });
-    notificar('🎉 Pedido entregue!', 'success');
-    // Libera o motoboy
+    DB.updatePedido(id, { status: 'entregue', entregueEm: new Date().toISOString() });
     const pedido = DB.getPedidos().find(p => p.id === id);
     if (pedido && pedido.motoboyId) {
-        DB.updateMotoboy(pedido.motoboyId, { status: 'disponivel' });
+        const restantes = DB.getPedidosMotoboy(pedido.motoboyId);
+        if (restantes.length === 0) {
+            DB.updateMotoboy(pedido.motoboyId, { status: 'disponivel' });
+        }
     }
+    notificar('🎉 Pedido entregue!', 'success');
     renderContadores();
 }
 
@@ -185,7 +230,7 @@ function cancelarPedido(id) {
     notificar('❌ Pedido cancelado', 'error');
 }
 
-// ===== DESPACHO DE MOTOBOY =====
+// ===== DESPACHO =====
 function abrirDespacho(pedidoId) {
     pedidoSelecionado = pedidoId;
     motoboySelecionado = null;
@@ -193,7 +238,6 @@ function abrirDespacho(pedidoId) {
 
     const motoboys = DB.getMotoboys();
     const motoboysHtml = motoboys.map(m => {
-        // Agora motoboys "entregando" PODEM receber mais (vão acumular)
         const emRota = DB.getPedidosMotoboy(m.id);
         const qtdRota = emRota.length;
         const isDisponivel = m.status === 'disponivel';
@@ -214,7 +258,6 @@ function abrirDespacho(pedidoId) {
         `;
     }).join('');
 
-    // Dica visual: motoboys com pedidos em rota podem acumular mais
     const temMotoboyEmRota = motoboys.some(m => DB.getPedidosMotoboy(m.id).length > 0);
     const dicaAcumular = temMotoboyEmRota ? `
         <div class="dica-acumular">
@@ -253,7 +296,6 @@ function confirmarDespacho() {
         status: 'em_entrega',
         motoboyId: motoboySelecionado,
     });
-    // Mantém o motoboy como "entregando" (em rota) — não muda nada se já estava
     DB.updateMotoboy(motoboySelecionado, { status: 'entregando' });
     const motoboy = DB.getMotoboy(motoboySelecionado);
     const qtdRota = DB.getPedidosMotoboy(motoboySelecionado).length;
@@ -271,17 +313,77 @@ function fecharDespacho() {
     motoboySelecionado = null;
 }
 
-// ===== DETALHES =====
-function abrirDetalhes(pedidoId) {
-    const p = DB.getPedidos().find(x => x.id === pedidoId);
-    if (!p) return;
-    document.getElementById('detalhesTitulo').textContent = `Pedido #${p.id.toString().slice(-5)}`;
-    document.getElementById('detalhesBody').innerHTML = renderPedidoCard(p);
-    document.getElementById('modalDetalhes').style.display = 'flex';
+// ===== DETALHES DO CLIENTE =====
+function abrirCliente(telefone) {
+    const stats = DB.getEstatisticasCliente(telefone);
+    const cliente = DB.getCliente(telefone);
+    const pedidos = DB.getPedidosCliente(telefone);
+
+    document.getElementById('clienteTitulo').textContent = `👤 ${cliente ? cliente.nome : 'Cliente'}`;
+
+    document.getElementById('clienteBody').innerHTML = `
+        <div class="cliente-detalhes-stats">
+            <div class="cli-stat">
+                <div class="cli-stat-num">${stats.total}</div>
+                <div class="cli-stat-label">Total de pedidos</div>
+            </div>
+            <div class="cli-stat">
+                <div class="cli-stat-num">${stats.entregues}</div>
+                <div class="cli-stat-label">Entregues</div>
+            </div>
+            <div class="cli-stat">
+                <div class="cli-stat-num">${BRL(stats.gastoTotal)}</div>
+                <div class="cli-stat-label">Gasto total</div>
+            </div>
+            <div class="cli-stat">
+                <div class="cli-stat-num">${BRL(stats.ticketMedio)}</div>
+                <div class="cli-stat-label">Ticket médio</div>
+            </div>
+        </div>
+
+        <div class="cliente-detalhes-info">
+            <p><strong>📞 Telefone:</strong> <a href="https://wa.me/55${(cliente?.tel || telefone).replace(/\D/g, '')}" target="_blank">${cliente?.tel || telefone}</a></p>
+            <p><strong>📍 Endereço:</strong> ${cliente?.end || '(não informado)'}</p>
+            <p><strong>📅 Primeiro pedido:</strong> ${cliente?.primeiroPedido ? new Date(cliente.primeiroPedido).toLocaleDateString('pt-BR') : '-'}</p>
+            <p><strong>📅 Último pedido:</strong> ${cliente?.ultimoPedido ? new Date(cliente.ultimoPedido).toLocaleDateString('pt-BR') : '-'}</p>
+        </div>
+
+        <h3 style="color:var(--gold);font-family:'Playfair Display',serif;margin:18px 0 10px;">📦 Histórico de pedidos</h3>
+        <div class="cliente-historico-lista">
+            ${pedidos.length === 0 ? '<p style="color:var(--gray);text-align:center;padding:20px;">Nenhum pedido ainda</p>' :
+                pedidos.map(p => {
+                    const statusLabel = {
+                        novo: { txt: 'Recebido', cor: 'novo' },
+                        preparando: { txt: 'Preparando', cor: 'preparando' },
+                        pronto: { txt: 'Pronto', cor: 'pronto' },
+                        em_entrega: { txt: 'A caminho', cor: 'entrega' },
+                        entregue: { txt: 'Entregue', cor: 'entregue' },
+                        cancelado: { txt: 'Cancelado', cor: 'cancelado' },
+                    }[p.status] || { txt: p.status, cor: '' };
+                    const motoboy = p.motoboyId ? DB.getMotoboy(p.motoboyId) : null;
+                    const itensResumo = p.itens.map(i => i.nome.split(' (')[0]).join(', ');
+                    return `
+                    <div class="cliente-historico-item">
+                        <div class="chi-header">
+                            <span class="chi-id">#${p.id.toString().slice(-5)}</span>
+                            <span class="mpi-status ${statusLabel.cor}">${statusLabel.txt}</span>
+                            <span class="chi-data">${new Date(p.criadoEm).toLocaleDateString('pt-BR')}</span>
+                        </div>
+                        <div class="chi-itens">${itensResumo}</div>
+                        <div class="chi-footer">
+                            <span class="chi-valor">${BRL(p.total)}</span>
+                            ${motoboy ? `<span class="chi-motoboy">🛵 ${motoboy.nome}</span>` : ''}
+                        </div>
+                    </div>`;
+                }).join('')
+            }
+        </div>
+    `;
+    document.getElementById('modalCliente').style.display = 'flex';
 }
 
-function fecharDetalhes() {
-    document.getElementById('modalDetalhes').style.display = 'none';
+function fecharCliente() {
+    document.getElementById('modalCliente').style.display = 'none';
 }
 
 // ===== WHATSAPP =====
@@ -312,6 +414,309 @@ function renderContadores() {
     document.getElementById('cnt-em_entrega').textContent = m.porStatus.em_entrega;
 }
 
+// ============================================
+// EDITOR DE CARDÁPIO
+// ============================================
+function renderEditorCardapio() {
+    const c = DB.getCardapio();
+    document.getElementById('editorTamanhos').innerHTML = renderEditorTamanhos(c.tamanhos);
+    document.getElementById('editorSabores').innerHTML = renderEditorSabores(c.sabores, c.precos_base, c.tamanhos);
+    document.getElementById('editorAdicionais').innerHTML = renderEditorAdicionais(c.adicionais, c.tamanhos);
+    document.getElementById('editorCalzones').innerHTML = renderEditorCalzones(c.calzones);
+    document.getElementById('editorBebidas').innerHTML = renderEditorBebidas(c.bebidas);
+    document.getElementById('editorCombos').innerHTML = renderEditorCombos(c.combos);
+    document.getElementById('editorCupons').innerHTML = renderEditorCupons(c.cupons);
+}
+
+function renderEditorTamanhos(tamanhos) {
+    return tamanhos.map((t, i) => `
+    <div class="editor-item">
+        <div class="ei-header">
+            <span class="ei-titulo">${t.nome} (${t.id})</span>
+            <button class="btn-mini ghost" onclick="removerTamanho(${i})">🗑️</button>
+        </div>
+        <div class="ei-campos">
+            <label>Nome <input type="text" value="${t.nome}" onchange="atualizarTamanho(${i}, 'nome', this.value)"></label>
+            <label>Fatias <input type="number" value="${t.fatias}" onchange="atualizarTamanho(${i}, 'fatias', +this.value)"></label>
+            <label>Qtd sabores <input type="number" min="1" max="3" value="${t.qtdSabores}" onchange="atualizarTamanho(${i}, 'qtdSabores', +this.value)"></label>
+        </div>
+    </div>`).join('');
+}
+
+function renderEditorSabores(sabores, precos, tamanhos) {
+    return sabores.map((s, i) => {
+        const p = precos[s.id] || { P: 0, M: 0, G: 0 };
+        return `
+        <div class="editor-item editor-sabor">
+            <div class="ei-header">
+                <span class="ei-titulo">${s.emoji} ${s.nome}</span>
+                <div>
+                    <select onchange="atualizarSabor(${i}, 'cat', this.value)" class="ei-select">
+                        <option value="salgada" ${s.cat === 'salgada' ? 'selected' : ''}>Salgada</option>
+                        <option value="doce" ${s.cat === 'doce' ? 'selected' : ''}>Doce</option>
+                    </select>
+                    <button class="btn-mini ghost" onclick="removerSabor(${i})">🗑️</button>
+                </div>
+            </div>
+            <div class="ei-campos">
+                <label class="full">Nome <input type="text" value="${s.nome}" onchange="atualizarSabor(${i}, 'nome', this.value)"></label>
+                <label class="full">Descrição <input type="text" value="${s.desc}" onchange="atualizarSabor(${i}, 'desc', this.value)"></label>
+                ${tamanhos.map(t => `
+                    <label>${t.id} R$ <input type="number" step="0.50" value="${p[t.id] || 0}" onchange="atualizarPrecoSabor('${s.id}', '${t.id}', +this.value)"></label>
+                `).join('')}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function renderEditorAdicionais(adicionais, tamanhos) {
+    return adicionais.map((a, i) => `
+    <div class="editor-item">
+        <div class="ei-header">
+            <span class="ei-titulo">${a.nome}</span>
+            <button class="btn-mini ghost" onclick="removerAdicional(${i})">🗑️</button>
+        </div>
+        <div class="ei-campos">
+            <label class="full">Nome <input type="text" value="${a.nome}" onchange="atualizarAdicional(${i}, 'nome', this.value)"></label>
+            ${tamanhos.map(t => `
+                <label>${t.id} R$ <input type="number" step="0.50" value="${a.preco[t.id] || 0}" onchange="atualizarAdicionalPreco(${i}, '${t.id}', +this.value)"></label>
+            `).join('')}
+        </div>
+    </div>`).join('');
+}
+
+function renderEditorCalzones(calzones) {
+    return calzones.map((c, i) => `
+    <div class="editor-item">
+        <div class="ei-header">
+            <span class="ei-titulo">🥟 ${c.nome}</span>
+            <button class="btn-mini ghost" onclick="removerCalzone(${i})">🗑️</button>
+        </div>
+        <div class="ei-campos">
+            <label class="full">Nome <input type="text" value="${c.nome}" onchange="atualizarCalzone(${i}, 'nome', this.value)"></label>
+            <label class="full">Descrição <input type="text" value="${c.desc}" onchange="atualizarCalzone(${i}, 'desc', this.value)"></label>
+            <label>Preço R$ <input type="number" step="0.50" value="${c.preco}" onchange="atualizarCalzone(${i}, 'preco', +this.value)"></label>
+        </div>
+    </div>`).join('');
+}
+
+function renderEditorBebidas(bebidas) {
+    return bebidas.map((b, i) => `
+    <div class="editor-item">
+        <div class="ei-header">
+            <span class="ei-titulo">${b.emoji} ${b.nome}</span>
+            <button class="btn-mini ghost" onclick="removerBebida(${i})">🗑️</button>
+        </div>
+        <div class="ei-campos">
+            <label class="full">Nome <input type="text" value="${b.nome}" onchange="atualizarBebida(${i}, 'nome', this.value)"></label>
+            <label>Emoji <input type="text" value="${b.emoji}" onchange="atualizarBebida(${i}, 'emoji', this.value)"></label>
+            <label>Preço R$ <input type="number" step="0.50" value="${b.preco}" onchange="atualizarBebida(${i}, 'preco', +this.value)"></label>
+        </div>
+    </div>`).join('');
+}
+
+function renderEditorCombos(combos) {
+    return combos.map((c, i) => `
+    <div class="editor-item">
+        <div class="ei-header">
+            <span class="ei-titulo">${c.emoji} ${c.nome}</span>
+            <button class="btn-mini ghost" onclick="removerCombo(${i})">🗑️</button>
+        </div>
+        <div class="ei-campos">
+            <label class="full">Nome <input type="text" value="${c.nome}" onchange="atualizarCombo(${i}, 'nome', this.value)"></label>
+            <label class="full">Descrição <input type="text" value="${c.desc}" onchange="atualizarCombo(${i}, 'desc', this.value)"></label>
+            <label>Emoji <input type="text" value="${c.emoji}" onchange="atualizarCombo(${i}, 'emoji', this.value)"></label>
+            <label>Preço R$ <input type="number" step="0.50" value="${c.preco}" onchange="atualizarCombo(${i}, 'preco', +this.value)"></label>
+        </div>
+    </div>`).join('');
+}
+
+function renderEditorCupons(cupons) {
+    return cupons.map((c, i) => `
+    <div class="editor-item">
+        <div class="ei-header">
+            <span class="ei-titulo">🎟️ ${c.codigo} — ${c.desc}</span>
+            <button class="btn-mini ghost" onclick="removerCupom(${i})">🗑️</button>
+        </div>
+        <div class="ei-campos">
+            <label>Código <input type="text" value="${c.codigo}" onchange="atualizarCupom(${i}, 'codigo', this.value.toUpperCase())"></label>
+            <label class="full">Descrição <input type="text" value="${c.desc}" onchange="atualizarCupom(${i}, 'desc', this.value)"></label>
+            <label>Tipo
+                <select onchange="atualizarCupom(${i}, 'tipo', this.value)">
+                    <option value="percentual" ${c.tipo === 'percentual' ? 'selected' : ''}>% Percentual</option>
+                    <option value="fixo" ${c.tipo === 'fixo' ? 'selected' : ''}>R$ Fixo</option>
+                </select>
+            </label>
+            <label>Valor <input type="number" step="1" value="${c.valor}" onchange="atualizarCupom(${i}, 'valor', +this.value)"></label>
+        </div>
+    </div>`).join('');
+}
+
+// ----- Atualizadores (mutam o cardápio no storage) -----
+function getCardapioFresh() {
+    return JSON.parse(JSON.stringify(DB.getCardapio()));
+}
+function salvarCardapio(c) {
+    DB.updateCardapio(c);
+}
+
+function atualizarTamanho(i, campo, valor) {
+    const c = getCardapioFresh();
+    c.tamanhos[i][campo] = valor;
+    salvarCardapio(c);
+    renderEditorCardapio();
+}
+function removerTamanho(i) {
+    if (!confirm('Remover este tamanho?')) return;
+    const c = getCardapioFresh();
+    c.tamanhos.splice(i, 1);
+    salvarCardapio(c);
+    renderEditorCardapio();
+}
+function adicionarTamanho() {
+    const c = getCardapioFresh();
+    c.tamanhos.push({ id: 'X' + (c.tamanhos.length + 1), nome: 'Novo tamanho', qtdSabores: 1, fatias: 6 });
+    salvarCardapio(c);
+    renderEditorCardapio();
+}
+
+function atualizarSabor(i, campo, valor) {
+    const c = getCardapioFresh();
+    c.sabores[i][campo] = valor;
+    salvarCardapio(c);
+}
+function atualizarPrecoSabor(saborId, tamanho, valor) {
+    const c = getCardapioFresh();
+    if (!c.precos_base[saborId]) c.precos_base[saborId] = { P: 0, M: 0, G: 0 };
+    c.precos_base[saborId][tamanho] = valor;
+    salvarCardapio(c);
+}
+function removerSabor(i) {
+    if (!confirm('Remover este sabor?')) return;
+    const c = getCardapioFresh();
+    const id = c.sabores[i].id;
+    c.sabores.splice(i, 1);
+    delete c.precos_base[id];
+    salvarCardapio(c);
+    renderEditorCardapio();
+}
+function adicionarSabor() {
+    const c = getCardapioFresh();
+    const id = 'sabor_' + Date.now();
+    c.sabores.push({ id, nome: 'Novo sabor', cat: 'salgada', desc: '', emoji: '🍕' });
+    c.precos_base[id] = { P: 25, M: 38, G: 48 };
+    salvarCardapio(c);
+    renderEditorCardapio();
+}
+
+function atualizarAdicional(i, campo, valor) {
+    const c = getCardapioFresh();
+    c.adicionais[i][campo] = valor;
+    salvarCardapio(c);
+}
+function atualizarAdicionalPreco(i, tamanho, valor) {
+    const c = getCardapioFresh();
+    if (!c.adicionais[i].preco) c.adicionais[i].preco = {};
+    c.adicionais[i].preco[tamanho] = valor;
+    salvarCardapio(c);
+}
+function removerAdicional(i) {
+    if (!confirm('Remover este adicional?')) return;
+    const c = getCardapioFresh();
+    c.adicionais.splice(i, 1);
+    salvarCardapio(c);
+    renderEditorCardapio();
+}
+function adicionarAdicional() {
+    const c = getCardapioFresh();
+    c.adicionais.push({ id: 'adic_' + Date.now(), nome: 'Novo adicional', preco: { P: 5, M: 7, G: 9 } });
+    salvarCardapio(c);
+    renderEditorCardapio();
+}
+
+function atualizarCalzone(i, campo, valor) {
+    const c = getCardapioFresh();
+    c.calzones[i][campo] = valor;
+    salvarCardapio(c);
+}
+function removerCalzone(i) {
+    if (!confirm('Remover este calzone?')) return;
+    const c = getCardapioFresh();
+    c.calzones.splice(i, 1);
+    salvarCardapio(c);
+    renderEditorCardapio();
+}
+function adicionarCalzone() {
+    const c = getCardapioFresh();
+    c.calzones.push({ id: 'cal_' + Date.now(), nome: 'Novo calzone', desc: '', preco: 28 });
+    salvarCardapio(c);
+    renderEditorCardapio();
+}
+
+function atualizarBebida(i, campo, valor) {
+    const c = getCardapioFresh();
+    c.bebidas[i][campo] = valor;
+    salvarCardapio(c);
+}
+function removerBebida(i) {
+    if (!confirm('Remover esta bebida?')) return;
+    const c = getCardapioFresh();
+    c.bebidas.splice(i, 1);
+    salvarCardapio(c);
+    renderEditorCardapio();
+}
+function adicionarBebida() {
+    const c = getCardapioFresh();
+    c.bebidas.push({ id: 'beb_' + Date.now(), nome: 'Nova bebida', preco: 5, emoji: '🥤' });
+    salvarCardapio(c);
+    renderEditorCardapio();
+}
+
+function atualizarCombo(i, campo, valor) {
+    const c = getCardapioFresh();
+    c.combos[i][campo] = valor;
+    salvarCardapio(c);
+}
+function removerCombo(i) {
+    if (!confirm('Remover este combo?')) return;
+    const c = getCardapioFresh();
+    c.combos.splice(i, 1);
+    salvarCardapio(c);
+    renderEditorCardapio();
+}
+function adicionarCombo() {
+    const c = getCardapioFresh();
+    c.combos.push({ id: 'combo_' + Date.now(), nome: 'Novo combo', desc: '', preco: 50, emoji: '🎁' });
+    salvarCardapio(c);
+    renderEditorCardapio();
+}
+
+function atualizarCupom(i, campo, valor) {
+    const c = getCardapioFresh();
+    c.cupons[i][campo] = valor;
+    salvarCardapio(c);
+}
+function removerCupom(i) {
+    if (!confirm('Remover este cupom?')) return;
+    const c = getCardapioFresh();
+    c.cupons.splice(i, 1);
+    salvarCardapio(c);
+    renderEditorCardapio();
+}
+function adicionarCupom() {
+    const c = getCardapioFresh();
+    c.cupons.push({ codigo: 'NOVO' + Date.now().toString().slice(-4), desc: 'Novo cupom', tipo: 'percentual', valor: 10 });
+    salvarCardapio(c);
+    renderEditorCardapio();
+}
+
+function resetarCardapio() {
+    if (!confirm('Resetar o cardápio pro padrão? Suas edições serão perdidas.')) return;
+    DB.resetCardapio();
+    renderEditorCardapio();
+    notificar('↺ Cardápio resetado!', 'success');
+}
+
 // ===== CONFIG =====
 function abrirConfig() {
     const c = DB.getConfig();
@@ -321,11 +726,7 @@ function abrirConfig() {
     document.getElementById('cfgTaxa').value = c.taxaEntrega;
     document.getElementById('modalConfig').style.display = 'flex';
 }
-
-function fecharConfig() {
-    document.getElementById('modalConfig').style.display = 'none';
-}
-
+function fecharConfig() { document.getElementById('modalConfig').style.display = 'none'; }
 function salvarConfig() {
     DB.updateConfig({
         nome: document.getElementById('cfgNome').value,
@@ -336,18 +737,19 @@ function salvarConfig() {
     notificar('⚙️ Configurações salvas!', 'success');
     fecharConfig();
 }
-
 function limparDados() {
-    if (!confirm('Apagar TODOS os pedidos? Isso não pode ser desfeito.')) return;
+    if (!confirm('Apagar TODOS os pedidos, clientes e cardápio customizado?')) return;
     localStorage.setItem('donna_pedidos', JSON.stringify([]));
-    notificar('🗑️ Pedidos limpos!', 'success');
+    localStorage.setItem('donna_clientes', JSON.stringify({}));
+    localStorage.removeItem('donna_cardapio');
+    DB.init();
+    notificar('🗑️ Tudo limpo!', 'success');
+    fecharConfig();
     renderFila();
     renderMetricas();
-    renderContadores();
-    fecharConfig();
 }
 
-// ===== NOTIFICAÇÃO =====
+// ===== NOTIFICAÇÃO + SOM =====
 function notificar(texto, tipo = '') {
     const container = document.getElementById('notificacaoContainer');
     const el = document.createElement('div');
@@ -356,8 +758,6 @@ function notificar(texto, tipo = '') {
     container.appendChild(el);
     setTimeout(() => el.remove(), 5000);
 }
-
-// ===== SOM =====
 function tocarSom(tipo = 'novo') {
     try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -374,7 +774,6 @@ function tocarSom(tipo = 'novo') {
     } catch (e) { /* ignora */ }
 }
 
-// ===== UTIL =====
 const BRL = (v) => 'R$ ' + v.toFixed(2).replace('.', ',');
 
 document.addEventListener('DOMContentLoaded', init);
