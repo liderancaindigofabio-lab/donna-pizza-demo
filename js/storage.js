@@ -71,6 +71,13 @@ const DB = {
         return this.getMotoboys().find(m => m.id === id);
     },
 
+    // Pedidos que o motoboy tem em rota (ainda não entregues)
+    getPedidosMotoboy(motoboyId) {
+        return this.getPedidos().filter(p =>
+            p.motoboyId === motoboyId && p.status === 'em_entrega'
+        );
+    },
+
     updateMotoboy(id, updates) {
         const motoboys = this.getMotoboys();
         const idx = motoboys.findIndex(m => m.id === id);
