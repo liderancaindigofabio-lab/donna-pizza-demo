@@ -14,6 +14,23 @@ let watchId = null;
 // Coordenadas da pizzaria (Pé de Serra - BA)
 const PIZZARIA_COORDS = [-11.8345, -39.6125];
 
+// Gera coordenadas aleatórias próximas à pizzaria (pra pedidos antigos sem coords)
+function gerarCoordsAleatorias() {
+    // ~3km de raio (0.03 graus ~= 3.3km)
+    const lat = PIZZARIA_COORDS[0] + (Math.random() - 0.5) * 0.06;
+    const lng = PIZZARIA_COORDS[1] + (Math.random() - 0.5) * 0.06;
+    return { lat, lng };
+}
+
+// Garante que pedido tenha coords (pra pedidos antigos)
+function garantirCoords(pedido) {
+    if (!pedido.coords) {
+        pedido.coords = gerarCoordsAleatorias();
+        DB.updatePedido(pedido.id, { coords: pedido.coords });
+    }
+    return pedido;
+}
+
 // ===== INIT =====
 function init() {
     const saved = localStorage.getItem('donna_motoboy_logado');
@@ -188,7 +205,8 @@ function otimizarERenderizarRota() {
 
     // Várias entregas: OTIMIZAR com vizinho mais próximo
     const pontoAtual = markerMotoboy.getLatLng();
-    const ordenados = vizinhoMaisProximo(pontoAtual, pedidos);
+    const pedidosComCoords = pedidos.map(garantirCoords);
+    const ordenados = vizinhoMaisProximo(pontoAtual, pedidosComCoords);
     renderizarRotaMultipla(ordenados, pontoAtual);
 }
 
@@ -392,8 +410,10 @@ function renderPedidosAtuais() {
     }
 
     // Calcula ordem otimizada pra mostrar a UI
-    const pontoAtual = markerMotoboy ? markerMotoboy.getLatLng() : L.latLng(PIZARRIA_COORDS[0], PIZZARIA_COORDS[1]);
-    const ordenados = vizinhoMaisProximo(pontoAtual, pedidos);
+    const pontoAtual = markerMotoboy ? markerMotoboy.getLatLng() : L.latLng(PIZZARIA_COORDS[0], PIZZARIA_COORDS[1]);
+    // Garante que todos têm coords (pedidos antigos podem não ter)
+    const pedidosComCoords = pedidos.map(garantirCoords);
+    const ordenados = vizinhoMaisProximo(pontoAtual, pedidosComCoords);
 
     // Header com resumo
     const headerHtml = `
@@ -461,8 +481,13 @@ function irParaProximaEntrega() {
     const pedidos = DB.getPedidosMotoboy(motoboyAtual);
     if (pedidos.length === 0) return;
     const pontoAtual = markerMotoboy.getLatLng();
-    const ordenados = vizinhoMaisProximo(pontoAtual, pedidos);
+    const pedidosComCoords = pedidos.map(garantirCoords);
+    const ordenados = vizinhoMaisProximo(pontoAtual, pedidosComCoords);
     const proxima = ordenados[0];
+    if (!proxima || !proxima.coords) {
+        toast('⚠️ Pedido sem coordenadas', 'error');
+        return;
+    }
     const url = `https://www.google.com/maps/dir/?api=1&destination=${proxima.coords.lat},${proxima.coords.lng}&travelmode=driving`;
     window.open(url, '_blank');
 }
@@ -470,8 +495,9 @@ function irParaProximaEntrega() {
 // ===== AÇÕES =====
 function abrirNavegacao(pedidoId) {
     const p = DB.getPedidos().find(x => x.id === pedidoId);
-    if (!p || !p.coords) return;
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${p.coords.lat},${p.coords.lng}&travelmode=driving`;
+    if (!p) return;
+    const pComCoords = garantirCoords(p);
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${pComCoords.coords.lat},${pComCoords.coords.lng}&travelmode=driving`;
     window.open(url, '_blank');
 }
 
