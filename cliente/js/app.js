@@ -684,27 +684,38 @@ async function geocodificar(endereco) {
         .replace(/\s+/g, ' ')
         .trim();
 
+    const headers = { 'Accept': 'application/json', 'Accept-Language': 'pt-BR,pt;q=0.9' };
+
     try {
-        // viewbox da cidade de Aracaju (delimita a busca pra evitar pegar outro lugar com nome parecido)
-        // Ordem Nominatim: viewbox = esquerda,topo,direita,baixo  (minLon, maxLat, maxLon, minLat)
-        const viewbox = '-37.15,-10.85,-36.95,-11.15';
-        const q = encodeURIComponent(limpo + ', Aracaju, Sergipe, Brasil');
-        const url = `https://nominatim.openstreetmap.org/search?q=${q}` +
-                    `&format=json&limit=1&countrycodes=br&viewbox=${viewbox}&bounded=1`;
-        const res = await fetch(url, {
-            headers: { 'Accept': 'application/json' }
-        });
-        const data = await res.json();
+        // Tenta primeiro: endereço completo + cidade
+        let q = encodeURIComponent(limpo + ', Aracaju, Sergipe, Brasil');
+        let url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=br`;
+        let res = await fetch(url, { headers });
+        let data = await res.json();
         if (data && data[0]) {
             return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
         }
-        // Retry sem bounded (busca mais ampla)
-        const res2 = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=br`, {
-            headers: { 'Accept': 'application/json' }
-        });
-        const data2 = await res2.json();
-        if (data2 && data2[0]) {
-            return { lat: parseFloat(data2[0].lat), lng: parseFloat(data2[0].lon) };
+
+        // Tenta segundo: só a rua + bairro (sem o CEP)
+        const semCep = limpo.replace(/\d{5}-?\d{3}/g, '').replace(/,+/g, ',').trim();
+        q = encodeURIComponent(semCep + ', Aracaju');
+        url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=3&countrycodes=br`;
+        res = await fetch(url, { headers });
+        data = await res.json();
+        if (data && data[0]) {
+            return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+        }
+
+        // Tenta terceiro: só o nome da rua + cidade
+        const partes = limpo.split(',').map(s => s.trim());
+        if (partes.length > 1) {
+            q = encodeURIComponent(partes[0] + ', Aracaju');
+            url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=br`;
+            res = await fetch(url, { headers });
+            data = await res.json();
+            if (data && data[0]) {
+                return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+            }
         }
         return fallback();
     } catch (e) {
