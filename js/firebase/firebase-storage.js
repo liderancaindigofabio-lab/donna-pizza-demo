@@ -55,6 +55,10 @@ const DBRemote = {
     },
 
     // === MOTOBOYS ===
+    // Converte ID numérico (1, 2, 3) em chave Firebase ("mb_1", "mb_2", "mb_3")
+    // Necessário porque chaves numéricas viram arrays no Firebase
+    _motoboyKey(id) { return 'mb_' + id; },
+
     getMotoboysAsync() {
         return this._ref('motoboys').once('value').then(snap => {
             const val = snap.val() || {};
@@ -63,25 +67,25 @@ const DBRemote = {
     },
 
     getMotoboyAsync(id) {
-        return this._ref('motoboys/' + id).once('value').then(snap => snap.val());
+        return this._ref('motoboys/' + this._motoboyKey(id)).once('value').then(snap => snap.val());
     },
 
     updateMotoboyPos(id, lat, lng) {
         const pos = { lat, lng, t: Date.now() };
         // Salva em DOIS caminhos: pos (com timestamp) e lat/lng direto (pra ler fácil)
-        this._ref('motoboys/' + id).update({ lat, lng, pos });
+        this._ref('motoboys/' + this._motoboyKey(id)).update({ lat, lng, pos });
     },
 
     // === TRACKING em tempo real ===
     // Listener que dispara toda vez que a posição de QUALQUER motoboy muda
     onMotoboyChange(id, callback) {
-        this._ref('motoboys/' + id).on('value', snap => {
+        this._ref('motoboys/' + this._motoboyKey(id)).on('value', snap => {
             callback(snap.val());
         });
     },
 
     offMotoboyChange(id) {
-        this._ref('motoboys/' + id).off();
+        this._ref('motoboys/' + this._motoboyKey(id)).off();
     },
 
     // === PEDIDOS em tempo real ===
