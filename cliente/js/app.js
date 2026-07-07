@@ -19,7 +19,7 @@ const cardapio = DB.getCardapio();
 // ============ INIT ============
 function init() {
     clienteLogado = DB.getClienteLogado();
-    document.title = 'DEBUG-V3 init: ' + (clienteLogado ? clienteLogado.nome : 'null');
+
     renderCategorias();
     renderProdutos();
     renderHeaderCliente();
@@ -666,7 +666,7 @@ function coordsAleatorias() {
 
 // ============ HISTÓRICO DO CLIENTE ============
 function abrirMeusPedidos() {
-    document.title = 'DEBUG-V3 abrirMeusPedidos CLI: ' + (clienteLogado ? clienteLogado.nome : 'null');
+
     if (!clienteLogado) {
         toast('Faça um pedido primeiro pra ter histórico', 'warning');
         return;
@@ -867,11 +867,3 @@ function toggleTheme() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
-
-// ============ AUTO-OPEN MODAL (debug) ============
-setTimeout(() => {
-    console.log('[auto-open] clienteLogado:', clienteLogado, 'meuPedidoId:', meuPedidoId);
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('modal') === 'meus' && clienteLogado) abrirMeusPedidos();
-    if (params.get('modal') === 'acompanhar' && meuPedidoId) abrirAcompanhamento();
-}, 800);
