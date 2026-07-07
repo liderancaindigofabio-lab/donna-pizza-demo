@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Teste CSS</title>
+<link rel="stylesheet" href="css/cliente-final.css?v=1">
+<style>
+  body { font-family: monospace; padding: 20px; }
+  #out { background: white; padding: 15px; border: 1px solid #000; margin-top: 20px; }
+  .bar { background: #fff; padding: 10px; margin: 10px 0; border: 1px solid red; }
+</style>
+</head>
+<body>
+<h1>🔬 PROBE — categorias-bar</h1>
+<nav class="categorias-bar" id="categoriasBar">
+  <div class="categorias-inner">
+    <button class="categoria-btn active">Pizzas</button>
+    <button class="categoria-btn">Calzones</button>
+  </div>
+</nav>
+<div id="out">calculando...</div>
+<script>
+setTimeout(() => {
+  const el = document.getElementById('categoriasBar');
+  const cs = getComputedStyle(el);
+  document.getElementById('out').innerHTML = 
+    '<b>categorias-bar background-color:</b> ' + cs.backgroundColor + '<br>' +
+    '<b>categorias-bar background-image:</b> ' + cs.backgroundImage + '<br>' +
+    '<b>position:</b> ' + cs.position + '<br>' +
+    '<b>class:</b> ' + el.className + '<br>' +
+    '<b>rect:</b> ' + JSON.stringify(el.getBoundingClientRect()) + '<br>' +
+    '<b>body bg:</b> ' + getComputedStyle(document.body).backgroundColor;
+}, 200);
+</script>
+</body>
+</html>
