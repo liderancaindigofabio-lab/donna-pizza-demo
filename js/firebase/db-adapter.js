@@ -422,7 +422,17 @@ const DB = {
     onChange(callback) {
         if (this.backend === 'firebase') {
             // Sincroniza cache com Firebase
-            DBRemote.onAllPedidosChange(arr => this._cachePedidos = arr);
+            DBRemote.onAllPedidosChange(arr => {
+                const oldLen = (this._cachePedidos || []).length;
+                this._cachePedidos = arr;
+                if (arr.length > oldLen) {
+                    // Pedido novo chegou
+                    const novo = arr[arr.length - 1];
+                    callback({ tipo: 'pedido_novo', data: novo });
+                } else {
+                    callback({ tipo: 'pedido_update', data: null });
+                }
+            });
             firebase.database().ref('motoboys').on('value', snap => {
                 const val = snap.val() || {};
                 this._cacheMotoboys = Object.values(val);
