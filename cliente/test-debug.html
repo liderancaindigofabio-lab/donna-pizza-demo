@@ -2,24 +2,22 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Debug</title>
+<title>Debug V2</title>
 </head>
 <body>
-<h1>Injetando...</h1>
+<h1>Debug v2</h1>
 <script>
-const cliente = { nome: "Fabio Junior", tel: "16997902168", endereco: "Rua das Oliveiras, 123 - Centro", criadoEm: "2024-06-15" };
-const clientes = {};
-clientes[cliente.tel] = cliente;
-localStorage.setItem('donna_clientes', JSON.stringify(clientes));
-localStorage.setItem('donna_cliente_logado', cliente.tel);
-const pedidos = [
-  { id: 1001, cliente, itens: [{nome:"Pizza Margherita", qtd:1}, {nome:"Coca-Cola 2L", qtd:1}], total: 62, pagamento: "PIX", status: "em_entrega", motoboyId: 1, criadoEm: new Date().toISOString() }
-];
-localStorage.setItem('donna_pedidos', JSON.stringify(pedidos));
-localStorage.setItem('donna_meu_pedido', '1001');
-const motoboys = { 1: { id: 1, nome: "Carlos Silva", tel: "16988887777", placa: "BRA2E19" } };
-localStorage.setItem('donna_motoboys', JSON.stringify(motoboys));
-setTimeout(() => window.location.href = './?modal=meus&v=99', 100);
+localStorage.setItem('donna_clientes', JSON.stringify({
+  "16997902168": { nome: "Fabio Junior", tel: "16997902168", endereco: "Rua das Oliveiras", criadoEm: "2024-06-15" }
+}));
+localStorage.setItem('donna_cliente_logado', "16997902168");
+localStorage.setItem('donna_pedidos', JSON.stringify([
+  { id: 1001, cliente: {nome:"Fabio", tel:"16997902168"}, itens: [{nome:"Pizza", qtd:1}], total: 50, pagamento: "PIX", status: "em_entrega", motoboyId: 1, criadoEm: new Date().toISOString() }
+]));
+localStorage.setItem('donna_meu_pedido', "1001");
+localStorage.setItem('donna_motoboys', JSON.stringify({1: {id:1, nome:"Carlos Silva"}}));
+document.body.innerHTML += '<br>Storage setado, redirecionando...';
+setTimeout(() => window.location.href = './?modal=meus&v=dbg2', 200);
 </script>
 </body>
 </html>
