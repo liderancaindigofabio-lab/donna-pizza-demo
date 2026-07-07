@@ -250,6 +250,28 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+
+<script>
+window.addEventListener('error', e => {
+  const d = document.getElementById('dbg');
+  if (!d) return;
+  d.innerHTML += '❌ ' + e.message + ' @ ' + (e.filename || '?').split('/').pop() + ':' + e.lineno + '<br>';
+  if (e.error && e.error.stack) {
+    const lines = e.error.stack.split('\n').slice(0, 5);
+    lines.forEach(l => d.innerHTML += '&nbsp;&nbsp;' + l + '<br>');
+  }
+});
+window.addEventListener('unhandledrejection', e => {
+  const d = document.getElementById('dbg');
+  if (!d) return;
+  d.innerHTML += '❌ Promise: ' + (e.reason && e.reason.message || e.reason) + '<br>';
+  if (e.reason && e.reason.stack) {
+    const lines = e.reason.stack.split('\n').slice(0, 5);
+    lines.forEach(l => d.innerHTML += '&nbsp;&nbsp;' + l + '<br>');
+  }
+});
+</script>
+
 <!-- Bootstrap Firebase manualmente -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
