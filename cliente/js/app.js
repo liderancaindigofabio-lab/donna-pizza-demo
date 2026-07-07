@@ -724,7 +724,7 @@ function abrirMeusPedidos() {
                     cancelado:  { txt: 'Cancelado',   cor: 'cancelado' },
                 }[p.status] || { txt: p.status, cor: '' };
                 let motoboy = null;
-                try { motoboy = p.motoboyId ? DB.getMotoboy(p.motoboyId) : null; } catch(e) {}
+                try { motoboy = p.motoboyId ? DB.getMotoboy(p.motoboyId) : null; } catch(e) { motoboy = null; }
                 return `
                 <div class="mpi-card">
                     <div class="mpi-header">
