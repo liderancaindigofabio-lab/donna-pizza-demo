@@ -666,21 +666,10 @@ function coordsAleatorias() {
 
 // ============ HISTÓRICO DO CLIENTE ============
 function abrirMeusPedidos() {
-
     if (!clienteLogado) {
         toast('Faça um pedido primeiro pra ter histórico', 'warning');
         return;
     }
-    try {
-        _abrirMeusPedidosImpl();
-    } catch (e) {
-        document.body.setAttribute('data-erro', e.message);
-        // fallback: ainda abre o modal vazio
-        document.getElementById('modalMeusPedidos').style.display = 'flex';
-    }
-}
-
-function _abrirMeusPedidosImpl() {
     const pedidos = DB.getPedidosCliente(clienteLogado.tel);
     const stats = DB.getEstatisticasCliente(clienteLogado.tel);
     const primeiroNome = clienteLogado.nome.split(' ')[0];
@@ -779,11 +768,6 @@ function checarPedidoLocal() {
 }
 
 function abrirAcompanhamento() {
-    const testDiv = document.createElement('div');
-    testDiv.id = 'acomp-debug';
-    testDiv.textContent = 'meuPedidoId=' + meuPedidoId;
-    testDiv.style.cssText = 'position:fixed;top:0;left:0;background:red;color:white;z-index:9999;padding:10px;';
-    document.body.appendChild(testDiv);
     if (!meuPedidoId) {
         toast('Você não tem pedido ativo', 'warning');
         return;
@@ -813,7 +797,8 @@ function abrirAcompanhamento() {
     ];
 
     const stepAtual = ['novo', 'preparando', 'pronto', 'em_entrega', 'entregue'].indexOf(pedido.status);
-    const motoboy = pedido.motoboyId ? DB.getMotoboy(pedido.motoboyId) : null;
+    let motoboy = null;
+    try { motoboy = pedido.motoboyId ? DB.getMotoboy(pedido.motoboyId) : null; } catch (e) { motoboy = null; }
     const totalItens = (pedido.itens || []).reduce((acc, i) => acc + (i.qtd || 1), 0);
     const criado = new Date(pedido.criadoEm);
     const horaFormatada = criado.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
