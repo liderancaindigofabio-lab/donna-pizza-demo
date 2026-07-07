@@ -9,64 +9,25 @@
         'motoboy':    ['/donna-pizza-demo/motoboy/js/motoboy.js'],
         'pizzaria':   ['/donna-pizza-demo/pizzaria/js/painel.js'],
     };
-    const build = Date.now();
     const appName = (location.pathname.match(/\/(cliente|motoboy|pizzaria)(\/|$)/) || [])[1];
-    const extras = (APPS[appName] || []).map(s => s + '?b=' + build);
+    const extras = APPS[appName] || [];
 
     function loadScript(src, cb) {
         const s = document.createElement('script');
         s.src = src;
-        let called = false;
-        const done = () => { if (!called) { called = true; cb && cb(); } };
-        s.onload = done;
-        s.onerror = done;
-        s.onreadystatechange = () => { if (s.readyState === 'loaded' || s.readyState === 'complete') done(); };
+        s.onload = () => cb && cb();
+        s.onerror = () => { console.error('Falha ao carregar', src); cb && cb(); };
         document.head.appendChild(s);
-        // Fallback: se o script já está em cache, onload pode não disparar
-        // em alguns navegadores. Força após 100ms.
-        setTimeout(() => {
-            if (!called && s.onload.toString().length > 0) {
-                // Verifica se o script tem suas funções globais definidas
-                done();
-            }
-        }, 100);
     }
 
     function startApp() {
         console.log('🚀 Iniciando app:', appName);
-        // DEBUG: mostra no DOM
-        try {
-            const dbg = document.createElement('div');
-            dbg.id = 'loader-debug';
-            dbg.style.cssText = 'position:fixed;top:0;left:0;background:lime;color:black;padding:4px;z-index:99999;font-size:11px;';
-            dbg.textContent = '🚀 startApp: ' + appName;
-            (document.body || document.documentElement).appendChild(dbg);
-        } catch (e) {}
         extras.forEach(src => {
             console.log('  → carregando', src);
             loadScript(src, () => {
-                try {
-                    const dbg2 = document.getElementById('loader-debug');
-                    if (dbg2) dbg2.textContent += ' | ' + src.split('/').pop() + ' OK';
-                } catch (e) {}
                 if (typeof init === 'function') {
                     try { init(); }
-                    catch (e) {
-                        try {
-                            const dbg4 = document.getElementById('loader-debug');
-                            if (dbg4) dbg4.textContent += ' | ❌ ERRO: ' + e.message;
-                        } catch (e2) {}
-                        console.error('Erro em init():', e);
-                    }
-                    try {
-                        const dbg5 = document.getElementById('loader-debug');
-                        if (dbg5) dbg5.textContent += ' | ✓ init() OK';
-                    } catch (e) {}
-                } else {
-                    try {
-                        const dbg3 = document.getElementById('loader-debug');
-                        if (dbg3) dbg3.textContent += ' | ❌ init=' + typeof init;
-                    } catch (e) {}
+                    catch (e) { console.error('Erro em init():', e); }
                 }
             });
         });
