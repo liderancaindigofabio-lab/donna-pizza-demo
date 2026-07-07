@@ -21,12 +21,24 @@
     }
 
     function startApp() {
-        extras.forEach(src => loadScript(src));
+        console.log('🚀 Iniciando app:', appName);
+        extras.forEach(src => {
+            console.log('  → carregando', src);
+            loadScript(src);
+        });
     }
 
     function bootLocal() {
+        console.log('💾 Boot localStorage');
         loadScript('/donna-pizza-demo/js/firebase/db-adapter.js', () => {
-            DB.init().then(startApp);
+            console.log('  adapter carregado, init DB...');
+            const p = DB.init();
+            console.log('  init() retornou:', p);
+            if (p && p.then) {
+                p.then(() => { console.log('  DB pronto!'); startApp(); });
+            } else {
+                startApp();
+            }
         });
     }
 
