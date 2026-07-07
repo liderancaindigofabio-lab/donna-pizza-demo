@@ -1074,3 +1074,171 @@ body {
     }
     .mapa-rota-info-linha { min-width: 160px; }
 }
+
+
+/* ===== ICONES NO MAPA ===== */
+.mapa-icon-wrapper {
+    background: transparent !important;
+    border: none !important;
+}
+.mapa-icon-pizzaria {
+    background: #C03A2B;
+    color: #fff;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    font-weight: 700;
+    border: 3px solid #fff;
+    box-shadow: 0 4px 12px rgba(192, 58, 43, 0.4);
+    font-family: 'Playfair Display', serif;
+}
+.mapa-icon-motoboy {
+    background: #3D5C3A;
+    color: #fff;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    font-weight: 700;
+    border: 3px solid #fff;
+    box-shadow: 0 4px 12px rgba(61, 92, 58, 0.4);
+    animation: mb-pulse 2s infinite;
+    font-family: 'Playfair Display', serif;
+}
+@keyframes mb-pulse {
+    0%, 100% { box-shadow: 0 4px 12px rgba(61, 92, 58, 0.4), 0 0 0 0 rgba(61, 92, 58, 0.6); }
+    50% { box-shadow: 0 4px 12px rgba(61, 92, 58, 0.4), 0 0 0 12px rgba(61, 92, 58, 0); }
+}
+.mapa-icon-cliente {
+    background: #C9A961;
+    color: #fff;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    font-weight: 700;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 6px rgba(201, 169, 97, 0.4);
+    font-family: 'Playfair Display', serif;
+}
+.mapa-icon-ordem {
+    background: #2F2A22;
+    color: #C9A961;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-weight: 700;
+    border: 2px solid #C9A961;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* ===== INFO PANEL POLIDO ===== */
+.mapa-rota-info-linha {
+    background: #fff;
+    padding: 14px 16px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    border: 1px solid #e0d8c5;
+    color: #2F2A22;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+.mapa-rota-info-linha.destaque {
+    background: linear-gradient(135deg, #3D5C3A 0%, #2F4A2C 100%);
+    color: #fff;
+    border-color: #2F4A2C;
+}
+.mapa-rota-info-linha .info-label {
+    color: #888;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+.mapa-rota-info-linha.destaque .info-label {
+    color: #C9A961;
+}
+.mapa-rota-info-linha .info-valor {
+    font-weight: 700;
+    color: #2F2A22;
+    font-size: 0.95rem;
+}
+.mapa-rota-info-linha .info-valor-grande {
+    font-weight: 800;
+    color: #fff;
+    font-size: 1.6rem;
+    font-family: 'Playfair Display', serif;
+}
+.mapa-rota-info-ordem {
+    background: #fff;
+    padding: 14px;
+    border-radius: 12px;
+    border: 1px solid #e0d8c5;
+}
+.info-ordem-titulo {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #888;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+}
+.info-ordem-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    font-size: 0.85rem;
+    color: #666;
+    border-bottom: 1px solid #f0e8d5;
+}
+.info-ordem-item:last-child { border-bottom: none; }
+.info-ordem-item.ativo {
+    color: #3D5C3A;
+    font-weight: 700;
+}
+.info-ordem-item .ordem-num {
+    background: #f0e8d5;
+    color: #888;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+.info-ordem-item.ativo .ordem-num {
+    background: #3D5C3A;
+    color: #C9A961;
+}
+
+/* Botao Acompanhar rota verde premium */
+.btn-acao:first-child {
+    background: linear-gradient(135deg, #3D5C3A, #2F4A2C);
+    color: #fff;
+    font-weight: 700;
+    flex: 1;
+}
+.btn-acao:first-child:hover {
+    background: linear-gradient(135deg, #4A6F46, #3D5C3A);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(61, 92, 58, 0.3);
+}

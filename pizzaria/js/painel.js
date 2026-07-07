@@ -236,6 +236,8 @@ let mapaPizzaria = null;
 let markerMotoboyPizzaria = null;
 let markersEntregasPizzaria = [];
 let rotaLayerPizzaria = null;
+let rotaHistoricoLayer = null;
+let rotaFuturoLayer = null;
 let rotaTimerPizzaria = null;
 
 function abrirMapaRota(pedidoId) {
@@ -266,70 +268,160 @@ function abrirMapaRota(pedidoId) {
 function atualizarMapaRotaPizzaria() {
     if (!mapaPizzaria) return;
     const pedidosEmEntrega = DB.getPedidos().filter(p => p.status === 'em_entrega');
-    if (pedidosEmEntrega.length === 0) return;
+    if (pedidosEmEntrega.length === 0) {
+        document.getElementById('mapaRotaInfo').innerHTML =
+            '<div class="mapa-rota-info-linha" style="text-align:center;color:#999;">Nenhuma entrega ativa no momento</div>';
+        return;
+    }
 
     const pedidoId = parseInt(document.getElementById('mapaRotaPedidoId').textContent);
-    const pedidoAtual = pedidosEmEntrega.find(p => p.id === pedidoId);
-    if (!pedidoAtual) return;
+    const pedidoAtual = pedidosEmEntrega.find(p => p.id === pedidoId) || pedidosEmEntrega[0];
     const motoboyId = pedidoAtual.motoboyId;
     const motoboy = DB.getMotoboy(motoboyId);
 
+    // Limpa markers antigos (mas NAO o motoboy marker, pra animar)
     markersEntregasPizzaria.forEach(m => mapaPizzaria.removeLayer(m));
     markersEntregasPizzaria = [];
     if (rotaLayerPizzaria) { mapaPizzaria.removeLayer(rotaLayerPizzaria); rotaLayerPizzaria = null; }
+    if (rotaFuturoLayer) { mapaPizzaria.removeLayer(rotaFuturoLayer); rotaFuturoLayer = null; }
+    if (rotaHistoricoLayer) { mapaPizzaria.removeLayer(rotaHistoricoLayer); rotaHistoricoLayer = null; }
 
+    // Marker da pizzaria
     const pizzaIcon = L.divIcon({
-        html: '<div style="background:#C03A2B;color:#fff;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);">🏠</div>',
+        html: '<div class="mapa-icon-pizzaria">P</div>',
+        className: 'mapa-icon-wrapper',
         iconSize: [40, 40],
         iconAnchor: [20, 20],
     });
-    L.marker(PIZZARIA_COORDS, { icon: pizzaIcon }).addTo(mapaPizzaria).bindPopup('🏠 Pizzaria');
+    L.marker(PIZZARIA_COORDS, { icon: pizzaIcon, zIndexOffset: 500 })
+        .addTo(mapaPizzaria)
+        .bindPopup('<b>Nonna Pizzaria</b><br>Ponto de partida e retorno');
 
+    // Posicao atual do motoboy (do storage, em tempo real)
     const pos = DB.getMotoboyPos(motoboyId);
     const mbPos = pos ? [pos.lat, pos.lng] : PIZZARIA_COORDS;
     const mbIcon = L.divIcon({
-        html: '<div style="background:#3D5C3A;color:#fff;width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.5rem;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);">🛵</div>',
+        html: '<div class="mapa-icon-motoboy">M</div>',
+        className: 'mapa-icon-wrapper',
         iconSize: [44, 44],
         iconAnchor: [22, 22],
     });
     if (!markerMotoboyPizzaria) {
-        markerMotoboyPizzaria = L.marker(mbPos, { icon: mbIcon }).addTo(mapaPizzaria);
-        markerMotoboyPizzaria.bindPopup('<b>🛵 ' + (motoboy?.nome || 'Motoboy') + '</b>');
+        markerMotoboyPizzaria = L.marker(mbPos, { icon: mbIcon, zIndexOffset: 1000 })
+            .addTo(mapaPizzaria);
     } else {
-        markerMotoboyPizzaria.setLatLng(mbPos);
+        // ANIMACAO SUAVE: o marker se move com transicao
+        markerMotoboyPizzaria.setLatLng(mbPos, { animate: true, duration: 2 });
     }
 
+    // Calcula tempo desde a ultima atualizacao
+    const t = pos ? Math.max(0, Math.round((Date.now() - pos.t) / 1000)) : 0;
+    const tempoStr = t < 60 ? 'ha ' + t + 's' : 'ha ' + Math.floor(t/60) + 'min';
+    markerMotoboyPizzaria.bindPopup(
+        '<b>' + (motoboy?.nome || 'Motoboy') + '</b><br>' +
+        'Atualizado ' + tempoStr + '<br>' +
+        '<small>Lat: ' + mbPos[0].toFixed(5) + '<br>Lng: ' + mbPos[1].toFixed(5) + '</small>'
+    );
+
+    // Marcadores dos clientes
     const clienteIcon = L.divIcon({
-        html: '<div style="background:#C9A961;color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,0.2);">📍</div>',
+        html: '<div class="mapa-icon-cliente">C</div>',
+        className: 'mapa-icon-wrapper',
         iconSize: [32, 32],
         iconAnchor: [16, 16],
     });
     const allCoords = [PIZZARIA_COORDS, mbPos];
-    pedidosEmEntrega.forEach(p => {
+    pedidosEmEntrega.forEach((p, idx) => {
         const c = p.coords || gerarCoordsAleatorias();
         p.coords = c;
-        const m = L.marker([c.lat, c.lng], { icon: clienteIcon }).addTo(mapaPizzaria);
-        m.bindPopup('<b>📦 #' + p.id.toString().slice(-5) + '</b><br>' + p.cliente.nome + '<br>' + (p.cliente.endereco || '') + '<br><small>' + BRL(p.total) + '</small>');
+        const m = L.marker([c.lat, c.lng], { icon: clienteIcon })
+            .addTo(mapaPizzaria);
+        m.bindPopup(
+            '<b>Pedido #' + p.id.toString().slice(-5) + '</b><br>' +
+            p.cliente.nome + '<br>' +
+            (p.cliente.endereco || 'Sem endereco') + '<br>' +
+            '<small>' + BRL(p.total) + ' - ' + p.cliente.pag + '</small>'
+        );
         markersEntregasPizzaria.push(m);
         allCoords.push([c.lat, c.lng]);
     });
 
+    // Calcula rota otimizada
     const pedidos = pedidosEmEntrega.map(p => ({ ...p, coords: p.coords || gerarCoordsAleatorias() }));
     const ordenados = vizinhoMaisProximoRota(mbPos, pedidos);
-    const waypoints = [PIZZARIA_COORDS, mbPos, ...ordenados.map(o => [o.coords.lat, o.coords.lng])];
-    calcularRotaOSRMPizzaria(waypoints);
 
-    const km = calcularDistanciaTotalRota(waypoints);
-    const eta = Math.round(km * 3);
+    // ENCONTRA O INDICE DO PEDIDO ATUAL na rota otimizada
+    const idxAtual = ordenados.findIndex(p => p.id === pedidoId);
+
+    // TRACOS:
+    // 1. Linha HISTORICO (cinza) - pizzaria ate posicao atual
+    rotaHistoricoLayer = L.polyline([PIZZARIA_COORDS, mbPos], {
+        color: '#999',
+        weight: 3,
+        opacity: 0.6,
+        dashArray: '4, 8',
+    }).addTo(mapaPizzaria);
+
+    // 2. Linha FUTURO (verde) - do motoboy ate todas as entregas em ordem
+    const waypointsFuturo = [mbPos, ...ordenados.map(o => [o.coords.lat, o.coords.lng])];
+    rotaFuturoLayer = L.polyline(waypointsFuturo, {
+        color: '#3D5C3A',
+        weight: 5,
+        opacity: 0.85,
+    }).addTo(mapaPizzaria);
+
+    // 3. Numeros nos pontos de entrega (ordem de visita)
+    ordenados.forEach((p, i) => {
+        const numIcon = L.divIcon({
+            html: '<div class="mapa-icon-ordem">' + (i + 1) + '</div>',
+            className: 'mapa-icon-wrapper',
+            iconSize: [28, 28],
+            iconAnchor: [14, 14],
+        });
+        L.marker([p.coords.lat, p.coords.lng], { icon: numIcon, zIndexOffset: 200 })
+            .addTo(mapaPizzaria);
+    });
+
+    // Calculo de distancia e ETA
+    const kmTotal = calcularDistanciaTotalRota(waypointsFuturo);
+
+    // ETA ate o pedido atual (distancia do motoboy ate o pedido na rota)
+    let kmAteAqui = 0;
+    let prox = mbPos;
+    for (let i = 0; i <= idxAtual; i++) {
+        const d = calcularDistanciaHaversine(prox[0], prox[1], ordenados[i].coords.lat, ordenados[i].coords.lng);
+        kmAteAqui += d;
+        prox = [ordenados[i].coords.lat, ordenados[i].coords.lng];
+    }
+    // Se o pedido atual e o primeiro (idx 0), kmAteAqui ja ta pronto
+    if (idxAtual === 0) {
+        kmAteAqui = calcularDistanciaHaversine(mbPos[0], mbPos[1], ordenados[0].coords.lat, ordenados[0].coords.lng);
+    } else if (idxAtual > 0) {
+        kmAteAqui = 0;
+        let p = mbPos;
+        for (let i = 0; i <= idxAtual; i++) {
+            kmAteAqui += calcularDistanciaHaversine(p[0], p[1], ordenados[i].coords.lat, ordenados[i].coords.lng);
+            p = [ordenados[i].coords.lat, ordenados[i].coords.lng];
+        }
+    }
+    const etaAtual = Math.round(kmAteAqui * 3);
+    const etaTotal = Math.round(kmTotal * 3);
+
     document.getElementById('mapaRotaInfo').innerHTML =
-        '<div class="mapa-rota-info-linha"><strong>🛵 Motoboy:</strong> ' + (motoboy?.nome || '-') + '</div>' +
-        '<div class="mapa-rota-info-linha"><strong>📦 Entregas ativas:</strong> ' + pedidosEmEntrega.length + '</div>' +
-        '<div class="mapa-rota-info-linha"><strong>📏 Distância:</strong> ' + km.toFixed(1) + ' km</div>' +
-        '<div class="mapa-rota-info-linha"><strong>⏱️ ETA total:</strong> ~' + eta + ' min</div>';
+        '<div class="mapa-rota-info-linha"><span class="info-label">Motoboy</span><span class="info-valor">' + (motoboy?.nome || '-') + '</span></div>' +
+        '<div class="mapa-rota-info-linha"><span class="info-label">Entregas</span><span class="info-valor">' + pedidosEmEntrega.length + ' ativas</span></div>' +
+        '<div class="mapa-rota-info-linha destaque"><span class="info-label">ETA deste pedido</span><span class="info-valor-grande">~' + etaAtual + ' min</span></div>' +
+        '<div class="mapa-rota-info-linha"><span class="info-label">Distancia ate cliente</span><span class="info-valor">' + kmAteAqui.toFixed(1) + ' km</span></div>' +
+        '<div class="mapa-rota-info-linha"><span class="info-label">Rota total</span><span class="info-valor">' + kmTotal.toFixed(1) + ' km / ~' + etaTotal + ' min</span></div>' +
+        '<div class="mapa-rota-info-ordem">' +
+        '<div class="info-ordem-titulo">ORDEM DE ENTREGA</div>' +
+        ordenados.map((p, i) => '<div class="info-ordem-item' + (i === idxAtual ? ' ativo' : '') + '"><span class="ordem-num">' + (i+1) + '</span><span>' + p.cliente.nome + '</span></div>').join('') +
+        '</div>';
 
+    // Ajusta o zoom pra mostrar tudo
     if (allCoords.length > 0) {
         const bounds = L.latLngBounds(allCoords);
-        mapaPizzaria.fitBounds(bounds, { padding: [60, 60] });
+        mapaPizzaria.fitBounds(bounds, { padding: [60, 60], maxZoom: 15 });
     }
 }
 
