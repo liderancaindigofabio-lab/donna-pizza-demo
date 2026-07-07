@@ -10,8 +10,9 @@ let pedidoSelecionado = null;
 let motoboySelecionado = null;
 let abaAtiva = 'pedidos';
 
-// Coordenadas da pizzaria (Pé de Serra - BA)
-const PIZZARIA_COORDS = [-11.8345, -39.6125];
+// Coordenadas da pizzaria (Atalaia - Aracaju/SE)
+// Av. Melício Machado, 1060 - Atalaia, Aracaju - SE, 49037-440
+const PIZZARIA_COORDS = [-10.9893597, -37.0605839];
 
 function gerarCoordsAleatorias() {
     const lat = PIZZARIA_COORDS[0] + (Math.random() - 0.5) * 0.06;
