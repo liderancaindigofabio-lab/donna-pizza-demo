@@ -19,8 +19,7 @@ const cardapio = DB.getCardapio();
 // ============ INIT ============
 function init() {
     clienteLogado = DB.getClienteLogado();
-    console.log('[init] clienteLogado set to:', clienteLogado);
-    document.title = 'init: ' + (clienteLogado ? clienteLogado.nome : 'null');
+    document.title = 'DEBUG-V3 init: ' + (clienteLogado ? clienteLogado.nome : 'null');
     renderCategorias();
     renderProdutos();
     renderHeaderCliente();
@@ -667,8 +666,7 @@ function coordsAleatorias() {
 
 // ============ HISTÓRICO DO CLIENTE ============
 function abrirMeusPedidos() {
-    console.log('[abrirMeusPedidos] chamado, clienteLogado:', clienteLogado);
-    document.title = 'CLI: ' + JSON.stringify(clienteLogado);
+    document.title = 'DEBUG-V3 abrirMeusPedidos CLI: ' + (clienteLogado ? clienteLogado.nome : 'null');
     if (!clienteLogado) {
         toast('Faça um pedido primeiro pra ter histórico', 'warning');
         return;
