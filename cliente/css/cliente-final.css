@@ -284,7 +284,8 @@ body {
 
 /* ===== CATEGORIAS STICKY (fundo branco, clean) ===== */
 .categorias-bar {
-    background: #fff;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
     border-bottom: 1px solid var(--border);
     padding: 12px 0;
     overflow-x: auto;
