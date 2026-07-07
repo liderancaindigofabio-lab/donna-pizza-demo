@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html><head><title>Min Test</title>
+<style>body{font-family:monospace;padding:20px;background:#000;color:#0f0;}</style>
+</head><body>
+<div id="out">Iniciando...</div>
+<script src="../js/firebase/config.js?v=14"></script>
+<script>
+document.getElementById('out').innerHTML += '<br>1. config carregado, FIREBASE_ATIVO=' + FIREBASE_ATIVO;
+</script>
+<script src="../js/firebase/loader.js?v=14"></script>
+<script>
+document.getElementById('out').innerHTML += '<br>2. loader.js injetou';
+</script>
+</body></html>
