@@ -869,7 +869,8 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ============ AUTO-OPEN MODAL (debug) ============
 setTimeout(() => {
+    console.log('[auto-open] clienteLogado:', clienteLogado, 'meuPedidoId:', meuPedidoId);
     const params = new URLSearchParams(window.location.search);
     if (params.get('modal') === 'meus' && clienteLogado) abrirMeusPedidos();
-    if (params.get('modal') === 'acompanhar') abrirAcompanhamento();
-}, 600);
+    if (params.get('modal') === 'acompanhar' && meuPedidoId) abrirAcompanhamento();
+}, 800);
