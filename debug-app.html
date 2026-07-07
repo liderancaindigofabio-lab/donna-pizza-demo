@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Debug App</title>
+</head>
+<body>
+<h1>Debug do app.js</h1>
+<pre id="logs"></pre>
+<script>
+const logs = [];
+function log(s) { logs.push(s); document.getElementById('logs').textContent = logs.join('\n'); }
+window.addEventListener('error', e => log('ERRO: ' + e.message + ' @ ' + e.filename + ':' + e.lineno));
+log('Iniciando...');
+</script>
+<script src="js/firebase/config.js?v=4"></script>
+<script>
+log('config.js carregado. FIREBASE_ATIVO=' + (typeof FIREBASE_ATIVO !== 'undefined' ? FIREBASE_ATIVO : '?'));
+</script>
+<script src="js/firebase/loader.js?v=4"></script>
+<script>
+log('loader.js carregado');
+// Espera DB ficar pronto
+setTimeout(() => {
+    if (typeof DB === 'undefined') {
+        log('❌ DB não definido');
+    } else {
+        log('✓ DB existe. pedidos=' + DB.getPedidos().length + ' motoboys=' + DB.getMotoboys().length);
+    }
+}, 3000);
+</script>
+</body>
+</html>
