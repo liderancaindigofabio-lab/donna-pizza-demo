@@ -665,6 +665,7 @@ function coordsAleatorias() {
 
 // ============ HISTÓRICO DO CLIENTE ============
 function abrirMeusPedidos() {
+    console.log('[abrirMeusPedidos] chamado, clienteLogado:', clienteLogado);
     if (!clienteLogado) {
         toast('Faça um pedido primeiro pra ter histórico', 'warning');
         return;
