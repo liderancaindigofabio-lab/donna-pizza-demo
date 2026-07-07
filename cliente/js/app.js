@@ -671,6 +671,16 @@ function abrirMeusPedidos() {
         toast('Faça um pedido primeiro pra ter histórico', 'warning');
         return;
     }
+    try {
+        _abrirMeusPedidosImpl();
+    } catch (e) {
+        document.body.setAttribute('data-erro', e.message);
+        // fallback: ainda abre o modal vazio
+        document.getElementById('modalMeusPedidos').style.display = 'flex';
+    }
+}
+
+function _abrirMeusPedidosImpl() {
     const pedidos = DB.getPedidosCliente(clienteLogado.tel);
     const stats = DB.getEstatisticasCliente(clienteLogado.tel);
     const primeiroNome = clienteLogado.nome.split(' ')[0];
@@ -724,7 +734,8 @@ function abrirMeusPedidos() {
                     entregue:   { txt: 'Entregue',    cor: 'entregue' },
                     cancelado:  { txt: 'Cancelado',   cor: 'cancelado' },
                 }[p.status] || { txt: p.status, cor: '' };
-                const motoboy = p.motoboyId ? DB.getMotoboy(p.motoboyId) : null;
+                let motoboy = null;
+                try { motoboy = p.motoboyId ? DB.getMotoboy(p.motoboyId) : null; } catch(e) {}
                 return `
                 <div class="mpi-card">
                     <div class="mpi-header">
