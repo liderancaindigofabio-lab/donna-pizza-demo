@@ -398,7 +398,11 @@ const DB = {
     // ====== MÉTRICAS ======
     getMetricasHoje() {
         const hoje = new Date().toDateString();
-        const pedidos = this.getPedidos().filter(p => new Date(p.criadoEm).toDateString() === hoje);
+        const pedidos = this.getPedidos();
+        console.log('📊 getMetricasHoje: total cache=' + pedidos.length + ' data=' + hoje);
+        if (pedidos[0]) console.log('  primeiro:', pedidos[0].criadoEm, '→', new Date(pedidos[0].criadoEm).toDateString());
+        const filtrados = pedidos.filter(p => new Date(p.criadoEm).toDateString() === hoje);
+        console.log('  filtrados=' + filtrados.length);
         return {
             total: pedidos.length,
             faturamento: pedidos.filter(p => p.status === 'entregue').reduce((s, p) => s + p.total, 0),
