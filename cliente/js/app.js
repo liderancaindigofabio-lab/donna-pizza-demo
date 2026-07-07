@@ -676,14 +676,35 @@ async function geocodificar(endereco) {
         lat: -10.989 + (Math.random() - 0.5) * 0.08,
         lng: -37.060 + (Math.random() - 0.5) * 0.08,
     });
+
+    // Normaliza: troca hífens/quebras por vírgulas, remove duplicatas
+    const limpo = (endereco || '')
+        .replace(/[\n\r]+/g, ', ')
+        .replace(/\s*-\s*/g, ', ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
     try {
-        const q = encodeURIComponent(endereco + ', Aracaju, Sergipe, Brasil');
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`, {
+        // viewbox da cidade de Aracaju (delimita a busca pra evitar pegar outro lugar com nome parecido)
+        // Ordem Nominatim: viewbox = esquerda,topo,direita,baixo  (minLon, maxLat, maxLon, minLat)
+        const viewbox = '-37.15,-10.85,-36.95,-11.15';
+        const q = encodeURIComponent(limpo + ', Aracaju, Sergipe, Brasil');
+        const url = `https://nominatim.openstreetmap.org/search?q=${q}` +
+                    `&format=json&limit=1&countrycodes=br&viewbox=${viewbox}&bounded=1`;
+        const res = await fetch(url, {
             headers: { 'Accept': 'application/json' }
         });
         const data = await res.json();
         if (data && data[0]) {
             return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+        }
+        // Retry sem bounded (busca mais ampla)
+        const res2 = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=br`, {
+            headers: { 'Accept': 'application/json' }
+        });
+        const data2 = await res2.json();
+        if (data2 && data2[0]) {
+            return { lat: parseFloat(data2[0].lat), lng: parseFloat(data2[0].lon) };
         }
         return fallback();
     } catch (e) {
@@ -878,6 +899,24 @@ function abrirAcompanhamento() {
     ${(pedido.status === 'em_entrega' || pedido.status === 'pronto' || pedido.status === 'preparando') ? `
     <div class="tracker-map-section">
         <div class="tracker-map-titulo">🗺️ Acompanhe seu motoboy em tempo real</div>
+
+        <!-- Card do motoboy (preenchido quando tem motoboy despachado) -->
+        <div id="trackerMotoboyCard" class="tracker-motoboy-card" style="display:none;">
+            <div id="trackerMotoboyFoto" class="tmc-foto">🛵</div>
+            <div class="tmc-info">
+                <div class="tmc-linha1">
+                    <span class="tmc-label">Seu entregador</span>
+                    <span class="tmc-eta">⏱️ <span id="trackerMotoboyEta">calculando...</span></span>
+                </div>
+                <div id="trackerMotoboyNome" class="tmc-nome">—</div>
+                <div class="tmc-linha2">
+                    <span id="trackerMotoboyMoto" class="tmc-moto">—</span>
+                    <span class="tmc-dist">📍 <span id="trackerMotoboyDist">—</span></span>
+                </div>
+            </div>
+            <a id="trackerMotoboyLigar" class="tmc-btn-ligar" href="#" target="_blank" rel="noopener" title="Chamar no WhatsApp">💬</a>
+        </div>
+
         <div id="mapaCliente" class="tracker-map"></div>
         <div class="tracker-map-legenda">
             <span><span class="leg-dot leg-pizzaria"></span> Pizzaria</span>
@@ -901,6 +940,7 @@ let markerPizzariaCliente = null;
 let markerClienteCliente = null;
 let markerMotoboyCliente = null;
 let polylineRotaCliente = null;
+let rotaClienteLayer = null;  // polyline da rota real (OSRM)
 let pollMapaCliente = null;
 const PIZZARIA_COORDS_CLIENTE = [-10.9893597, -37.0605839];
 
@@ -914,26 +954,32 @@ function iniciarMapaCliente(pedidoInicial) {
         clearInterval(pollMapaCliente);
         pollMapaCliente = null;
     }
+    if (rotaClienteLayer) {
+        mapaCliente && mapaCliente.removeLayer(rotaClienteLayer);
+        rotaClienteLayer = null;
+    }
 
     const el = document.getElementById('mapaCliente');
     if (!el) return;
     el.innerHTML = '';
 
-    mapaCliente = L.map('mapaCliente', { zoomControl: true, attributionControl: false })
+    mapaCliente = L.map('mapaCliente', { zoomControl: true, attributionControl: false, scrollWheelZoom: false })
         .setView(PIZZARIA_COORDS_CLIENTE, 14);
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    // Tile layer Positron (clean, profissional, similar a Google Maps)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         maxZoom: 19,
+        attribution: '© OpenStreetMap, © CartoDB'
     }).addTo(mapaCliente);
 
     // Marcador da pizzaria
     const pizzaIcon = L.divIcon({
         html: '<div class="marker-pizza">🍕</div>',
         className: '',
-        iconSize: [36, 36],
-        iconAnchor: [18, 36],
+        iconSize: [40, 40],
+        iconAnchor: [20, 40],
     });
-    markerPizzariaCliente = L.marker(PIZZARIA_COORDS_CLIENTE, { icon: pizzaIcon }).addTo(mapaCliente);
+    markerPizzariaCliente = L.marker(PIZZARIA_COORDS_CLIENTE, { icon: pizzaIcon, zIndexOffset: 100 }).addTo(mapaCliente);
     markerPizzariaCliente.bindPopup('<b>🍕 Nonna Pizzaria</b><br>Av. Melício Machado, 1060 - Atalaia');
 
     // Marcador do cliente (destino)
@@ -941,17 +987,17 @@ function iniciarMapaCliente(pedidoInicial) {
         const cliIcon = L.divIcon({
             html: '<div class="marker-cliente">🏠</div>',
             className: '',
-            iconSize: [36, 36],
-            iconAnchor: [18, 36],
+            iconSize: [40, 40],
+            iconAnchor: [20, 40],
         });
-        markerClienteCliente = L.marker([pedidoInicial.coords.lat, pedidoInicial.coords.lng], { icon: cliIcon }).addTo(mapaCliente);
+        markerClienteCliente = L.marker([pedidoInicial.coords.lat, pedidoInicial.coords.lng], { icon: cliIcon, zIndexOffset: 100 }).addTo(mapaCliente);
         markerClienteCliente.bindPopup(`<b>🏠 ${pedidoInicial.cliente.nome}</b><br>${pedidoInicial.cliente.end}`);
     }
 
     // Ajusta view inicial: pizza + cliente
     const bounds = L.latLngBounds([PIZZARIA_COORDS_CLIENTE]);
     if (pedidoInicial.coords) bounds.extend([pedidoInicial.coords.lat, pedidoInicial.coords.lng]);
-    mapaCliente.fitBounds(bounds, { padding: [50, 50] });
+    mapaCliente.fitBounds(bounds, { padding: [60, 60], maxZoom: 15 });
 
     // Render inicial
     atualizarMapaCliente(pedidoInicial);
@@ -987,30 +1033,38 @@ function atualizarMapaCliente(pedido) {
             const mbIcon = L.divIcon({
                 html: '<div class="marker-motoboy">🛵</div>',
                 className: '',
-                iconSize: [40, 40],
-                iconAnchor: [20, 20],
+                iconSize: [48, 48],
+                iconAnchor: [24, 24],
             });
-            markerMotoboyCliente = L.marker(motoboyPos, { icon: mbIcon }).addTo(mapaCliente);
+            markerMotoboyCliente = L.marker(motoboyPos, { icon: mbIcon, zIndexOffset: 1000 }).addTo(mapaCliente);
         } else {
             markerMotoboyCliente.setLatLng(motoboyPos);
         }
 
-        // Linha pizza -> motoboy -> cliente (mostra o caminho)
+        // Rota real via OSRM (linha sólida seguindo as ruas)
+        if (pedido.coords) {
+            buscarRotaOSRM(motoboyPos, [pedido.coords.lat, pedido.coords.lng]);
+        }
+
+        // Linha da pizzaria até o motoboy (já percorreu)
         if (polylineRotaCliente) {
             polylineRotaCliente.setLatLngs([PIZZARIA_COORDS_CLIENTE, motoboyPos]);
         } else {
             polylineRotaCliente = L.polyline([PIZZARIA_COORDS_CLIENTE, motoboyPos], {
-                color: '#C03A2B',
+                color: '#3D5C3A',
                 weight: 4,
                 opacity: 0.7,
-                dashArray: '8, 8',
+                dashArray: '4, 8',
             }).addTo(mapaCliente);
         }
 
+        // Atualiza o card do motoboy (ETA, distância)
+        atualizarCardMotoboyCliente(pedido, motoboyPos);
+
         // Centraliza entre motoboy e cliente
         if (pedido.coords) {
-            const bounds = L.latLngBounds([motoboyPos, [pedido.coords.lat, pedido.coords.lng], PIZZARIA_COORDS_CLIENTE]);
-            mapaCliente.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+            const bounds = L.latLngBounds([motoboyPos, [pedido.coords.lat, pedido.coords.lng]]);
+            mapaCliente.fitBounds(bounds, { padding: [80, 80], maxZoom: 16 });
         }
     } else {
         // Sem motoboy ainda: mostra pizza -> cliente
@@ -1026,6 +1080,54 @@ function atualizarMapaCliente(pedido) {
                 }).addTo(mapaCliente);
             }
         }
+    }
+}
+
+// Busca rota real seguindo as ruas via OSRM
+async function buscarRotaOSRM(origem, destino) {
+    try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${origem[1]},${origem[0]};${destino[1]},${destino[0]}?overview=full&geometries=geojson`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data && data.routes && data.routes[0]) {
+            const coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+            const duracao = Math.round(data.routes[0].duration / 60); // minutos
+            const distancia = (data.routes[0].distance / 1000).toFixed(1); // km
+            if (rotaClienteLayer) mapaCliente.removeLayer(rotaClienteLayer);
+            rotaClienteLayer = L.polyline(coords, {
+                color: '#C03A2B',
+                weight: 5,
+                opacity: 0.85,
+                lineJoin: 'round',
+            }).addTo(mapaCliente);
+            // Atualiza info no card
+            const elEta = document.getElementById('trackerMotoboyEta');
+            const elDist = document.getElementById('trackerMotoboyDist');
+            if (elEta) elEta.textContent = `~${duracao} min`;
+            if (elDist) elDist.textContent = `${distancia} km`;
+        }
+    } catch (e) {
+        // Se OSRM falhar, mantém a linha reta
+    }
+}
+
+function atualizarCardMotoboyCliente(pedido, motoboyPos) {
+    const el = document.getElementById('trackerMotoboyCard');
+    if (!el) return;
+    const m = (() => { try { return DB.getMotoboy(pedido.motoboyId); } catch (e) { return null; } })();
+    if (!m) return;
+
+    el.style.display = 'block';
+    document.getElementById('trackerMotoboyFoto').textContent = m.foto || '🛵';
+    document.getElementById('trackerMotoboyNome').textContent = m.nome;
+    document.getElementById('trackerMotoboyMoto').textContent = m.moto || '';
+    const tel = (m.telefone || '').replace(/\D/g, '');
+    const elLigar = document.getElementById('trackerMotoboyLigar');
+    if (tel) {
+        elLigar.href = `https://wa.me/55${tel}`;
+        elLigar.style.display = 'inline-flex';
+    } else {
+        elLigar.style.display = 'none';
     }
 }
 
