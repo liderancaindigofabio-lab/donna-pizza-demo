@@ -60,11 +60,17 @@
 
     if (typeof FIREBASE_ATIVO === 'undefined' || !FIREBASE_ATIVO) {
         // Marca visual que começou
-        if (document.body) document.body.setAttribute('data-loader', 'local-start');
-        else document.addEventListener('DOMContentLoaded', () => document.body.setAttribute('data-loader', 'local-start'));
+        const mark = (txt) => {
+            const d = document.createElement('div');
+            d.id = 'loader-marker';
+            d.setAttribute('data-marker', txt);
+            d.style.cssText = 'position:fixed;top:0;left:0;background:red;color:white;padding:4px;z-index:99999;font-size:12px;';
+            d.textContent = txt;
+            (document.body || document.documentElement).appendChild(d);
+        };
+        mark('loader-rodou');
         bootLocal();
     } else {
-        if (document.body) document.body.setAttribute('data-loader', 'firebase-start');
         bootFirebase();
     }
 })();
