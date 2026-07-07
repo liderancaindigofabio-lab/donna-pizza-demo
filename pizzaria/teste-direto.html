@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html><head><title>Teste direto</title>
+<style>body{font-family:monospace;padding:20px;}</style>
+</head><body>
+<h1>Teste direto painel.js</h1>
+<div id="r">Iniciando...</div>
+<script>
+document.getElementById('r').innerHTML += '<br>1. Antes do script';
+</script>
+<script src="js/painel.js?nocache=999"></script>
+<script>
+document.getElementById('r').innerHTML += '<br>2. Depois do script. typeof init = ' + typeof init;
+setTimeout(() => {
+    document.getElementById('r').innerHTML += '<br>3. typeof init (1s) = ' + typeof init;
+    if (typeof init === 'function') {
+        try { init(); document.getElementById('r').innerHTML += '<br>4. init() chamado!'; }
+        catch (e) { document.getElementById('r').innerHTML += '<br>4. ERRO: ' + e.message; }
+    }
+}, 1000);
+</script>
+</body></html>
