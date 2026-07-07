@@ -98,7 +98,6 @@ const DB = {
             console.log('🔥 DB usando Firebase Realtime Database');
             // Carrega dados iniciais em cache
             this._cachePedidos = await DBRemote.getPedidosAsync();
-            console.log('  cachePedidos após getPedidosAsync: ' + this._cachePedidos.length);
             this._cacheMotoboys = await DBRemote.getMotoboysAsync();
             this._cacheConfig = await DBRemote.getConfigAsync();
             this._cacheCardapio = await DBRemote.getCardapioAsync() || this.CARDAPIO_DEFAULT;
@@ -399,11 +398,7 @@ const DB = {
     // ====== MÉTRICAS ======
     getMetricasHoje() {
         const hoje = new Date().toDateString();
-        const pedidos = this.getPedidos();
-        console.log('📊 getMetricasHoje: total cache=' + pedidos.length + ' data=' + hoje);
-        if (pedidos[0]) console.log('  primeiro:', pedidos[0].criadoEm, '→', new Date(pedidos[0].criadoEm).toDateString());
-        const filtrados = pedidos.filter(p => new Date(p.criadoEm).toDateString() === hoje);
-        console.log('  filtrados=' + filtrados.length);
+        const pedidos = this.getPedidos().filter(p => new Date(p.criadoEm).toDateString() === hoje);
         return {
             total: pedidos.length,
             faturamento: pedidos.filter(p => p.status === 'entregue').reduce((s, p) => s + p.total, 0),
@@ -422,12 +417,8 @@ const DB = {
     // ====== LISTENERS em tempo real (Firebase) ======
     onChange(callback) {
         if (this.backend === 'firebase') {
-            console.log('🔌 onChange registrado, cache atual:', this._cachePedidos ? this._cachePedidos.length : 'null');
             // Sincroniza cache com Firebase
-            DBRemote.onAllPedidosChange(arr => {
-                console.log('📦 onAllPedidosChange disparou: ' + arr.length + ' pedidos');
-                this._cachePedidos = arr;
-            });
+            DBRemote.onAllPedidosChange(arr => this._cachePedidos = arr);
             firebase.database().ref('motoboys').on('value', snap => {
                 const val = snap.val() || {};
                 this._cacheMotoboys = Object.values(val);
