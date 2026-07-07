@@ -1488,28 +1488,16 @@ body {
     background: #C03A2B;
     border: 3px solid white;
     border-radius: 50%;
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+    font-size: 20px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.35);
 }
 .marker-cliente {
     background: #3D5C3A;
-    border: 3px solid white;
-    border-radius: 50%;
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
-}
-.marker-motoboy {
-    background: #C9A961;
     border: 3px solid white;
     border-radius: 50%;
     width: 40px;
@@ -1517,15 +1505,110 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+    font-size: 20px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.35);
+}
+.marker-motoboy {
+    background: #C9A961;
+    border: 3px solid white;
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     animation: pulse 1.5s infinite;
 }
 @keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(201, 169, 97, 0.6); }
-    70% { box-shadow: 0 0 0 12px rgba(201, 169, 97, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(201, 169, 97, 0); }
+    0% { box-shadow: 0 0 0 0 rgba(201, 169, 97, 0.7), 0 4px 12px rgba(0,0,0,0.5); }
+    70% { box-shadow: 0 0 0 16px rgba(201, 169, 97, 0), 0 4px 12px rgba(0,0,0,0.5); }
+    100% { box-shadow: 0 0 0 0 rgba(201, 169, 97, 0), 0 4px 12px rgba(0,0,0,0.5); }
 }
+
+/* Card do motoboy dentro do mapa (visual profissional tipo iFood) */
+.tracker-motoboy-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: linear-gradient(135deg, #fff 0%, #fafaf6 100%);
+    border: 1px solid var(--border, #E8DCC4);
+    border-radius: 14px;
+    margin: 0 0 12px 0;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    position: relative;
+}
+.tmc-foto {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--cream-2, #F5EFE0);
+    border: 2px solid var(--gold, #C9A961);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    flex-shrink: 0;
+}
+.tmc-info {
+    flex: 1;
+    min-width: 0;
+}
+.tmc-linha1 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 2px;
+}
+.tmc-label {
+    font-size: 0.7rem;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+.tmc-eta {
+    font-size: 0.78rem;
+    color: var(--green, #3D5C3A);
+    background: #E8F1E6;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-weight: 700;
+}
+.tmc-nome {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #222;
+    margin-bottom: 2px;
+}
+.tmc-linha2 {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 0.78rem;
+    color: #666;
+}
+.tmc-moto { color: #555; }
+.tmc-dist { color: #555; font-weight: 600; }
+.tmc-btn-ligar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: #25D366;
+    color: white;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    font-size: 20px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(37, 211, 102, 0.4);
+    transition: transform 0.15s;
+}
+.tmc-btn-ligar:hover { transform: scale(1.08); }
 
 .tracker-tempo {
     text-align: center;
