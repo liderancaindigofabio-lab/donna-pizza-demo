@@ -616,6 +616,7 @@ async function finalizarPedido() {
     renderHeaderCliente();
 
     const pedido = {
+        pagamento: pag,  // Espelha no nível do pedido pra fácil leitura
         cliente: { nome, tel, end, cep, ref, pag, obs },
         itens: carrinho.map(i => ({
             nome: i.nome,
