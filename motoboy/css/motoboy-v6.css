@@ -591,6 +591,8 @@ body {
 .btn-mb.success   { background: var(--whatsapp); color: white; }
 .btn-mb.success:hover { background: #1ebe5d; }
 .btn-mb.danger    { background: var(--red);    color: white; }
+.btn-mb.warning   { background: #f59e0b; color: white; }
+.btn-mb.warning:hover { background: #d97706; }
 .btn-mb.secondary { background: var(--cream-2); color: var(--text); border: 1px solid var(--border); }
 
 /* ===== HISTÓRICO ===== */
