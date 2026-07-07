@@ -118,8 +118,9 @@ const DB = {
                     { id: 1, nome: 'Carlos Silva', moto: 'Honda CB 500 - Placa ABC-1234', status: 'disponivel', telefone: '16991234567', foto: '👨🏾', lat: -10.9893597, lng: -37.0605839 },
                     { id: 2, nome: 'João Santos',  moto: 'Yamaha Fazer 250 - Placa XYZ-9876', status: 'disponivel', telefone: '16997654321', foto: '👨🏼', lat: -10.9893597, lng: -37.0605839 },
                     { id: 3, nome: 'Pedro Costa',  moto: 'Honda CG 160 - Placa DEF-5555', status: 'disponivel', telefone: '16996543210', foto: '🧔🏽', lat: -10.9893597, lng: -37.0605839 },
+                    { id: 4, nome: 'Lucas Mendes', moto: 'Honda Titan 150 - Placa GHI-7777', status: 'disponivel', telefone: '16995432109', foto: '🧑🏾‍🦱', lat: -10.9893597, lng: -37.0605839 },
                 ];
-                seed.forEach(m => firebase.database().ref('motoboys/' + m.id).set(m));
+                seed.forEach(m => firebase.database().ref('motoboys/mb_' + m.id).set(m));
                 this._cacheMotoboys = seed;
             }
             if (!this._cacheCardapio || !this._cacheCardapio.sabores) {
@@ -246,7 +247,12 @@ const DB = {
 
     // ====== MOTOBOYS ======
     getMotoboys() {
-        if (this.backend === 'firebase') return this._cacheMotoboys || [];
+        if (this.backend === 'firebase') {
+            // Filtra motoboys sem nome (dados corrompidos) e ordena por ID
+            return (this._cacheMotoboys || [])
+                .filter(m => m && m.nome)
+                .sort((a, b) => (a.id || 0) - (b.id || 0));
+        }
         return JSON.parse(localStorage.getItem(this.KEY_MOTOBOYS) || '[]');
     },
 
@@ -265,7 +271,7 @@ const DB = {
 
     updateMotoboy(id, updates) {
         if (this.backend === 'firebase') {
-            firebase.database().ref('motoboys/' + id).update(updates);
+            firebase.database().ref('motoboys/mb_' + id).update(updates);
             return;
         }
         const motoboys = this.getMotoboys();
