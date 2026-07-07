@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nonna Pizzaria — Painel de Gestão</title>
+    <link rel="stylesheet" href="css/painel-v6.css?v=20">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏪</text></svg>">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="painel-header">
+    <div class="header-left">
+        <a href="../" class="back-link">← Sair</a>
+        <div class="header-brand">
+            <img class="brand-icon" src="../img/logo.jpg" alt="Nonna Pizzaria">
+            <div>
+                <h1>Painel da Pizzaria</h1>
+                <div class="brand-meta">
+                    <span>Nonna Pizzaria</span>
+                    <span class="status-pill" id="statusConexao">● AO VIVO</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="header-right">
+        <div class="relogio" id="relogio">--:--</div>
+        <button class="icon-btn" onclick="abrirConfig()" title="Configurações">⚙️</button>
+    </div>
+</header>
+
+<!-- DASHBOARD -->
+<section class="dashboard">
+    <div class="metric-card">
+        <div class="metric-label">Pedidos hoje</div>
+        <div class="metric-value" id="metTotal">0</div>
+        <div class="metric-trend">📈 Atualizado agora</div>
+    </div>
+    <div class="metric-card highlight">
+        <div class="metric-label">Faturamento</div>
+        <div class="metric-value" id="metFat">R$ 0,00</div>
+        <div class="metric-trend">🟢 Pedidos entregues</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">Em andamento</div>
+        <div class="metric-value" id="metAndamento">0</div>
+        <div class="metric-trend">⏱️ Na fila</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-label">Ticket médio</div>
+        <div class="metric-value" id="metTicket">R$ 0,00</div>
+        <div class="metric-trend">💰 Por pedido</div>
+    </div>
+</section>
+
+<!-- ABAS DE NAVEGAÇÃO -->
+<nav class="nav-abas">
+    <button class="nav-aba active" data-aba="pedidos" onclick="trocarAba('pedidos')">
+        📦 Pedidos
+    </button>
+    <button class="nav-aba" data-aba="cardapio" onclick="trocarAba('cardapio')">
+        📋 Cardápio
+    </button>
+</nav>
+
+<!-- ABA: PEDIDOS -->
+<div class="aba-conteudo aba-pedidos" id="abaPedidos">
+    <!-- ABAS DE STATUS -->
+    <nav class="status-tabs">
+        <button class="status-tab active" data-status="novo" onclick="filtrarStatus('novo')">
+            <span class="tab-label">Novos</span>
+            <span class="tab-count" id="cnt-novo">0</span>
+        </button>
+        <button class="status-tab" data-status="preparando" onclick="filtrarStatus('preparando')">
+            <span class="tab-label">Preparando</span>
+            <span class="tab-count" id="cnt-preparando">0</span>
+        </button>
+        <button class="status-tab" data-status="pronto" onclick="filtrarStatus('pronto')">
+            <span class="tab-label">Prontos</span>
+            <span class="tab-count" id="cnt-pronto">0</span>
+        </button>
+        <button class="status-tab" data-status="em_entrega" onclick="filtrarStatus('em_entrega')">
+            <span class="tab-label">Em entrega</span>
+            <span class="tab-count" id="cnt-em_entrega">0</span>
+        </button>
+        <button class="status-tab" data-status="todos" onclick="filtrarStatus('todos')">
+            <span class="tab-label">Todos</span>
+        </button>
+    </nav>
+
+    <!-- FILA DE PEDIDOS -->
+    <main class="fila-container" id="filaPedidos">
+        <div class="empty-state" id="emptyFila">
+            <div class="empty-state-icon">📭</div>
+            <h3>Aguardando pedidos...</h3>
+            <p>Quando um cliente fizer um pedido, ele aparece aqui em tempo real.</p>
+        </div>
+    </main>
+</div>
+
+<!-- ABA: CARDÁPIO -->
+<div class="aba-conteudo aba-cardapio" id="abaCardapio" style="display:none">
+    <div class="cardapio-editor">
+        <div class="cardapio-header">
+            <h2>📋 Editar Cardápio</h2>
+            <p>Edite sabores, tamanhos, preços, adicionais e combos. As alterações aparecem em tempo real no app do cliente.</p>
+            <div class="cardapio-acoes-topo">
+                <button class="btn-secondary" onclick="adicionarSabor()">+ Adicionar sabor</button>
+                <button class="btn-secondary" onclick="resetarCardapio()" style="background:#c62828;color:white;">↺ Resetar tudo</button>
+            </div>
+        </div>
+
+        <!-- TAMANHOS -->
+        <section class="cardapio-bloco">
+            <h3>📏 Tamanhos de pizza</h3>
+            <p class="cardapio-desc">Quantos sabores cada tamanho aceita.</p>
+            <div id="editorTamanhos" class="editor-grid"></div>
+        </section>
+
+        <!-- SABORES -->
+        <section class="cardapio-bloco">
+            <h3>🍕 Sabores</h3>
+            <p class="cardapio-desc">Defina nome, descrição e preço por tamanho de cada sabor.</p>
+            <div id="editorSabores" class="editor-sabores"></div>
+        </section>
+
+        <!-- ADICIONAIS -->
+        <section class="cardapio-bloco">
+            <h3>➕ Adicionais</h3>
+            <p class="cardapio-desc">Bordas, extras etc. Preço varia por tamanho.</p>
+            <div id="editorAdicionais" class="editor-grid"></div>
+            <button class="btn-secondary" onclick="adicionarAdicional()">+ Adicionar adicional</button>
+        </section>
+
+        <!-- CALZONES -->
+        <section class="cardapio-bloco">
+            <h3>🥟 Calzones</h3>
+            <div id="editorCalzones" class="editor-grid"></div>
+            <button class="btn-secondary" onclick="adicionarCalzone()">+ Adicionar calzone</button>
+        </section>
+
+        <!-- BEBIDAS -->
+        <section class="cardapio-bloco">
+            <h3>🥤 Bebidas</h3>
+            <div id="editorBebidas" class="editor-grid"></div>
+            <button class="btn-secondary" onclick="adicionarBebida()">+ Adicionar bebida</button>
+        </section>
+
+        <!-- COMBOS -->
+        <section class="cardapio-bloco">
+            <h3>🎁 Combos</h3>
+            <div id="editorCombos" class="editor-grid"></div>
+            <button class="btn-secondary" onclick="adicionarCombo()">+ Adicionar combo</button>
+        </section>
+
+        <!-- CUPONS -->
+        <section class="cardapio-bloco">
+            <h3>🎟️ Cupons de desconto</h3>
+            <div id="editorCupons" class="editor-grid"></div>
+            <button class="btn-secondary" onclick="adicionarCupom()">+ Adicionar cupom</button>
+        </section>
+    </div>
+</div>
+
+<!-- MODAL DESPACHO DE MOTOBOY -->
+<div class="modal" id="modalDespacho">
+    <div class="modal-content">
+        <header class="modal-header">
+            <h2>🛵 Despachar Pedido</h2>
+            <button class="modal-close" onclick="fecharDespacho()">×</button>
+        </header>
+        <div id="despachoBody" class="despacho-body"></div>
+    </div>
+</div>
+
+<!-- MODAL DETALHES DO PEDIDO -->
+<div class="modal" id="modalDetalhes">
+    <div class="modal-content">
+        <header class="modal-header">
+            <h2 id="detalhesTitulo">Pedido</h2>
+            <button class="modal-close" onclick="fecharDetalhes()">×</button>
+        </header>
+        <div id="detalhesBody" class="detalhes-body"></div>
+    </div>
+</div>
+
+<!-- MODAL DETALHES DO CLIENTE -->
+<div class="modal" id="modalCliente">
+    <div class="modal-content">
+        <header class="modal-header">
+            <h2 id="clienteTitulo">Cliente</h2>
+            <button class="modal-close" onclick="fecharCliente()">×</button>
+        </header>
+        <div id="clienteBody" class="detalhes-body"></div>
+    </div>
+</div>
+
+<!-- MODAL CONFIG -->
+<div class="modal" id="modalConfig">
+    <div class="modal-content">
+        <header class="modal-header">
+            <h2>⚙️ Configurações</h2>
+            <button class="modal-close" onclick="fecharConfig()">×</button>
+        </header>
+        <div class="config-body">
+            <div class="form-group">
+                <label>Nome da pizzaria</label>
+                <input type="text" id="cfgNome">
+            </div>
+            <div class="form-group">
+                <label>Endereço</label>
+                <input type="text" id="cfgEnd">
+            </div>
+            <div class="form-group">
+                <label>WhatsApp (com 55, sem espaços)</label>
+                <input type="text" id="cfgZap">
+            </div>
+            <div class="form-group">
+                <label>Taxa de entrega (R$)</label>
+                <input type="number" id="cfgTaxa" step="0.5">
+            </div>
+            <button class="btn-primary" onclick="salvarConfig()">💾 Salvar</button>
+            <button class="btn-secondary" onclick="limparDados()" style="margin-top:10px;background:#c62828;color:white;">🗑️ Limpar TODOS os pedidos (demo)</button>
+        </div>
+    </div>
+</div>
+
+<!-- NOTIFICAÇÃO -->
+<div id="notificacaoContainer"></div>
+
+<!-- MODAL MAPA ROTA -->
+<div class="modal" id="modalMapaRota">
+    <div class="modal-content modal-mapa-content">
+        <header class="modal-header">
+            <h2>🗺️ Rota em tempo real</h2>
+            <button class="modal-close" onclick="fecharMapaRota()">×</button>
+        </header>
+        <div class="mapa-rota-container">
+            <div id="mapaRotaPizzaria" class="mapa-rota-mapa"></div>
+            <div id="mapaRotaInfo" class="mapa-rota-info"></div>
+        </div>
+        <span id="mapaRotaPedidoId" style="display:none"></span>
+    </div>
+</div>
+
+<script src="../js/firebase/config.js?v=20"></script>
+<script src="../js/firebase/loader.js?v=20"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</body>
+</html>
