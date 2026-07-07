@@ -429,19 +429,21 @@ const DB = {
         if (this.backend === 'firebase') {
             // Sincroniza cache com Firebase
             DBRemote.onAllPedidosChange(arr => {
-                const oldLen = (this._cachePedidos || []).length;
+                const oldArr = this._cachePedidos || [];
                 this._cachePedidos = arr;
-                if (arr.length > oldLen) {
-                    // Pedido novo chegou
+                // Se tem mais pedidos, é pedido NOVO
+                if (arr.length > oldArr.length) {
                     const novo = arr[arr.length - 1];
                     callback({ tipo: 'pedido_novo', data: novo });
                 } else {
+                    // Mesmo número (ou menos) = UPDATE
                     callback({ tipo: 'pedido_update', data: null });
                 }
             });
             firebase.database().ref('motoboys').on('value', snap => {
                 const val = snap.val() || {};
                 this._cacheMotoboys = Object.values(val);
+                callback({ tipo: 'motoboy_update', data: null });
             });
             firebase.database().ref('config').on('value', snap => {
                 this._cacheConfig = snap.val() || {};
