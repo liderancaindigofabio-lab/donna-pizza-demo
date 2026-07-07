@@ -60,15 +60,16 @@ function renderHeaderCliente() {
     if (!el) return;
     if (clienteLogado) {
         el.style.display = 'flex';
+        const primeiroNome = (clienteLogado.nome || '').split(' ')[0].slice(0, 12) || 'Cliente';
         el.innerHTML = `
             <div class="cli-avatar">👤</div>
             <div class="cli-info-header">
-                <div class="cli-nome-header">Olá, ${clienteLogado.nome.split(' ')[0]}!</div>
+                <div class="cli-nome-header">Olá, ${primeiroNome}!</div>
                 <div class="cli-tel-header">${clienteLogado.tel}</div>
             </div>
             <div class="cli-acoes">
-                <button class="btn-mini" onclick="abrirMeusPedidos()">📋 Meus pedidos</button>
-                <button class="btn-mini ghost" onclick="logoutCliente()">Sair</button>
+                <button class="btn-mini" onclick="abrirMeusPedidos()" title="Meus pedidos">📋</button>
+                <button class="btn-mini ghost" onclick="logoutCliente()" title="Sair">↩</button>
             </div>
         `;
     } else {
@@ -88,15 +89,16 @@ function logoutCliente() {
 function renderCategorias() {
     const el = document.getElementById('categoriasBar');
     const cats = [
-        { id: 'pizzas', nome: '🍕 Pizzas' },
-        { id: 'calzones', nome: '🥟 Calzones' },
-        { id: 'bebidas', nome: '🥤 Bebidas' },
-        { id: 'combos', nome: '🎁 Combos' },
+        { id: 'pizzas',   icone: '🍕', nome: 'Pizzas' },
+        { id: 'calzones', icone: '🥟', nome: 'Calzones' },
+        { id: 'bebidas',  icone: '🥤', nome: 'Bebidas' },
+        { id: 'combos',   icone: '🎁', nome: 'Combos' },
     ];
     el.innerHTML = `<div class="categorias-inner">${
         cats.map(c => `
             <button class="cat-btn ${c.id === categoriaAtiva ? 'active' : ''}" onclick="trocarCategoria('${c.id}')">
-                ${c.nome}
+                <span class="cat-icone">${c.icone}</span>
+                <span class="cat-nome">${c.nome}</span>
             </button>
         `).join('')
     }</div>`;
