@@ -27,6 +27,20 @@ function init() {
     setInterval(verificarStatus, 60000);
     checarPedidoLocal();
 
+    // === DEMO MODE: ?demo=maria ou ?demo=maria-pedido ===
+    // Abre uma das modais automaticamente para screenshots/apresentação
+    const demoMode = new URLSearchParams(location.search).get('demo');
+    if (demoMode === 'maria-pedido' || demoMode === 'maria') {
+        // Espera o Firebase carregar
+        setTimeout(() => {
+            if (demoMode === 'maria-pedido') {
+                abrirAcompanhamento();
+            } else {
+                abrirMeusPedidos();
+            }
+        }, 1500);
+    }
+
     DB.onChange(({ tipo, data }) => {
         if (tipo === 'cardapio_update') {
             // recarrega cardápio se pizzaria editou

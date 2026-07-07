@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Login Maria + Meus Pedidos</title>
+<script>
+  // 1. Setar login da Maria
+  localStorage.setItem('donna_cliente_logado', '79999990003');
+  // 2. Setar pedido ativo
+  localStorage.setItem('donna_meu_pedido', '1783467800001');
+  // 3. Redirecionar pro cliente com um sinal pra abrir a modal
+  setTimeout(() => {
+    location.href = './?demo=maria&v=' + Date.now();
+  }, 300);
+</script>
+</head>
+<body><h1>Setando login Maria Silva + pedido ativo...</h1></body></html>
