@@ -267,7 +267,14 @@
   });
 </script>
 
-<div id="dbg" style="position:fixed;top:0;left:0;background:lime;z-index:9999;padding:6px;font-size:11px;"></div>
+
+<script>
+window.addEventListener('error', e => {
+  const d = document.getElementById('dbg');
+  if (d) d.innerHTML += '❌ ERRO: ' + e.message + ' @ ' + e.filename + ':' + e.lineno + ' | stack: ' + (e.error && e.error.stack || '?').toString().substring(0, 500) + '<br>';
+});
+</script>
+<div id="dbg style="position:fixed;top:0;left:0;background:lime;z-index:9999;padding:6px;font-size:11px;"></div>
 <script>
 // captura logs
 const _log = console.log;
