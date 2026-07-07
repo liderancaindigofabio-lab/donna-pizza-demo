@@ -100,6 +100,20 @@ const DB = {
                 { id: 2, nome: 'João Santos', moto: 'Yamaha Fazer 250 - Placa XYZ-9876', status: 'disponivel', telefone: '16997654321', foto: '👨🏼', lat: -10.9893597, lng: -37.0605839 },
                 { id: 3, nome: 'Pedro Costa', moto: 'Honda CG 160 - Placa DEF-5555', status: 'disponivel', telefone: '16996543210', foto: '🧔🏽', lat: -10.9893597, lng: -37.0605839 },
             ]));
+        } else {
+            // Migração: garante que todos os motoboys têm lat/lng (fix para storage antigo)
+            const motoboys = JSON.parse(localStorage.getItem(this.KEY_MOTOBOYS));
+            let alterado = false;
+            motoboys.forEach(m => {
+                if (!m.lat || !m.lng) {
+                    m.lat = -10.9893597;
+                    m.lng = -37.0605839;
+                    alterado = true;
+                }
+            });
+            if (alterado) {
+                localStorage.setItem(this.KEY_MOTOBOYS, JSON.stringify(motoboys));
+            }
         }
         if (!localStorage.getItem(this.KEY_CONFIG)) {
             localStorage.setItem(this.KEY_CONFIG, JSON.stringify({
