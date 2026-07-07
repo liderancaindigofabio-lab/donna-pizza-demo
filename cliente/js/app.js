@@ -1048,6 +1048,10 @@ function atualizarMapaCliente(pedido) {
                 iconAnchor: [24, 24],
             });
             markerMotoboyCliente = L.marker(motoboyPos, { icon: mbIcon, zIndexOffset: 1000 }).addTo(mapaCliente);
+            try {
+                const m = DB.getMotoboy(pedido.motoboyId);
+                if (m) markerMotoboyCliente.bindPopup(`<b>🛵 ${m.nome}</b><br>${m.moto || ''}`);
+            } catch (e) {}
         } else {
             markerMotoboyCliente.setLatLng(motoboyPos);
         }
