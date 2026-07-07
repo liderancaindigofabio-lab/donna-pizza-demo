@@ -664,6 +664,15 @@ function renderMetricas() {
     document.getElementById('metFat').textContent = BRL(m.faturamento);
     document.getElementById('metAndamento').textContent = m.emAndamento;
     document.getElementById('metTicket').textContent = BRL(m.ticketMedio);
+    // DEBUG TEMP
+    const dbg = document.createElement('div');
+    dbg.id = 'debug-metricas';
+    dbg.style.cssText = 'position:fixed;bottom:0;left:0;background:lime;color:black;padding:6px;z-index:99999;font-size:12px;font-weight:bold;';
+    dbg.textContent = 'M=' + m.total + ' A=' + m.emAndamento + ' cache=' + DB.getPedidos().length + ' data=' + new Date().toDateString();
+    if (DB.getPedidos()[0]) dbg.textContent += ' | p0=' + DB.getPedidos()[0].criadoEm;
+    const old = document.getElementById('debug-metricas');
+    if (old) old.remove();
+    document.body.appendChild(dbg);
 }
 
 function renderContadores() {
