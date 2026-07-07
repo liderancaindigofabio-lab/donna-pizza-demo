@@ -15,8 +15,10 @@ log('Iniciando...');
 <script src="js/firebase/config.js?v=4"></script>
 <script>
 log('config.js carregado. FIREBASE_ATIVO=' + (typeof FIREBASE_ATIVO !== 'undefined' ? FIREBASE_ATIVO : '?'));
+window.addEventListener('error', e => log('GLOBAL ERROR: ' + e.message + ' @ ' + (e.filename||'?') + ':' + (e.lineno||'?')));
+window.addEventListener('unhandledrejection', e => log('PROMISE ERROR: ' + e.reason));
 </script>
-<script src="js/firebase/loader.js?v=5"></script>
+<script src="js/firebase/loader.js?v=6"></script>
 <script>
 log('loader.js carregado');
 // Espera DB ficar pronto
