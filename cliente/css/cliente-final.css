@@ -287,14 +287,13 @@ body {
     background: #ffffff !important;
     background-color: #ffffff !important;
     border-bottom: 1px solid var(--border);
-    padding: 12px 0;
+    padding: 14px 0;
     overflow-x: auto;
     white-space: nowrap;
     -webkit-overflow-scrolling: touch;
     position: sticky;
     top: 0;
     z-index: 99;
-    box-shadow: 0 1px 4px rgba(47, 74, 44, 0.05);
 }
 
 .categorias-bar::-webkit-scrollbar { display: none; }
