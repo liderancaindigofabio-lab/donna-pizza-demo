@@ -266,5 +266,36 @@
     if (typeof init === 'function') init();
   });
 </script>
+
+<div id="dbg" style="position:fixed;top:0;left:0;background:lime;z-index:9999;padding:6px;font-size:11px;"></div>
+<script>
+// captura logs
+const _log = console.log;
+console.log = function(...a) {
+  _log.apply(console, a);
+  const d = document.getElementById('dbg');
+  if (d) d.innerHTML += '> ' + a.join(' ') + '<br>';
+};
+window.onerror = (m, f, l) => {
+  const d = document.getElementById('dbg');
+  if (d) d.innerHTML += '❌ ERRO ' + m + ' @ ' + f + ':' + l + '<br>';
+};
+</script>
+
+<script>
+  console.log('INICIANDO BOOTSTRAP...');
+  firebase.initializeApp(FIREBASE_CONFIG);
+  console.log('Firebase app inicializado');
+  DB.init().then(() => {
+    console.log('🚀 DB.init resolveu, cache: ' + DB.getPedidos().length);
+    if (typeof init === 'function') {
+      console.log('init existe, chamando...');
+      init();
+      console.log('init() retornou');
+    } else {
+      console.log('init NÃO é função! typeof=' + typeof init);
+    }
+  }).catch(e => console.log('❌ ERRO DB.init: ' + e.message));
+</script>
 </body>
 </html>
