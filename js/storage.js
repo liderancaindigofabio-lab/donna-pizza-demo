@@ -96,15 +96,15 @@ const DB = {
         }
         if (!localStorage.getItem(this.KEY_MOTOBOYS)) {
             localStorage.setItem(this.KEY_MOTOBOYS, JSON.stringify([
-                { id: 1, nome: 'Carlos Silva', moto: 'Honda CB 500 - Placa ABC-1234', status: 'disponivel', telefone: '16991234567', foto: '👨🏾' },
-                { id: 2, nome: 'João Santos', moto: 'Yamaha Fazer 250 - Placa XYZ-9876', status: 'disponivel', telefone: '16997654321', foto: '👨🏼' },
-                { id: 3, nome: 'Pedro Costa', moto: 'Honda CG 160 - Placa DEF-5555', status: 'disponivel', telefone: '16996543210', foto: '🧔🏽' },
+                { id: 1, nome: 'Carlos Silva', moto: 'Honda CB 500 - Placa ABC-1234', status: 'disponivel', telefone: '16991234567', foto: '👨🏾', lat: -10.9893597, lng: -37.0605839 },
+                { id: 2, nome: 'João Santos', moto: 'Yamaha Fazer 250 - Placa XYZ-9876', status: 'disponivel', telefone: '16997654321', foto: '👨🏼', lat: -10.9893597, lng: -37.0605839 },
+                { id: 3, nome: 'Pedro Costa', moto: 'Honda CG 160 - Placa DEF-5555', status: 'disponivel', telefone: '16996543210', foto: '🧔🏽', lat: -10.9893597, lng: -37.0605839 },
             ]));
         }
         if (!localStorage.getItem(this.KEY_CONFIG)) {
             localStorage.setItem(this.KEY_CONFIG, JSON.stringify({
                 nome: 'Nonna Pizzaria',
-                endereco: 'Rua Principal, 123 - Centro, Pé de Serra - BA',
+                endereco: 'Av. Melício Machado, 1060 - Atalaia, Aracaju - SE, 49037-440',
                 whatsapp: '5500900000000',
                 taxaEntrega: 7.00,
                 tempoPreparo: 25,
@@ -201,6 +201,9 @@ const DB = {
         const motoboys = this.getMotoboys();
         const idx = motoboys.findIndex(m => m.id === id);
         if (idx >= 0) {
+            // Espelha lat/lng no nível do motoboy (mais fácil de ler) + mantém pos com timestamp
+            motoboys[idx].lat = lat;
+            motoboys[idx].lng = lng;
             motoboys[idx].pos = { lat, lng, t: Date.now() };
             localStorage.setItem(this.KEY_MOTOBOYS, JSON.stringify(motoboys));
         }
