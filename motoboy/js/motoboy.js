@@ -11,8 +11,10 @@ let markerMotoboy = null;
 let rotaLayer = null;
 let watchId = null;
 
-// Coordenadas da pizzaria (Pé de Serra - BA)
-const PIZZARIA_COORDS = [-11.8345, -39.6125];
+// Coordenadas da pizzaria (Atalaia - Aracaju/SE)
+// Av. Melício Machado, 1060 - Atalaia, Aracaju - SE, 49037-440
+const PIZZARIA_COORDS = [-10.9893597, -37.0605839];
+const PIZZARIA_ENDERECO = 'Av. Melício Machado, 1060 - Atalaia, Aracaju - SE';
 
 // Gera coordenadas aleatórias próximas à pizzaria (pra pedidos antigos sem coords)
 function gerarCoordsAleatorias() {
@@ -471,9 +473,11 @@ function renderPedidosAtuais() {
             <div class="pac-total">${BRL(p.total)} • ${p.cliente.pag}</div>
             ${p.cliente.obs ? `<div class="pac-obs"><strong>Obs:</strong> ${p.cliente.obs}</div>` : ''}
             <div class="pac-acoes">
-                <button class="btn-mb secondary" onclick="abrirNavegacao(${p.id})">🧭 Navegar</button>
+                <button class="btn-mb secondary" onclick="abrirNavegacao(${p.id})">🧭 Google Maps</button>
+                <button class="btn-mb secondary" onclick="abrirWaze(${p.id})">🟣 Waze</button>
                 <button class="btn-mb primary" onclick="ligarCliente(${p.id})">📞 Ligar</button>
-                ${ehProxima ? `<button class="btn-mb success" onclick="finalizarEntrega(${p.id})">✅ Entreguei</button>` : ''}
+                ${p.status === 'pronto' ? `<button class="btn-mb warning" onclick="iniciarEntrega(${p.id})">🚀 Iniciar entrega</button>` : ''}
+                ${ehProxima && p.status === 'em_entrega' ? `<button class="btn-mb success" onclick="finalizarEntrega(${p.id})">✅ Entreguei</button>` : ''}
             </div>
         </div>
         `;
@@ -512,8 +516,27 @@ function abrirNavegacao(pedidoId) {
     const p = DB.getPedidos().find(x => x.id === pedidoId);
     if (!p) return;
     const pComCoords = garantirCoords(p);
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${pComCoords.coords.lat},${pComCoords.coords.lng}&travelmode=driving`;
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${pComCoords.coords.lat},${pComCoords.coords.lng}&travelmode=driving&dir_action=navigate`;
     window.open(url, '_blank');
+}
+
+function abrirWaze(pedidoId) {
+    const p = DB.getPedidos().find(x => x.id === pedidoId);
+    if (!p) return;
+    const pComCoords = garantirCoords(p);
+    // Waze deep link com rota
+    const url = `https://waze.com/ul?ll=${pComCoords.coords.lat},${pComCoords.coords.lng}&navigate=yes`;
+    window.open(url, '_blank');
+}
+
+function iniciarEntrega(id) {
+    if (!confirm('Iniciar entrega agora? O cliente vai ver sua posição em tempo real.')) return;
+    DB.updatePedido(id, { status: 'em_entrega', saiuEm: new Date().toISOString() });
+    DB.updateMotoboy(motoboyAtual, { status: 'entregando' });
+    toast('🚀 Entrega iniciada! Cliente notificado.', 'success');
+    tocarSom('novo');
+    // Re-renderiza a lista
+    renderPedidosAtuais();
 }
 
 function ligarCliente(pedidoId) {
