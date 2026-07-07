@@ -222,7 +222,11 @@ const DB = {
     },
 
     getPedidosCliente(telefone) {
-        if (this.backend === 'firebase') return DBRemote.getPedidosCliente(telefone);
+        if (this.backend === 'firebase') {
+            // Modo Firebase: usa cache local (já está sincronizado pelo listener)
+            const tel = (telefone || '').replace(/\D/g, '');
+            return this.getPedidos().filter(p => p.cliente && p.cliente.tel && p.cliente.tel.replace(/\D/g, '') === tel);
+        }
         const tel = (telefone || '').replace(/\D/g, '');
         return this.getPedidos().filter(p => p.cliente && p.cliente.tel && p.cliente.tel.replace(/\D/g, '') === tel);
     },
