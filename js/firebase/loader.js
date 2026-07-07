@@ -21,9 +21,17 @@
     }
 
     function startApp() {
+        const m = document.createElement('div');
+        m.id = 'app-marker';
+        m.textContent = 'app:' + appName;
+        m.style.cssText = 'position:fixed;top:0;left:0;background:green;color:white;padding:4px;z-index:99999;font-size:14px;';
+        (document.body || document.documentElement).appendChild(m);
         console.log('🚀 Iniciando app:', appName);
         extras.forEach(src => {
-            console.log('  → carregando', src);
+            const tag = document.createElement('div');
+            tag.textContent = 'load: ' + src.split('/').pop();
+            tag.style.cssText = 'position:fixed;top:'+(24+extras.indexOf(src)*16)+'px;left:0;background:blue;color:white;padding:2px;z-index:99999;font-size:10px;';
+            (document.body || document.documentElement).appendChild(tag);
             loadScript(src);
         });
     }
