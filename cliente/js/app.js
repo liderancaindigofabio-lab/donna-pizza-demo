@@ -233,7 +233,9 @@ function abrirBuilderPizza(tamanhoId) {
         adicionais: [],
     };
     renderBuilder();
-    document.getElementById('modalOpcoes').style.display = 'flex';
+    const modal = document.getElementById('modalOpcoes');
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'flex-end';
 }
 
 function renderBuilder() {
