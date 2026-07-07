@@ -122,6 +122,10 @@ const DB = {
                 seed.forEach(m => firebase.database().ref('motoboys/' + m.id).set(m));
                 this._cacheMotoboys = seed;
             }
+            if (!this._cacheCardapio || !this._cacheCardapio.sabores) {
+                await firebase.database().ref('cardapio').set(this.CARDAPIO_DEFAULT);
+                this._cacheCardapio = this.CARDAPIO_DEFAULT;
+            }
             this._ready = true;
             if (this._onReady) this._onReady();
             return true;
