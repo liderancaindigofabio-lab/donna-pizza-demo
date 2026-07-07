@@ -651,8 +651,7 @@ function finalizarPedido() {
     fecharCheckout();
 
     toast('🚀 Pedido enviado! Acompanhe aqui...');
-    window.open(url, '_blank');
-    setTimeout(() => abrirAcompanhamento(), 500);
+    setTimeout(() => abrirAcompanhamento(), 300);
 }
 
 function coordsAleatorias() {
