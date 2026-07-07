@@ -4,6 +4,17 @@
    - Card de cliente clicável (mostra histórico)
    - Mostrar motoboy em todos os status
    ============================================ */
+console.log('🔥 PAINEL.JS INICIOU EXECUÇÃO (topo)');
+try {
+    const dbgT = (document.body || document.documentElement);
+    if (dbgT) {
+        const t = document.createElement('div');
+        t.id = 'painel-topo';
+        t.style.cssText = 'position:fixed;top:40px;left:0;background:red;color:white;padding:4px;z-index:99999;font-size:11px;';
+        t.textContent = '🔥 painel.js executou (topo)';
+        dbgT.appendChild(t);
+    }
+} catch (e) { console.log('ERRO no topo:', e); }
 
 let filtroStatus = 'novo';
 let pedidoSelecionado = null;
