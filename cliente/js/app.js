@@ -779,7 +779,11 @@ function checarPedidoLocal() {
 }
 
 function abrirAcompanhamento() {
-    document.body.setAttribute('data-acomp', 'meuPedidoId=' + meuPedidoId);
+    const testDiv = document.createElement('div');
+    testDiv.id = 'acomp-debug';
+    testDiv.textContent = 'meuPedidoId=' + meuPedidoId;
+    testDiv.style.cssText = 'position:fixed;top:0;left:0;background:red;color:white;z-index:9999;padding:10px;';
+    document.body.appendChild(testDiv);
     if (!meuPedidoId) {
         toast('Você não tem pedido ativo', 'warning');
         return;
