@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html><head><title>Debug Fila</title>
+<style>body{font-family:monospace;padding:20px;background:#000;color:#0f0;}pre{font-size:12px;}</style>
+</head><body>
+<h1>🐛 Debug Fila Pizzaria</h1>
+<div id="out">Carregando...</div>
+<script src="js/firebase/config.js?v=14"></script>
+<script>
+console.log('FIREBASE_ATIVO =', FIREBASE_ATIVO);
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script>
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.database();
+const out = document.getElementById('out');
+out.innerHTML = '⏳ Carregando pedidos...<br>';
+
+db.ref('pedidos').once('value').then(snap => {
+    const val = snap.val() || {};
+    const arr = Object.values(val);
+    out.innerHTML = '📦 Total no Firebase: ' + arr.length + '<br><br>';
+    arr.forEach(p => {
+        out.innerHTML += 'ID: ' + p.id + ' | Status: ' + p.status + ' | ' + p.cliente.nome + ' | ' + p.itens.map(i=>i.nome).join(',') + ' | R$ ' + p.total + ' | criado: ' + p.criadoEm + '<br>';
+    });
+    if (arr[0]) {
+        out.innerHTML += '<br>Data local: ' + new Date().toDateString() + '<br>';
+        out.innerHTML += 'Data pedido: ' + new Date(arr[0].criadoEm).toDateString() + '<br>';
+        out.innerHTML += 'Match: ' + (new Date(arr[0].criadoEm).toDateString() === new Date().toDateString()) + '<br>';
+    }
+});
+</script>
+</body></html>
