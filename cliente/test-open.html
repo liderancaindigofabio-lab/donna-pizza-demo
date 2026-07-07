@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Auto Open Modal</title>
+</head>
+<body>
+<iframe id="ifr" src="./?auto=1" style="width:1280px;height:1024px;border:0"></iframe>
+<script>
+window.addEventListener('load', () => {
+  // Injeta cliente fake no iframe
+  setTimeout(() => {
+    const ifr = document.getElementById('ifr');
+    const w = ifr.contentWindow;
+    const cliente = { nome: "Fabio Junior", tel: "16997902168", endereco: "Rua das Oliveiras, 123 - Centro", criadoEm: "2024-06-15" };
+    w.localStorage.setItem('donna_clientes', JSON.stringify({[cliente.tel]: cliente}));
+    w.localStorage.setItem('donna_cliente_logado', cliente.tel);
+    w.localStorage.setItem('donna_pedidos', JSON.stringify([
+      { id: 1001, cliente, itens: [{nome:"Pizza Margherita", qtd:1}, {nome:"Coca-Cola 2L", qtd:1}], total: 62, pagamento: "PIX", status: "em_entrega", motoboyId: 1, criadoEm: new Date().toISOString() }
+    ]));
+    w.localStorage.setItem('donna_meu_pedido', '1001');
+    w.localStorage.setItem('donna_motoboys', JSON.stringify({1: {id:1, nome:"Carlos Silva"}}));
+    ifr.src = './?auto=2';
+  }, 200);
+});
+</script>
+</body>
+</html>

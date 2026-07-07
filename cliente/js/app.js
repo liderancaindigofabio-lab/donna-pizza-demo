@@ -865,3 +865,10 @@ function toggleTheme() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+// ============ AUTO-OPEN MODAL (debug) ============
+setTimeout(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('modal') === 'meus' && clienteLogado) abrirMeusPedidos();
+    if (params.get('modal') === 'acompanhar') abrirAcompanhamento();
+}, 600);
