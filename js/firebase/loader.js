@@ -21,6 +21,9 @@
     }
 
     function startApp() {
+        const m = document.createElement('div');
+        m.setAttribute('data-app', appName);
+        document.body.appendChild(m);
         console.log('🚀 Iniciando app:', appName);
         extras.forEach(src => {
             console.log('  → carregando', src);
@@ -56,8 +59,12 @@
     }
 
     if (typeof FIREBASE_ATIVO === 'undefined' || !FIREBASE_ATIVO) {
+        // Marca visual que começou
+        if (document.body) document.body.setAttribute('data-loader', 'local-start');
+        else document.addEventListener('DOMContentLoaded', () => document.body.setAttribute('data-loader', 'local-start'));
         bootLocal();
     } else {
+        if (document.body) document.body.setAttribute('data-loader', 'firebase-start');
         bootFirebase();
     }
 })();
