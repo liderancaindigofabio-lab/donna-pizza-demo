@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Mock</title></head>
+<body>
+<h1>Mockando cliente...</h1>
+<script>
+const cliente = { nome: "Fabio Junior", tel: "16997902168", endereco: "Rua das Oliveiras, 123", criadoEm: "2024-06-15" };
+const clientes = {};
+clientes[cliente.tel] = cliente;
+localStorage.setItem('donna_clientes', JSON.stringify(clientes));
+localStorage.setItem('donna_cliente_logado', cliente.tel);
+const pedidos = [
+  { id: 1001, cliente, itens: [{nome:"Pizza Margherita", qtd:1}], total: 50, pagamento: "PIX", status: "em_entrega", motoboyId: 1, criadoEm: new Date().toISOString() },
+  { id: 1002, cliente, itens: [{nome:"Pizza Calabresa", qtd:1}], total: 62, pagamento: "Cartão", status: "entregue", criadoEm: "2025-06-20" }
+];
+localStorage.setItem('donna_pedidos', JSON.stringify(pedidos));
+localStorage.setItem('donna_meu_pedido', '1001');
+const motoboys = { 1: { id: 1, nome: "Carlos Silva" } };
+localStorage.setItem('donna_motoboys', JSON.stringify(motoboys));
+setTimeout(() => window.location.href = './?mock=1', 200);
+</script>
+</body>
+</html>
