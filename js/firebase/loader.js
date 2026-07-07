@@ -9,8 +9,9 @@
         'motoboy':    ['/donna-pizza-demo/motoboy/js/motoboy.js'],
         'pizzaria':   ['/donna-pizza-demo/pizzaria/js/painel.js'],
     };
+    const build = Date.now();
     const appName = (location.pathname.match(/\/(cliente|motoboy|pizzaria)(\/|$)/) || [])[1];
-    const extras = APPS[appName] || [];
+    const extras = (APPS[appName] || []).map(s => s + '?b=' + build);
 
     function loadScript(src, cb) {
         const s = document.createElement('script');
