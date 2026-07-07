@@ -82,7 +82,7 @@ function iniciarApp() {
     // Escutar mudanças
     DB.onChange(({ tipo, data }) => {
         if (tipo === 'pedido_novo') {
-            if (data.motoboyId === motoboyAtual) {
+            if (data && data.motoboyId === motoboyAtual) {
                 const qtd = DB.getPedidosMotoboy(motoboyAtual).length;
                 if (qtd === 1) {
                     toast('🆕 Novo pedido pra você!', 'success');
@@ -93,13 +93,13 @@ function iniciarApp() {
                 }
             }
         } else if (tipo === 'pedido_update') {
-            if (data.motoboyId === motoboyAtual) {
-                renderPedidosAtuais();
-                atualizarContadorEntregas();
-                renderHistorico();
-            }
+            // Sempre re-renderiza: pode ser que esse update seja da entrega atual
+            // (finalizar um pedido muda status e tira da lista "em_entrega")
+            renderPedidosAtuais();
+            atualizarContadorEntregas();
+            renderHistorico();
         } else if (tipo === 'motoboy_update') {
-            if (data.id === motoboyAtual) atualizarStatusVisual();
+            atualizarStatusVisual();
         }
         atualizarStatusVisual();
     });
