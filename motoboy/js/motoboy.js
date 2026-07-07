@@ -336,7 +336,7 @@ function adicionarMarkerCliente(coords, numero, pedido, emDestaque) {
     const marker = L.marker(coords, { icon: clienteIcon }).addTo(mapa);
     marker.bindPopup(`
         <b>${numero}. ${pedido.cliente.nome}</b><br>
-        📍 ${pedido.cliente.end}<br>
+        📍 ${formatarEndereco(pedido.cliente)}<br>
         💰 ${BRL(pedido.total)}<br>
         ${emDestaque ? '<b>🟢 PRÓXIMA ENTREGA</b>' : ''}
     `);
@@ -476,7 +476,7 @@ function renderPedidosAtuais() {
             </div>
             <div class="pac-cliente">
                 <div class="pac-cliente-nome">${p.cliente.nome}</div>
-                <div class="pac-cliente-end">📍 ${p.cliente.end}</div>
+                <div class="pac-cliente-end">📍 ${formatarEndereco(p.cliente)}</div>
                 <a class="pac-cliente-tel" href="https://wa.me/55${p.cliente.tel.replace(/\D/g, '')}" target="_blank">
                     📞 ${p.cliente.tel}
                 </a>
@@ -598,7 +598,7 @@ function renderHistorico() {
             <div class="historico-emoji">✅</div>
             <div class="historico-info">
                 <div class="historico-cliente">${p.cliente.nome}</div>
-                <div class="historico-end">${p.cliente.end.substring(0, 40)}...</div>
+                <div class="historico-end">${formatarEnderecoCurto(p.cliente)}</div>
             </div>
             <span class="historico-valor">${BRL(p.total)}</span>
         </div>
