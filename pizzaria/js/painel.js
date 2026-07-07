@@ -187,7 +187,7 @@ function renderPedidoCard(p) {
 
         <div class="pedido-cliente">
             <div class="cliente-nome">${p.cliente.nome}</div>
-            <div class="cliente-endereco">📍 ${p.cliente.end}${p.cliente.cep ? ` • CEP ${p.cliente.cep}` : ''}</div>
+            <div class="cliente-endereco">📍 ${formatarEndereco(p.cliente)}</div>
             <a class="cliente-tel" href="https://wa.me/55${p.cliente.tel.replace(/\D/g, '')}" target="_blank">📞 ${p.cliente.tel}</a>
             ${clienteHistorico}
         </div>
@@ -340,7 +340,7 @@ function atualizarMapaRotaPizzaria() {
         m.bindPopup(
             '<b>Pedido #' + p.id.toString().slice(-5) + '</b><br>' +
             p.cliente.nome + '<br>' +
-            (p.cliente.endereco || 'Sem endereco') + '<br>' +
+            formatarEndereco(p.cliente) + '<br>' +
             '<small>' + BRL(p.total) + ' - ' + p.cliente.pag + '</small>'
         );
         markersEntregasPizzaria.push(m);
@@ -530,7 +530,7 @@ function abrirDespacho(pedidoId) {
         <div class="despacho-info-pedido">
             <h4>📦 Pedido #${pedido.id.toString().slice(-5)}</h4>
             <p><strong>Cliente:</strong> ${pedido.cliente.nome}</p>
-            <p><strong>Endereço:</strong> ${pedido.cliente.end}</p>
+            <p><strong>Endereço:</strong> ${formatarEndereco(pedido.cliente)}</p>
             <p><strong>Itens:</strong> ${pedido.itens.length} ${pedido.itens.length === 1 ? 'item' : 'itens'}</p>
             <p><strong>Total:</strong> ${BRL(pedido.total)}</p>
         </div>
