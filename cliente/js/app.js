@@ -542,18 +542,38 @@ function abrirCheckout() {
         return;
     }
     fecharCarrinho();
-    // Preenche com dados salvos
+    // Preenche com dados salvos (se novo formato existir, usa estruturado)
     if (clienteLogado) {
         document.getElementById('cliNome').value = clienteLogado.nome || '';
         document.getElementById('cliTel').value = clienteLogado.tel || '';
-        document.getElementById('cliEnd').value = clienteLogado.end || '';
-        document.getElementById('cliCep').value = clienteLogado.cep || '';
-        document.getElementById('cliRef').value = clienteLogado.ref || '';
+        if (clienteLogado.endereco) {
+            const e = clienteLogado.endereco;
+            document.getElementById('cliCep').value = e.cep || '';
+            document.getElementById('cliRua').value = e.rua || '';
+            document.getElementById('cliNumero').value = e.numero || '';
+            document.getElementById('cliCompl').value = e.complemento || '';
+            document.getElementById('cliBairro').value = e.bairro || '';
+            document.getElementById('cliCidade').value = e.cidade || 'Aracaju';
+            document.getElementById('cliRef').value = e.referencia || '';
+        } else {
+            // Fallback: cliente salvo no formato antigo (string única)
+            document.getElementById('cliCep').value = clienteLogado.cep || '';
+            document.getElementById('cliRua').value = '';
+            document.getElementById('cliNumero').value = '';
+            document.getElementById('cliCompl').value = '';
+            document.getElementById('cliBairro').value = '';
+            document.getElementById('cliCidade').value = 'Aracaju';
+            document.getElementById('cliRef').value = clienteLogado.ref || '';
+        }
     } else {
         document.getElementById('cliNome').value = '';
         document.getElementById('cliTel').value = '';
-        document.getElementById('cliEnd').value = '';
         document.getElementById('cliCep').value = '';
+        document.getElementById('cliRua').value = '';
+        document.getElementById('cliNumero').value = '';
+        document.getElementById('cliCompl').value = '';
+        document.getElementById('cliBairro').value = '';
+        document.getElementById('cliCidade').value = 'Aracaju';
         document.getElementById('cliRef').value = '';
     }
     document.getElementById('modalCheckout').style.display = 'flex';
@@ -561,6 +581,66 @@ function abrirCheckout() {
     sel.removeEventListener('change', atualizarPagInfo);
     sel.addEventListener('change', atualizarPagInfo);
     atualizarPagInfo();
+    // Listener do CEP pra auto-busca
+    const cepInput = document.getElementById('cliCep');
+    cepInput.removeEventListener('blur', onCepBlur);
+    cepInput.removeEventListener('input', onCepInput);
+    cepInput.addEventListener('blur', onCepBlur);
+    cepInput.addEventListener('input', onCepInput);
+    // Reseta status do CEP
+    setCepStatus('', '');
+}
+
+let _cepTimer = null;
+function onCepInput(e) {
+    let v = e.target.value.replace(/\D/g, '').slice(0, 8);
+    if (v.length > 5) v = v.slice(0, 5) + '-' + v.slice(5);
+    e.target.value = v;
+    clearTimeout(_cepTimer);
+    if (v.replace(/\D/g, '').length === 8) {
+        setCepStatus('buscando', '🔍 Buscando...');
+        _cepTimer = setTimeout(() => buscarCep(v.replace(/\D/g, '')), 600);
+    } else {
+        setCepStatus('', '');
+        document.getElementById('cepAviso').style.display = 'none';
+    }
+}
+
+async function onCepBlur(e) {
+    const cep = e.target.value.replace(/\D/g, '');
+    if (cep.length === 8) await buscarCep(cep);
+}
+
+async function buscarCep(cep) {
+    try {
+        const r = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+        const data = await r.json();
+        if (data.erro) {
+            setCepStatus('erro', '❌ CEP não encontrado');
+            document.getElementById('cepAviso').style.display = 'block';
+            return;
+        }
+        // Só preenche se o usuário não tiver digitado nada nesses campos
+        const rua = document.getElementById('cliRua');
+        const bairro = document.getElementById('cliBairro');
+        const cidade = document.getElementById('cliCidade');
+        if (!rua.value) rua.value = data.logradouro || '';
+        if (!bairro.value) bairro.value = data.bairro || '';
+        cidade.value = data.localidade || 'Aracaju';
+        document.getElementById('cepAviso').style.display = 'none';
+        setCepStatus('ok', '✓ CEP encontrado');
+        // Foca no número (próximo campo importante)
+        document.getElementById('cliNumero').focus();
+    } catch (err) {
+        setCepStatus('erro', '⚠️ Erro ao buscar');
+        document.getElementById('cepAviso').style.display = 'block';
+    }
+}
+
+function setCepStatus(tipo, texto) {
+    const el = document.getElementById('cepStatus');
+    el.className = 'cep-status ' + tipo;
+    el.textContent = texto;
 }
 
 function atualizarPagInfo() {
@@ -582,17 +662,41 @@ function fecharCheckout() {
     document.getElementById('modalCheckout').style.display = 'none';
 }
 
+// Helper: monta o endereço completo a partir dos campos estruturados
+function montarEndereco() {
+    const rua = document.getElementById('cliRua').value.trim();
+    const numero = document.getElementById('cliNumero').value.trim();
+    const compl = document.getElementById('cliCompl').value.trim();
+    const bairro = document.getElementById('cliBairro').value.trim();
+    const cidade = document.getElementById('cliCidade').value.trim() || 'Aracaju';
+    let end = rua;
+    if (numero) end += ', ' + numero;
+    if (compl) end += ' - ' + compl;
+    if (bairro) end += ' - ' + bairro;
+    if (cidade) end += ', ' + cidade;
+    return end;
+}
+
 async function finalizarPedido() {
     const nome = document.getElementById('cliNome').value.trim();
     const tel = document.getElementById('cliTel').value.trim();
-    const end = document.getElementById('cliEnd').value.trim();
+    const rua = document.getElementById('cliRua').value.trim();
+    const numero = document.getElementById('cliNumero').value.trim();
+    const compl = document.getElementById('cliCompl').value.trim();
+    const bairro = document.getElementById('cliBairro').value.trim();
+    const cidade = document.getElementById('cliCidade').value.trim();
     const pag = document.getElementById('cliPag').value;
     const obs = document.getElementById('cliObs').value.trim();
     const cep = document.getElementById('cliCep').value.trim();
     const ref = document.getElementById('cliRef').value.trim();
 
-    if (!nome || !tel || !end) {
-        toast('⚠️ Preencha nome, telefone e endereço', 'error');
+    // Validação
+    if (!nome || !tel) {
+        toast('⚠️ Preencha nome e telefone', 'error');
+        return;
+    }
+    if (!rua || !numero || !bairro) {
+        toast('⚠️ Preencha rua, número e bairro', 'error');
         return;
     }
     if (tel.replace(/\D/g, '').length < 10) {
@@ -600,24 +704,37 @@ async function finalizarPedido() {
         return;
     }
 
+    // Monta endereço em formato único (pra WhatsApp, geocoding, fallback)
+    const end = montarEndereco();
+    // Objeto estruturado (pra motoboy, pizzaria, futuras features)
+    const enderecoEstruturado = { cep, rua, numero, complemento: compl, bairro, cidade: cidade || 'Aracaju', referencia: ref };
+
     // Geocoding do endereço pra mostrar no mapa do motoboy + acompanhamento
     const btnEnviar = document.querySelector('#modalCheckout .btn-primary');
     const txtOriginal = btnEnviar.innerHTML;
     btnEnviar.disabled = true;
     btnEnviar.innerHTML = '📍 Localizando seu endereço...';
-    const coords = await geocodificar(end + (cep ? ', ' + cep : ''));
+    // Geocoding com objeto estruturado — múltiplas tentativas progressivas
+    const coords = await geocodificar(enderecoEstruturado);
+    if (coords.fallback) {
+        toast('⚠️ Não conseguimos localizar o endereço exato. Confirme no mapa após o pedido.', 'warning', 5000);
+    }
     btnEnviar.disabled = false;
     btnEnviar.innerHTML = txtOriginal;
 
-    // Salva o cliente pra próxima vez
-    const clienteSalvo = DB.salvarCliente({ nome, tel, end, cep, ref });
+    // Salva o cliente pra próxima vez (formato NOVO: estruturado + string legada)
+    const clienteSalvo = DB.salvarCliente({
+        nome, tel,
+        end, cep, ref, // legado, mantém compat
+        endereco: enderecoEstruturado  // novo formato
+    });
     DB.setClienteLogado(tel);
     clienteLogado = clienteSalvo;
     renderHeaderCliente();
 
     const pedido = {
         pagamento: pag,  // Espelha no nível do pedido pra fácil leitura
-        cliente: { nome, tel, end, cep, ref, pag, obs },
+        cliente: { nome, tel, end, cep, ref, pag, obs, endereco: enderecoEstruturado },
         itens: carrinho.map(i => ({
             nome: i.nome,
             descricao: i.descricao,
@@ -670,52 +787,72 @@ async function finalizarPedido() {
 }
 
 // Geocoding real via Nominatim (OpenStreetMap, gratuito)
+// Aceita string OU objeto estruturado {rua, numero, complemento, bairro, cidade, cep}
 async function geocodificar(endereco) {
-    // Fallback em Aracaju (Atalaia como centro) caso falhe
-    const fallback = () => ({
-        lat: -10.989 + (Math.random() - 0.5) * 0.08,
-        lng: -37.060 + (Math.random() - 0.5) * 0.08,
-    });
+    // Fallback: ponto central de Aracaju (não aleatório!)
+    // Usado só quando Nominatim realmente falha — logado pra debug
+    const fallback = () => {
+        console.warn('⚠️ Geocoding falhou — usando centro de Aracaju como fallback');
+        return { lat: -10.911, lng: -37.071, fallback: true };
+    };
 
-    // Normaliza: troca hífens/quebras por vírgulas, remove duplicatas
-    const limpo = (endereco || '')
-        .replace(/[\n\r]+/g, ', ')
-        .replace(/\s*-\s*/g, ', ')
-        .replace(/\s+/g, ' ')
-        .trim();
-
+    // Headers aceitos pelo Nominatim
     const headers = { 'Accept': 'application/json', 'Accept-Language': 'pt-BR,pt;q=0.9' };
 
+    // Se veio objeto estruturado, monta queries progressivas
+    let queries = [];
+    if (endereco && typeof endereco === 'object') {
+        const { cep, rua, numero, complemento, bairro, cidade } = endereco;
+        const cid = cidade || 'Aracaju';
+        // 1) Mais precisa: rua + número + bairro + cidade
+        if (rua && numero) {
+            let q = `${rua}, ${numero}`;
+            if (complemento) q += ` - ${complemento}`;
+            if (bairro) q += `, ${bairro}`;
+            q += `, ${cid}, Sergipe, Brasil`;
+            queries.push(q);
+            // 2) Sem complemento, com bairro
+            queries.push(`${rua}, ${numero}, ${bairro || ''}, ${cid}, Brasil`.replace(/, ,/g, ','));
+            // 3) Rua + bairro + cidade
+            if (bairro) queries.push(`${rua}, ${bairro}, ${cid}, Brasil`);
+            // 4) Só rua + cidade
+            queries.push(`${rua}, ${cid}, Brasil`);
+        } else if (rua && bairro) {
+            queries.push(`${rua}, ${bairro}, ${cid}, Brasil`);
+        } else if (rua) {
+            queries.push(`${rua}, ${cid}, Brasil`);
+        }
+        // 5) Só CEP como último recurso
+        if (cep && cep.replace(/\D/g, '').length === 8) {
+            queries.push(cep.replace(/\D/g, ''));
+        }
+    } else {
+        // String legada — tenta manter Aracaju como base
+        const limpo = (endereco || '').replace(/[\n\r]+/g, ', ').replace(/\s*-\s*/g, ', ').replace(/\s+/g, ' ').trim();
+        if (limpo) {
+            queries.push(`${limpo}, Aracaju, Sergipe, Brasil`);
+            const semCep = limpo.replace(/\d{5}-?\d{3}/g, '').replace(/,+/g, ',').trim();
+            if (semCep && semCep !== limpo) queries.push(`${semCep}, Aracaju, Brasil`);
+            const partes = limpo.split(',').map(s => s.trim());
+            if (partes.length > 1) queries.push(`${partes[0]}, Aracaju, Brasil`);
+        }
+    }
+
     try {
-        // Tenta primeiro: endereço completo + cidade
-        let q = encodeURIComponent(limpo + ', Aracaju, Sergipe, Brasil');
-        let url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=br`;
-        let res = await fetch(url, { headers });
-        let data = await res.json();
-        if (data && data[0]) {
-            return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-        }
-
-        // Tenta segundo: só a rua + bairro (sem o CEP)
-        const semCep = limpo.replace(/\d{5}-?\d{3}/g, '').replace(/,+/g, ',').trim();
-        q = encodeURIComponent(semCep + ', Aracaju');
-        url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=3&countrycodes=br`;
-        res = await fetch(url, { headers });
-        data = await res.json();
-        if (data && data[0]) {
-            return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-        }
-
-        // Tenta terceiro: só o nome da rua + cidade
-        const partes = limpo.split(',').map(s => s.trim());
-        if (partes.length > 1) {
-            q = encodeURIComponent(partes[0] + ', Aracaju');
-            url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=br`;
-            res = await fetch(url, { headers });
-            data = await res.json();
+        for (const query of queries) {
+            const q = encodeURIComponent(query);
+            const url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=br`;
+            const res = await fetch(url, { headers });
+            const data = await res.json();
             if (data && data[0]) {
-                return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+                return {
+                    lat: parseFloat(data[0].lat),
+                    lng: parseFloat(data[0].lon),
+                    display: data[0].display_name
+                };
             }
+            // Pequena pausa pra respeitar rate limit do Nominatim (1 req/s)
+            await new Promise(r => setTimeout(r, 1100));
         }
         return fallback();
     } catch (e) {
@@ -726,10 +863,7 @@ async function geocodificar(endereco) {
 
 function coordsAleatorias() {
     // Mantida só pra compatibilidade — prefira geocodificar()
-    return {
-        lat: -10.989 + (Math.random() - 0.5) * 0.08,
-        lng: -37.060 + (Math.random() - 0.5) * 0.08,
-    };
+    return { lat: -10.911, lng: -37.071 };
 }
 
 // ============ HISTÓRICO DO CLIENTE ============
@@ -1161,13 +1295,13 @@ function fecharAcompanhamento() {
 }
 
 // ============ TOAST ============
-function toast(texto, tipo = '') {
+function toast(texto, tipo = '', duracao = 3000) {
     const container = document.getElementById('toastContainer');
     const el = document.createElement('div');
     el.className = 'toast ' + tipo;
     el.textContent = texto;
     container.appendChild(el);
-    setTimeout(() => el.remove(), 3000);
+    setTimeout(() => el.remove(), duracao);
 }
 
 function toggleTheme() {
