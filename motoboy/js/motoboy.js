@@ -164,6 +164,8 @@ function initMapa() {
     markerMotoboy.bindPopup('<b>🛵 Você está aqui</b><br>Arraste pra simular movimento');
 
     markerMotoboy.on('dragend', () => {
+        const ll = markerMotoboy.getLatLng();
+        DB.updateMotoboyPos(motoboyAtual, ll.lat, ll.lng);
         if (DB.getPedidosMotoboy(motoboyAtual).length > 0) {
             otimizarERenderizarRota();
         }
@@ -174,9 +176,22 @@ function initMapa() {
             (pos) => {
                 const { latitude, longitude } = pos.coords;
                 markerMotoboy.setLatLng([latitude, longitude]);
+                DB.updateMotoboyPos(motoboyAtual, latitude, longitude);
                 mapa.setView([latitude, longitude], 14);
             },
             (err) => console.log('Geolocalização negada')
+        );
+        // Tracking em tempo real
+        watchId = navigator.geolocation.watchPosition(
+            (pos) => {
+                const { latitude, longitude } = pos.coords;
+                if (markerMotoboy) {
+                    markerMotoboy.setLatLng([latitude, longitude]);
+                    DB.updateMotoboyPos(motoboyAtual, latitude, longitude);
+                }
+            },
+            (err) => console.log('Watch position erro'),
+            { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 }
         );
     }
 }

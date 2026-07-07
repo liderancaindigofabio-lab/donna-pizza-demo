@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nonna Pizzaria — Painel de Gestão</title>
-    <link rel="stylesheet" href="css/painel-v6.css">
+    <link rel="stylesheet" href="css/painel-v6.css?v=2">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏪</text></svg>">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 <body>
 
@@ -230,7 +231,23 @@
 <!-- NOTIFICAÇÃO -->
 <div id="notificacaoContainer"></div>
 
+<!-- MODAL MAPA ROTA -->
+<div class="modal" id="modalMapaRota">
+    <div class="modal-content modal-mapa-content">
+        <header class="modal-header">
+            <h2>🗺️ Rota em tempo real</h2>
+            <button class="modal-close" onclick="fecharMapaRota()">×</button>
+        </header>
+        <div class="mapa-rota-container">
+            <div id="mapaRotaPizzaria" class="mapa-rota-mapa"></div>
+            <div id="mapaRotaInfo" class="mapa-rota-info"></div>
+        </div>
+        <span id="mapaRotaPedidoId" style="display:none"></span>
+    </div>
+</div>
+
 <script src="../js/storage.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="js/painel.js"></script>
 </body>
 </html>

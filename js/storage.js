@@ -195,6 +195,22 @@ const DB = {
         }
     },
 
+    // === TRACKING (posição em tempo real) ===
+    // Salva a posição atual do motoboy (lat/lng) + timestamp
+    updateMotoboyPos(id, lat, lng) {
+        const motoboys = this.getMotoboys();
+        const idx = motoboys.findIndex(m => m.id === id);
+        if (idx >= 0) {
+            motoboys[idx].pos = { lat, lng, t: Date.now() };
+            localStorage.setItem(this.KEY_MOTOBOYS, JSON.stringify(motoboys));
+        }
+    },
+
+    getMotoboyPos(id) {
+        const m = this.getMotoboy(id);
+        return m && m.pos ? m.pos : null;
+    },
+
     // === CONFIG ===
     getConfig() {
         return JSON.parse(localStorage.getItem(this.KEY_CONFIG) || '{}');
