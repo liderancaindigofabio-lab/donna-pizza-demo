@@ -400,6 +400,14 @@ const DB = {
         const hoje = new Date().toDateString();
         const pedidos = this.getPedidos();
         console.log('📊 getMetricasHoje: total cache=' + pedidos.length + ' data=' + hoje);
+        const logBox = document.createElement('div');
+        logBox.id = 'log-box';
+        logBox.style.cssText = 'position:fixed;top:0;right:0;background:black;color:white;padding:4px;z-index:99999;font-size:10px;';
+        logBox.textContent = 'cache=' + pedidos.length + ' data=' + hoje;
+        if (pedidos[0]) {
+            logBox.textContent += ' | criado=' + new Date(pedidos[0].criadoEm).toDateString();
+        }
+        (document.body || document.documentElement).appendChild(logBox);
         if (pedidos[0]) console.log('  primeiro:', pedidos[0].criadoEm, '→', new Date(pedidos[0].criadoEm).toDateString());
         const filtrados = pedidos.filter(p => new Date(p.criadoEm).toDateString() === hoje);
         console.log('  filtrados=' + filtrados.length);
