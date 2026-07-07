@@ -582,7 +582,7 @@ function fecharCheckout() {
     document.getElementById('modalCheckout').style.display = 'none';
 }
 
-function finalizarPedido() {
+async function finalizarPedido() {
     const nome = document.getElementById('cliNome').value.trim();
     const tel = document.getElementById('cliTel').value.trim();
     const end = document.getElementById('cliEnd').value.trim();
@@ -599,6 +599,15 @@ function finalizarPedido() {
         toast('⚠️ Telefone inválido', 'error');
         return;
     }
+
+    // Geocoding do endereço pra mostrar no mapa do motoboy + acompanhamento
+    const btnEnviar = document.querySelector('#modalCheckout .btn-primary');
+    const txtOriginal = btnEnviar.innerHTML;
+    btnEnviar.disabled = true;
+    btnEnviar.innerHTML = '📍 Localizando seu endereço...';
+    const coords = await geocodificar(end + (cep ? ', ' + cep : ''));
+    btnEnviar.disabled = false;
+    btnEnviar.innerHTML = txtOriginal;
 
     // Salva o cliente pra próxima vez
     const clienteSalvo = DB.salvarCliente({ nome, tel, end, cep, ref });
@@ -622,7 +631,7 @@ function finalizarPedido() {
         desconto: cupomAplicado ? (cupomAplicado.tipo === 'percentual' ? calcularSubtotal() * cupomAplicado.valor / 100 : cupomAplicado.valor) : 0,
         cupom: cupomAplicado ? cupomAplicado.codigo || cupomAplicado.desc : null,
         total: calcularTotal(),
-        coords: coordsAleatorias(),
+        coords: coords,
     };
 
     const pedidoSalvo = DB.addPedido(pedido);
@@ -659,10 +668,34 @@ function finalizarPedido() {
     setTimeout(() => abrirAcompanhamento(), 300);
 }
 
+// Geocoding real via Nominatim (OpenStreetMap, gratuito)
+async function geocodificar(endereco) {
+    // Fallback em Aracaju (Atalaia como centro) caso falhe
+    const fallback = () => ({
+        lat: -10.989 + (Math.random() - 0.5) * 0.08,
+        lng: -37.060 + (Math.random() - 0.5) * 0.08,
+    });
+    try {
+        const q = encodeURIComponent(endereco + ', Aracaju, Sergipe, Brasil');
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`, {
+            headers: { 'Accept': 'application/json' }
+        });
+        const data = await res.json();
+        if (data && data[0]) {
+            return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+        }
+        return fallback();
+    } catch (e) {
+        console.log('Geocoding falhou, usando fallback:', e);
+        return fallback();
+    }
+}
+
 function coordsAleatorias() {
+    // Mantida só pra compatibilidade — prefira geocodificar()
     return {
-        lat: -11.83 + (Math.random() - 0.5) * 0.15,
-        lng: -39.61 + (Math.random() - 0.5) * 0.15,
+        lat: -10.989 + (Math.random() - 0.5) * 0.08,
+        lng: -37.060 + (Math.random() - 0.5) * 0.08,
     };
 }
 
@@ -841,17 +874,170 @@ function abrirAcompanhamento() {
             <strong>${BRL(pedido.total)}</strong>
         </div>
     </div>
-    ${pedido.status === 'em_entrega' ? `
-    <div class="tracker-map">
-        🗺️ Mapa em tempo real disponível em breve
+    ${(pedido.status === 'em_entrega' || pedido.status === 'pronto' || pedido.status === 'preparando') ? `
+    <div class="tracker-map-section">
+        <div class="tracker-map-titulo">🗺️ Acompanhe seu motoboy em tempo real</div>
+        <div id="mapaCliente" class="tracker-map"></div>
+        <div class="tracker-map-legenda">
+            <span><span class="leg-dot leg-pizzaria"></span> Pizzaria</span>
+            <span><span class="leg-dot leg-cliente"></span> Seu endereço</span>
+            <span><span class="leg-dot leg-motoboy">🛵</span> Motoboy</span>
+        </div>
     </div>` : ''}`;
 
     document.getElementById('pedidoAcompanhamento').innerHTML = html;
     document.getElementById('modalAcompanhamento').style.display = 'flex';
+
+    // Inicia o mapa real se for o caso
+    if (pedido.status === 'em_entrega' || pedido.status === 'pronto' || pedido.status === 'preparando') {
+        iniciarMapaCliente(pedido);
+    }
+}
+
+// ============ MAPA REAL DO CLIENTE ============
+let mapaCliente = null;
+let markerPizzariaCliente = null;
+let markerClienteCliente = null;
+let markerMotoboyCliente = null;
+let polylineRotaCliente = null;
+let pollMapaCliente = null;
+const PIZZARIA_COORDS_CLIENTE = [-10.9893597, -37.0605839];
+
+function iniciarMapaCliente(pedidoInicial) {
+    // Evita recriar se já existe
+    if (mapaCliente) {
+        mapaCliente.remove();
+        mapaCliente = null;
+    }
+    if (pollMapaCliente) {
+        clearInterval(pollMapaCliente);
+        pollMapaCliente = null;
+    }
+
+    const el = document.getElementById('mapaCliente');
+    if (!el) return;
+    el.innerHTML = '';
+
+    mapaCliente = L.map('mapaCliente', { zoomControl: true, attributionControl: false })
+        .setView(PIZZARIA_COORDS_CLIENTE, 14);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+    }).addTo(mapaCliente);
+
+    // Marcador da pizzaria
+    const pizzaIcon = L.divIcon({
+        html: '<div class="marker-pizza">🍕</div>',
+        className: '',
+        iconSize: [36, 36],
+        iconAnchor: [18, 36],
+    });
+    markerPizzariaCliente = L.marker(PIZZARIA_COORDS_CLIENTE, { icon: pizzaIcon }).addTo(mapaCliente);
+    markerPizzariaCliente.bindPopup('<b>🍕 Nonna Pizzaria</b><br>Av. Melício Machado, 1060 - Atalaia');
+
+    // Marcador do cliente (destino)
+    if (pedidoInicial.coords) {
+        const cliIcon = L.divIcon({
+            html: '<div class="marker-cliente">🏠</div>',
+            className: '',
+            iconSize: [36, 36],
+            iconAnchor: [18, 36],
+        });
+        markerClienteCliente = L.marker([pedidoInicial.coords.lat, pedidoInicial.coords.lng], { icon: cliIcon }).addTo(mapaCliente);
+        markerClienteCliente.bindPopup(`<b>🏠 ${pedidoInicial.cliente.nome}</b><br>${pedidoInicial.cliente.end}`);
+    }
+
+    // Ajusta view inicial: pizza + cliente
+    const bounds = L.latLngBounds([PIZZARIA_COORDS_CLIENTE]);
+    if (pedidoInicial.coords) bounds.extend([pedidoInicial.coords.lat, pedidoInicial.coords.lng]);
+    mapaCliente.fitBounds(bounds, { padding: [50, 50] });
+
+    // Render inicial
+    atualizarMapaCliente(pedidoInicial);
+
+    // Polling: a cada 4s busca posição atualizada do motoboy
+    pollMapaCliente = setInterval(() => {
+        const pedido = DB.getPedidos().find(p => p.id === meuPedidoId);
+        if (!pedido) return;
+        if (['entregue', 'cancelado'].includes(pedido.status)) {
+            clearInterval(pollMapaCliente);
+            pollMapaCliente = null;
+            return;
+        }
+        atualizarMapaCliente(pedido);
+    }, 4000);
+}
+
+function atualizarMapaCliente(pedido) {
+    if (!mapaCliente) return;
+
+    // Posição do motoboy
+    let motoboyPos = null;
+    if (pedido.motoboyId) {
+        try {
+            const m = DB.getMotoboy(pedido.motoboyId);
+            if (m && m.lat && m.lng) motoboyPos = [m.lat, m.lng];
+        } catch(e) {}
+    }
+
+    // Atualiza marcador do motoboy
+    if (motoboyPos) {
+        if (!markerMotoboyCliente) {
+            const mbIcon = L.divIcon({
+                html: '<div class="marker-motoboy">🛵</div>',
+                className: '',
+                iconSize: [40, 40],
+                iconAnchor: [20, 20],
+            });
+            markerMotoboyCliente = L.marker(motoboyPos, { icon: mbIcon }).addTo(mapaCliente);
+        } else {
+            markerMotoboyCliente.setLatLng(motoboyPos);
+        }
+
+        // Linha pizza -> motoboy -> cliente (mostra o caminho)
+        if (polylineRotaCliente) {
+            polylineRotaCliente.setLatLngs([PIZZARIA_COORDS_CLIENTE, motoboyPos]);
+        } else {
+            polylineRotaCliente = L.polyline([PIZZARIA_COORDS_CLIENTE, motoboyPos], {
+                color: '#C03A2B',
+                weight: 4,
+                opacity: 0.7,
+                dashArray: '8, 8',
+            }).addTo(mapaCliente);
+        }
+
+        // Centraliza entre motoboy e cliente
+        if (pedido.coords) {
+            const bounds = L.latLngBounds([motoboyPos, [pedido.coords.lat, pedido.coords.lng], PIZZARIA_COORDS_CLIENTE]);
+            mapaCliente.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+        }
+    } else {
+        // Sem motoboy ainda: mostra pizza -> cliente
+        if (pedido.coords) {
+            if (polylineRotaCliente) {
+                polylineRotaCliente.setLatLngs([PIZZARIA_COORDS_CLIENTE, [pedido.coords.lat, pedido.coords.lng]]);
+            } else {
+                polylineRotaCliente = L.polyline([PIZZARIA_COORDS_CLIENTE, [pedido.coords.lat, pedido.coords.lng]], {
+                    color: '#C9A961',
+                    weight: 4,
+                    opacity: 0.6,
+                    dashArray: '4, 10',
+                }).addTo(mapaCliente);
+            }
+        }
+    }
 }
 
 function fecharAcompanhamento() {
     document.getElementById('modalAcompanhamento').style.display = 'none';
+    if (pollMapaCliente) {
+        clearInterval(pollMapaCliente);
+        pollMapaCliente = null;
+    }
+    if (mapaCliente) {
+        mapaCliente.remove();
+        mapaCliente = null;
+    }
 }
 
 // ============ TOAST ============
