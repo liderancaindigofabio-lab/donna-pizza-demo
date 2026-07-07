@@ -671,9 +671,26 @@ function abrirMeusPedidos() {
     }
     const pedidos = DB.getPedidosCliente(clienteLogado.tel);
     const stats = DB.getEstatisticasCliente(clienteLogado.tel);
+    const primeiroNome = clienteLogado.nome.split(' ')[0];
 
     const modal = document.getElementById('modalMeusPedidos');
     document.getElementById('meusPedidosBody').innerHTML = `
+        <div class="perfil-bloco">
+            <div class="perfil-bloco-titulo">👤 Olá, ${primeiroNome}!</div>
+            <div class="perfil-linha">
+                <span class="perfil-label">📱 Telefone</span>
+                <span class="perfil-valor">${clienteLogado.tel}</span>
+            </div>
+            <div class="perfil-linha">
+                <span class="perfil-label">📍 Endereço</span>
+                <span class="perfil-valor">${clienteLogado.endereco || 'Não cadastrado'}</span>
+            </div>
+            <div class="perfil-linha">
+                <span class="perfil-label">💜 Cliente desde</span>
+                <span class="perfil-valor">${new Date(clienteLogado.criadoEm || Date.now()).toLocaleDateString('pt-BR')}</span>
+            </div>
+        </div>
+
         <div class="meus-pedidos-stats">
             <div class="stat-mini">
                 <div class="stat-mini-num">${stats.total}</div>
@@ -694,19 +711,20 @@ function abrirMeusPedidos() {
         </div>
 
         <h3 class="historico-titulo">📦 Seus pedidos</h3>
-        ${pedidos.length === 0 ? '<p class="historico-vazio">Nenhum pedido ainda</p>' :
+        ${pedidos.length === 0 ?
+            '<div class="historico-vazio"><p>🍕 Você ainda não fez nenhum pedido</p><small>Que tal experimentar uma Nonna delícia?</small></div>' :
             pedidos.map(p => {
                 const statusLabel = {
-                    novo: { txt: 'Recebido', cor: 'novo' },
-                    preparando: { txt: 'Preparando', cor: 'preparando' },
-                    pronto: { txt: 'Pronto', cor: 'pronto' },
-                    em_entrega: { txt: 'A caminho', cor: 'entrega' },
-                    entregue: { txt: 'Entregue', cor: 'entregue' },
-                    cancelado: { txt: 'Cancelado', cor: 'cancelado' },
+                    novo:       { txt: 'Recebido',    cor: 'novo' },
+                    preparando: { txt: 'Preparando',  cor: 'preparando' },
+                    pronto:     { txt: 'Pronto',      cor: 'pronto' },
+                    em_entrega: { txt: 'A caminho',   cor: 'entrega' },
+                    entregue:   { txt: 'Entregue',    cor: 'entregue' },
+                    cancelado:  { txt: 'Cancelado',   cor: 'cancelado' },
                 }[p.status] || { txt: p.status, cor: '' };
                 const motoboy = p.motoboyId ? DB.getMotoboy(p.motoboyId) : null;
                 return `
-                <div class="meu-pedido-item">
+                <div class="mpi-card">
                     <div class="mpi-header">
                         <span class="mpi-id">#${p.id.toString().slice(-5)}</span>
                         <span class="mpi-status ${statusLabel.cor}">${statusLabel.txt}</span>
@@ -719,6 +737,10 @@ function abrirMeusPedidos() {
                 </div>`;
             }).join('')
         }
+
+        <div class="perfil-bloco perfil-bloco-acoes">
+            <button class="btn-mini ghost" onclick="logoutCliente()">🚪 Sair da conta</button>
+        </div>
     `;
     modal.style.display = 'flex';
 }
@@ -756,29 +778,34 @@ function abrirAcompanhamento() {
     }
 
     const statusInfo = {
-        novo: { label: 'Pedido recebido!', icon: '✅' },
-        preparando: { label: 'Preparando', icon: '👨‍🍳' },
-        pronto: { label: 'Pronto!', icon: '🍕' },
-        em_entrega: { label: 'A caminho!', icon: '🛵' },
-        entregue: { label: 'Entregue!', icon: '🎉' },
+        novo:        { label: 'Pedido recebido!', icon: '✅', tempo: 'Aguardando confirmação da pizzaria' },
+        preparando:  { label: 'Preparando com carinho', icon: '👨‍🍳', tempo: 'Tempo estimado: 15-25 min' },
+        pronto:      { label: 'Pizza pronta!', icon: '🍕', tempo: 'Saindo para entrega em instantes' },
+        em_entrega:  { label: 'A caminho!', icon: '🛵', tempo: 'Seu motoboy está a caminho' },
+        entregue:    { label: 'Entregue!', icon: '🎉', tempo: 'Bom apetite! Avalie seu pedido' },
+        cancelado:   { label: 'Pedido cancelado', icon: '❌', tempo: '' },
     };
     const info = statusInfo[pedido.status] || statusInfo.novo;
 
     const steps = [
-        { key: 'novo', label: 'Pedido recebido', icon: '✅' },
-        { key: 'preparando', label: 'Preparando', icon: '👨‍🍳' },
-        { key: 'em_entrega', label: 'A caminho', icon: '🛵' },
-        { key: 'entregue', label: 'Entregue', icon: '🎉' },
+        { key: 'novo',       label: 'Pedido recebido',  icon: '✅',     desc: 'Confirmado pela pizzaria' },
+        { key: 'preparando', label: 'Preparando',       icon: '👨‍🍳',  desc: 'Massa, molho e forno' },
+        { key: 'em_entrega', label: 'A caminho',        icon: '🛵',     desc: 'Motoboy saiu para entrega' },
+        { key: 'entregue',   label: 'Entregue',         icon: '🎉',     desc: 'Pedido concluído' },
     ];
 
     const stepAtual = ['novo', 'preparando', 'pronto', 'em_entrega', 'entregue'].indexOf(pedido.status);
     const motoboy = pedido.motoboyId ? DB.getMotoboy(pedido.motoboyId) : null;
+    const totalItens = (pedido.itens || []).reduce((acc, i) => acc + (i.qtd || 1), 0);
+    const criado = new Date(pedido.criadoEm);
+    const horaFormatada = criado.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
     let html = `
     <div class="pedido-tracker">
         <div class="tracker-header">
-            <div class="tracker-id">PEDIDO #${pedido.id.toString().slice(-5)}</div>
+            <div class="tracker-id">PEDIDO #${pedido.id.toString().slice(-5)} • ${horaFormatada}</div>
             <div class="tracker-status">${info.icon} ${info.label}</div>
+            ${info.tempo ? `<div class="tracker-tempo">⏱️ ${info.tempo}</div>` : ''}
             ${motoboy ? `<div class="tracker-motoboy">🛵 Entregador: <strong>${motoboy.nome}</strong></div>` : ''}
         </div>
         <div class="tracker-steps">
@@ -787,11 +814,32 @@ function abrirAcompanhamento() {
                 const icon = i < stepAtual ? '✓' : (i === stepAtual ? info.icon : s.icon);
                 return `<div class="tracker-step ${status}">
                     <div class="tracker-step-icon">${icon}</div>
-                    <div class="tracker-step-info"><h4>${s.label}</h4></div>
+                    <div class="tracker-step-info">
+                        <h4>${s.label}</h4>
+                        <p>${s.desc}</p>
+                    </div>
                 </div>`;
             }).join('')}
         </div>
-    </div>`;
+    </div>
+    <div class="tracker-resumo">
+        <div class="tracker-resumo-linha">
+            <span>Itens no pedido</span>
+            <strong>${totalItens} ${totalItens === 1 ? 'item' : 'itens'}</strong>
+        </div>
+        <div class="tracker-resumo-linha">
+            <span>Forma de pagamento</span>
+            <strong>${pedido.pagamento || '—'}</strong>
+        </div>
+        <div class="tracker-resumo-linha total">
+            <span>Total</span>
+            <strong>${BRL(pedido.total)}</strong>
+        </div>
+    </div>
+    ${pedido.status === 'em_entrega' ? `
+    <div class="tracker-map">
+        🗺️ Mapa em tempo real disponível em breve
+    </div>` : ''}`;
 
     document.getElementById('pedidoAcompanhamento').innerHTML = html;
     document.getElementById('modalAcompanhamento').style.display = 'flex';
