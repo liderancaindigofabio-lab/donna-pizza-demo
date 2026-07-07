@@ -900,21 +900,21 @@ function abrirAcompanhamento() {
     <div class="tracker-map-section">
         <div class="tracker-map-titulo">🗺️ Acompanhe seu motoboy em tempo real</div>
 
-        <!-- Card do motoboy (preenchido quando tem motoboy despachado) -->
-        <div id="trackerMotoboyCard" class="tracker-motoboy-card" style="display:none;">
+        <!-- Card do motoboy (sempre visível, com fallback se não tiver motoboy) -->
+        <div id="trackerMotoboyCard" class="tracker-motoboy-card">
             <div id="trackerMotoboyFoto" class="tmc-foto">🛵</div>
             <div class="tmc-info">
                 <div class="tmc-linha1">
-                    <span class="tmc-label">Seu entregador</span>
-                    <span class="tmc-eta">⏱️ <span id="trackerMotoboyEta">calculando...</span></span>
+                    <span class="tmc-label" id="trackerMotoboyLabel">${motoboy ? 'Seu entregador' : 'Aguardando motoboy'}</span>
+                    <span class="tmc-eta">⏱️ <span id="trackerMotoboyEta">—</span></span>
                 </div>
-                <div id="trackerMotoboyNome" class="tmc-nome">—</div>
+                <div id="trackerMotoboyNome" class="tmc-nome">${motoboy ? motoboy.nome : 'A pizzaria vai atribuir um motoboy em instantes'}</div>
                 <div class="tmc-linha2">
-                    <span id="trackerMotoboyMoto" class="tmc-moto">—</span>
+                    <span id="trackerMotoboyMoto" class="tmc-moto">${motoboy ? (motoboy.moto || '') : ''}</span>
                     <span class="tmc-dist">📍 <span id="trackerMotoboyDist">—</span></span>
                 </div>
             </div>
-            <a id="trackerMotoboyLigar" class="tmc-btn-ligar" href="#" target="_blank" rel="noopener" title="Chamar no WhatsApp">💬</a>
+            <a id="trackerMotoboyLigar" class="tmc-btn-ligar" href="#" target="_blank" rel="noopener" title="Chamar no WhatsApp" style="${motoboy ? '' : 'display:none;'}">💬</a>
         </div>
 
         <div id="mapaCliente" class="tracker-map"></div>
@@ -1114,10 +1114,12 @@ async function buscarRotaOSRM(origem, destino) {
 function atualizarCardMotoboyCliente(pedido, motoboyPos) {
     const el = document.getElementById('trackerMotoboyCard');
     if (!el) return;
-    const m = (() => { try { return DB.getMotoboy(pedido.motoboyId); } catch (e) { return null; } })();
-    if (!m) return;
+    let m = null;
+    try { m = DB.getMotoboy(pedido.motoboyId); } catch (e) { m = null; }
+    if (!m) return;  // Sem motoboy — mantém o card com texto "Aguardando motoboy"
 
-    el.style.display = 'block';
+    // Só atualiza o card se já temos os dados do motoboy
+    document.getElementById('trackerMotoboyLabel').textContent = 'Seu entregador';
     document.getElementById('trackerMotoboyFoto').textContent = m.foto || '🛵';
     document.getElementById('trackerMotoboyNome').textContent = m.nome;
     document.getElementById('trackerMotoboyMoto').textContent = m.moto || '';
