@@ -32,6 +32,7 @@ function calcularDistanciaHaversine(lat1, lng1, lat2, lng2) {
 
 // ===== INIT =====
 function init() {
+    console.log('🎯 init() da pizzaria CHAMADO!');
     renderRelogio();
     setInterval(renderRelogio, 1000);
     renderFila();
