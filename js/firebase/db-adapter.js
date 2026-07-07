@@ -124,11 +124,13 @@ const DB = {
             }
             this._ready = true;
             if (this._onReady) this._onReady();
+            return true;
         } else {
             console.log('💾 DB usando localStorage (modo demo)');
             this._initLocal();
             this._ready = true;
             if (this._onReady) this._onReady();
+            return true;
         }
     },
 
