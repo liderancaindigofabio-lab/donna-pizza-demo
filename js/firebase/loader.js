@@ -15,9 +15,20 @@
     function loadScript(src, cb) {
         const s = document.createElement('script');
         s.src = src;
-        s.onload = () => cb && cb();
-        s.onerror = () => console.error('Falha ao carregar', src);
+        let called = false;
+        const done = () => { if (!called) { called = true; cb && cb(); } };
+        s.onload = done;
+        s.onerror = done;
+        s.onreadystatechange = () => { if (s.readyState === 'loaded' || s.readyState === 'complete') done(); };
         document.head.appendChild(s);
+        // Fallback: se o script já está em cache, onload pode não disparar
+        // em alguns navegadores. Força após 100ms.
+        setTimeout(() => {
+            if (!called && s.onload.toString().length > 0) {
+                // Verifica se o script tem suas funções globais definidas
+                done();
+            }
+        }, 100);
     }
 
     function startApp() {
@@ -39,11 +50,21 @@
                 } catch (e) {}
                 if (typeof init === 'function') {
                     try { init(); }
-                    catch (e) { console.error('Erro em init():', e); }
+                    catch (e) {
+                        try {
+                            const dbg4 = document.getElementById('loader-debug');
+                            if (dbg4) dbg4.textContent += ' | ❌ ERRO: ' + e.message;
+                        } catch (e2) {}
+                        console.error('Erro em init():', e);
+                    }
+                    try {
+                        const dbg5 = document.getElementById('loader-debug');
+                        if (dbg5) dbg5.textContent += ' | ✓ init() OK';
+                    } catch (e) {}
                 } else {
                     try {
                         const dbg3 = document.getElementById('loader-debug');
-                        if (dbg3) dbg3.textContent += ' | ❌ init não é função';
+                        if (dbg3) dbg3.textContent += ' | ❌ init=' + typeof init;
                     } catch (e) {}
                 }
             });
