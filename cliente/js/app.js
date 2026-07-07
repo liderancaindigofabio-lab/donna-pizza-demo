@@ -19,6 +19,8 @@ const cardapio = DB.getCardapio();
 // ============ INIT ============
 function init() {
     clienteLogado = DB.getClienteLogado();
+    console.log('[init] clienteLogado set to:', clienteLogado);
+    document.title = 'init: ' + (clienteLogado ? clienteLogado.nome : 'null');
     renderCategorias();
     renderProdutos();
     renderHeaderCliente();
