@@ -16,16 +16,20 @@ log('Iniciando...');
 <script>
 log('config.js carregado. FIREBASE_ATIVO=' + (typeof FIREBASE_ATIVO !== 'undefined' ? FIREBASE_ATIVO : '?'));
 </script>
-<script src="js/firebase/loader.js?v=4"></script>
+<script src="js/firebase/loader.js?v=5"></script>
 <script>
 log('loader.js carregado');
 // Espera DB ficar pronto
 setTimeout(() => {
+    log('setTimeout 1s rodou');
     if (typeof DB === 'undefined') {
         log('❌ DB não definido');
     } else {
         log('✓ DB existe. pedidos=' + DB.getPedidos().length + ' motoboys=' + DB.getMotoboys().length);
     }
+}, 1000);
+setTimeout(() => {
+    log('setTimeout 3s rodou');
 }, 3000);
 </script>
 </body>
