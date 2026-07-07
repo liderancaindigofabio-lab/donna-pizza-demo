@@ -22,14 +22,29 @@
 
     function startApp() {
         console.log('🚀 Iniciando app:', appName);
+        // DEBUG: mostra no DOM
+        try {
+            const dbg = document.createElement('div');
+            dbg.id = 'loader-debug';
+            dbg.style.cssText = 'position:fixed;top:0;left:0;background:lime;color:black;padding:4px;z-index:99999;font-size:11px;';
+            dbg.textContent = '🚀 startApp: ' + appName;
+            (document.body || document.documentElement).appendChild(dbg);
+        } catch (e) {}
         extras.forEach(src => {
             console.log('  → carregando', src);
             loadScript(src, () => {
-                // app.js registra init() no DOMContentLoaded, mas o evento
-                // já passou (script foi injetado dinamicamente). Chamamos direto.
+                try {
+                    const dbg2 = document.getElementById('loader-debug');
+                    if (dbg2) dbg2.textContent += ' | ' + src.split('/').pop() + ' OK';
+                } catch (e) {}
                 if (typeof init === 'function') {
                     try { init(); }
                     catch (e) { console.error('Erro em init():', e); }
+                } else {
+                    try {
+                        const dbg3 = document.getElementById('loader-debug');
+                        if (dbg3) dbg3.textContent += ' | ❌ init não é função';
+                    } catch (e) {}
                 }
             });
         });
