@@ -161,9 +161,21 @@ function initMapa() {
         iconSize: [40, 40],
         iconAnchor: [20, 20],
     });
-    const mbPos = [PIZZARIA_COORDS[0] + 0.005, PIZZARIA_COORDS[1] + 0.005];
+    // Posição inicial: se já tem lat/lng no storage, usa. Senão, perto da pizzaria.
+    const m = DB.getMotoboy(motoboyAtual);
+    let mbPos;
+    if (m && m.lat && m.lng) {
+        mbPos = [m.lat, m.lng];
+    } else {
+        mbPos = [PIZZARIA_COORDS[0] + 0.005, PIZZARIA_COORDS[1] + 0.005];
+    }
     markerMotoboy = L.marker(mbPos, { icon: mbIcon, draggable: true }).addTo(mapa);
     markerMotoboy.bindPopup('<b>🛵 Você está aqui</b><br>Arraste pra simular movimento');
+
+    // Garante que o storage tem a posição atual (pra o cliente ver)
+    if (!m || !m.lat || !m.lng) {
+        DB.updateMotoboyPos(motoboyAtual, mbPos[0], mbPos[1]);
+    }
 
     markerMotoboy.on('dragend', () => {
         const ll = markerMotoboy.getLatLng();
