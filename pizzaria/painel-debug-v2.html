@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Debug Direto</title>
+<title>Debug Loader</title>
 <style>
   #dbg { position:fixed; top:0; left:0; right:0; max-height:90vh; overflow:auto; background:#000; color:#0f0; font:12px monospace; padding:10px; z-index:9999; }
   #dbg .err { color:#f55; }
@@ -21,24 +21,30 @@ function log(msg, type='') {
   dbg.appendChild(div);
   console.log(msg);
 }
-window.addEventListener('error', e => {
-  log('❌ ERROR: ' + e.message + ' @ ' + e.filename + ':' + e.lineno + ':' + e.colno, 'err');
-  if (e.error) log('   stack: ' + e.error.stack, 'err');
-});
+window.addEventListener('error', e => log('❌ ERROR: ' + e.message + ' @ ' + e.filename + ':' + e.lineno + ':' + e.colno, 'err'));
 window.addEventListener('unhandledrejection', e => log('❌ UNHANDLED: ' + (e.reason && e.reason.message || e.reason), 'err'));
 log('Página carregada');
-
-// Carrega painel.js direto, sem loader
-const s = document.createElement('script');
-s.src = 'https://liderancaindigofabio-lab.github.io/donna-pizza-demo/pizzaria/js/painel.js?v=debug-direct';
-s.onload = () => {
-  log('painel.js onload disparou', 'ok');
-  log('typeof init = ' + typeof init, 'ok');
-  log('typeof filtroStatus = ' + typeof filtroStatus, 'ok');
-  if (typeof filtroStatus !== 'undefined') log('  valor: ' + filtroStatus, 'ok');
-};
-s.onerror = (e) => log('painel.js ERRO ao carregar: ' + e, 'err');
-document.head.appendChild(s);
+</script>
+<script src="https://liderancaindigofabio-lab.github.io/donna-pizza-demo/js/firebase/config.js"></script>
+<script>
+log('config.js carregado. FIREBASE_ATIVO=' + window.FIREBASE_ATIVO);
+</script>
+<script src="https://liderancaindigofabio-lab.github.io/donna-pizza-demo/js/firebase/loader.js"></script>
+<script>
+setTimeout(() => {
+  log('5s depois');
+  log('typeof DB = ' + typeof DB);
+  log('typeof DBRemote = ' + typeof DBRemote);
+  log('typeof firebase = ' + typeof firebase);
+  if (typeof firebase !== 'undefined') log('  firebase.apps.length = ' + firebase.apps.length);
+  if (typeof DB !== 'undefined') {
+    log('  DB.backend = ' + DB.backend);
+    log('  DB._ready = ' + DB._ready);
+    log('  DB._cachePedidos = ' + (DB._cachePedidos ? DB._cachePedidos.length + ' pedidos' : 'null'));
+    log('  DB._cacheMotoboys = ' + (DB._cacheMotoboys ? DB._cacheMotoboys.length + ' motoboys' : 'null'));
+  }
+  log('typeof init = ' + typeof init);
+}, 5000);
 </script>
 </body>
 </html>
