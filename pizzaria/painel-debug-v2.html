@@ -2,12 +2,13 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Debug Loader</title>
+<title>Debug Console</title>
 <style>
-  #dbg { position:fixed; top:0; left:0; right:0; max-height:90vh; overflow:auto; background:#000; color:#0f0; font:12px monospace; padding:10px; z-index:9999; }
+  #dbg { position:fixed; top:0; left:0; right:0; max-height:90vh; overflow:auto; background:#000; color:#0f0; font:11px monospace; padding:10px; z-index:9999; }
   #dbg .err { color:#f55; }
   #dbg .warn { color:#fa0; }
   #dbg .ok { color:#5f5; }
+  #dbg .loader-log { color:#5ff; }
 </style>
 </head>
 <body>
@@ -19,35 +20,32 @@ function log(msg, type='') {
   div.className = type;
   div.textContent = '[' + new Date().toISOString().substr(11,8) + '] ' + msg;
   dbg.appendChild(div);
-  console.log(msg);
 }
+// Capturar console.log do navegador
+const origLog = console.log;
+const origWarn = console.warn;
+const origErr = console.error;
+console.log = function(...args) { log(args.join(' '), 'loader-log'); origLog.apply(console, args); };
+console.warn = function(...args) { log('⚠️ ' + args.join(' '), 'warn'); origWarn.apply(console, args); };
+console.error = function(...args) { log('❌ ' + args.join(' '), 'err'); origErr.apply(console, args); };
 window.addEventListener('error', e => log('❌ ERROR: ' + e.message + ' @ ' + e.filename + ':' + e.lineno + ':' + e.colno, 'err'));
 window.addEventListener('unhandledrejection', e => log('❌ UNHANDLED: ' + (e.reason && e.reason.message || e.reason), 'err'));
-log('Página carregada');
+log('Página carregada', 'ok');
 </script>
 <script src="https://liderancaindigofabio-lab.github.io/donna-pizza-demo/js/firebase/config.js"></script>
-<script>
-log('config.js carregado');
-log('  FIREBASE_ATIVO = ' + FIREBASE_ATIVO);
-log('  FIREBASE_CONFIG = ' + (typeof FIREBASE_CONFIG));
-log('  window.FIREBASE_ATIVO = ' + window.FIREBASE_ATIVO);
-</script>
 <script src="https://liderancaindigofabio-lab.github.io/donna-pizza-demo/js/firebase/loader.js"></script>
 <script>
 setTimeout(() => {
-  log('5s depois');
+  log('=== 8s depois ===', 'ok');
   log('typeof DB = ' + typeof DB);
   log('typeof DBRemote = ' + typeof DBRemote);
   log('typeof firebase = ' + typeof firebase);
-  if (typeof firebase !== 'undefined') log('  firebase.apps.length = ' + firebase.apps.length);
+  log('typeof init = ' + typeof init);
   if (typeof DB !== 'undefined') {
     log('  DB.backend = ' + DB.backend);
     log('  DB._ready = ' + DB._ready);
-    log('  DB._cachePedidos = ' + (DB._cachePedidos ? DB._cachePedidos.length + ' pedidos' : 'null'));
-    log('  DB._cacheMotoboys = ' + (DB._cacheMotoboys ? DB._cacheMotoboys.length + ' motoboys' : 'null'));
   }
-  log('typeof init = ' + typeof init);
-}, 5000);
+}, 8000);
 </script>
 </body>
 </html>
