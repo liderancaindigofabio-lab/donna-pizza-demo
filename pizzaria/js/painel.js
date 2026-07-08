@@ -3,12 +3,20 @@
    - Abas: Pedidos + Cardápio
    - Card de cliente clicável (mostra histórico)
    - Mostrar motoboy em todos os status
+
+   v2.1 — CORREÇÕES:
+   - init() robusto: espera DB estar pronto
+   - renderRelogio: checa se elemento existe antes de mexer
+   - renderFila: SEMPRE re-renderiza ao receber pedido_update
+   - marcarEntregue: força renderFila() após update
+   - filtroStatus: começa em "todos" pra mostrar tudo
    ============================================ */
 
-let filtroStatus = 'novo';
+let filtroStatus = 'todos';  // v2.1: começa em "todos" pra mostrar pedidos existentes
 let pedidoSelecionado = null;
 let motoboySelecionado = null;
 let abaAtiva = 'pedidos';
+let _dbReady = false;
 
 // Coordenadas da pizzaria (Atalaia - Aracaju/SE)
 // Av. Melício Machado, 1060 - Atalaia, Aracaju - SE, 49037-440
@@ -32,30 +40,60 @@ function calcularDistanciaHaversine(lat1, lng1, lat2, lng2) {
 
 // ===== INIT =====
 function init() {
-    renderRelogio();
-    setInterval(renderRelogio, 1000);
+    // Espera DB estar pronto antes de qualquer coisa
+    if (typeof DB === 'undefined') {
+        console.warn('⚠️ DB não definido, aguardando...');
+        setTimeout(init, 200);
+        return;
+    }
+
+    // Se o DB já tá pronto, inicializa
+    if (DB._ready || DB._onReady) {
+        _startApp();
+    } else if (DB.onReady) {
+        DB.onReady(() => _startApp());
+    } else {
+        // Tenta iniciar mesmo assim após 1s
+        setTimeout(_startApp, 1000);
+    }
+}
+
+function _startApp() {
+    _dbReady = true;
+    console.log('🚀 Painel iniciando com DB pronto');
+
+    // v2.1: checa se os elementos DOM existem antes de manipular
+    if (document.getElementById('relogio')) {
+        renderRelogio();
+        setInterval(renderRelogio, 1000);
+    }
+
     renderFila();
     renderMetricas();
     renderContadores();
 
     DB.onChange(({ tipo, data }) => {
-        if (tipo === 'pedido_novo') {
-            notificar(`🍕 Novo pedido de ${data.cliente.nome}!`, 'success');
+        if (tipo === 'pedido_novo' && data) {
+            notificar(`🍕 Novo pedido de ${data.cliente?.nome || 'cliente'}!`, 'success');
             tocarSom();
         }
         if (tipo === 'cardapio_update' && abaAtiva === 'cardapio') {
             renderEditorCardapio();
         }
-        renderFila();
-        renderMetricas();
-        renderContadores();
+        // v2.1: SEMPRE re-renderiza a fila quando há update
+        if (tipo === 'pedido_update' || tipo === 'pedido_novo' || tipo === 'storage_update') {
+            renderFila();
+            renderMetricas();
+            renderContadores();
+        }
     });
 }
 
 function renderRelogio() {
+    const el = document.getElementById('relogio');
+    if (!el) return;  // v2.1: checagem defensiva
     const agora = new Date();
-    document.getElementById('relogio').textContent =
-        agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    el.textContent = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
 // ===== ABAS =====
@@ -71,11 +109,19 @@ function trocarAba(aba) {
 // ===== FILA DE PEDIDOS =====
 function renderFila() {
     const container = document.getElementById('filaPedidos');
+    if (!container) return;  // v2.1: checagem defensiva
+
     let pedidos = DB.getPedidos();
 
+    // v2.1: normaliza comparação de id (pode vir como número ou string)
     if (filtroStatus !== 'todos') {
         pedidos = pedidos.filter(p => p.status === filtroStatus);
     }
+
+    // v2.1: atualiza aba ativa do filtro
+    document.querySelectorAll('.status-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.status === filtroStatus);
+    });
 
     if (pedidos.length === 0) {
         container.innerHTML = `
@@ -472,16 +518,27 @@ function fecharMapaRota() {
 }
 
 function marcarEntregue(id) {
+    // v2.1: força update direto no cache local pra UI atualizar na hora
+    const pedido = DB.getPedidos().find(p => p.id === id || String(p.id) === String(id));
+    if (!pedido) {
+        console.error('❌ Pedido não encontrado:', id);
+        notificar('❌ Erro: pedido não encontrado', 'error');
+        return;
+    }
+    // Atualiza Firebase (que vai disparar listener e atualizar cache)
     DB.updatePedido(id, { status: 'entregue', entregueEm: new Date().toISOString() });
-    const pedido = DB.getPedidos().find(p => p.id === id);
-    if (pedido && pedido.motoboyId) {
+    // Libera o motoboy se não tem mais pedidos
+    if (pedido.motoboyId) {
         const restantes = DB.getPedidosMotoboy(pedido.motoboyId);
         if (restantes.length === 0) {
             DB.updateMotoboy(pedido.motoboyId, { status: 'disponivel' });
         }
     }
     notificar('🎉 Pedido entregue!', 'success');
+    // v2.1: re-renderiza FILA (não só contadores) pra o pedido sumir
+    renderFila();
     renderContadores();
+    renderMetricas();
 }
 
 function cancelarPedido(id) {
@@ -659,19 +716,36 @@ function contatarMotoboy(tel) {
 
 // ===== MÉTRICAS =====
 function renderMetricas() {
-    const m = DB.getMetricasHoje();
-    document.getElementById('metTotal').textContent = m.total;
-    document.getElementById('metFat').textContent = BRL(m.faturamento);
-    document.getElementById('metAndamento').textContent = m.emAndamento;
-    document.getElementById('metTicket').textContent = BRL(m.ticketMedio);
+    // v2.1: checagem defensiva
+    if (typeof DB === 'undefined' || !DB.getMetricasHoje) return;
+    try {
+        const m = DB.getMetricasHoje();
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        set('metTotal', m.total);
+        set('metFat', BRL(m.faturamento));
+        set('metAndamento', m.emAndamento);
+        set('metTicket', BRL(m.ticketMedio));
+    } catch (e) {
+        console.warn('Erro em renderMetricas:', e.message);
+    }
 }
 
 function renderContadores() {
-    const m = DB.getMetricasHoje();
-    document.getElementById('cnt-novo').textContent = m.porStatus.novo;
-    document.getElementById('cnt-preparando').textContent = m.porStatus.preparando;
-    document.getElementById('cnt-pronto').textContent = m.porStatus.pronto;
-    document.getElementById('cnt-em_entrega').textContent = m.porStatus.em_entrega;
+    // v2.1: checagem defensiva — pode não ter DB pronto ainda
+    if (typeof DB === 'undefined' || !DB.getMetricasHoje) return;
+    try {
+        const m = DB.getMetricasHoje();
+        const cnt = (id) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = (m.porStatus[id.replace('cnt-', '')] || 0);
+        };
+        cnt('cnt-novo');
+        cnt('cnt-preparando');
+        cnt('cnt-pronto');
+        cnt('cnt-em_entrega');
+    } catch (e) {
+        console.warn('Erro em renderContadores:', e.message);
+    }
 }
 
 // ============================================
