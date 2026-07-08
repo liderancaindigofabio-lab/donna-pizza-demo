@@ -40,6 +40,8 @@ function calcularDistanciaHaversine(lat1, lng1, lat2, lng2) {
 
 // ===== INIT =====
 function init() {
+    console.log('[painel] init() chamado');
+
     // Espera DB estar pronto antes de qualquer coisa
     if (typeof DB === 'undefined') {
         console.warn('⚠️ DB não definido, aguardando...');
@@ -48,13 +50,16 @@ function init() {
     }
 
     // Se o DB já tá pronto, inicializa
-    if (DB._ready || DB._onReady) {
+    if (DB._ready) {
+        console.log('[painel] DB já _ready, _startApp()');
         _startApp();
-    } else if (DB.onReady) {
+    } else if (typeof DB.onReady === 'function') {
+        console.log('[painel] esperando DB.onReady()');
         DB.onReady(() => _startApp());
     } else {
-        // Tenta iniciar mesmo assim após 1s
-        setTimeout(_startApp, 1000);
+        // DB.init() está em progresso
+        console.log('[painel] DB.init() em progresso, esperando 1.5s');
+        setTimeout(_startApp, 1500);
     }
 }
 
