@@ -142,6 +142,19 @@ function renderFila() {
 }
 
 function renderPedidoCard(p) {
+    // v2.1: normaliza dados do cliente (alguns pedidos não têm `cliente` aninhado)
+    const cliente = p.cliente || {
+        nome: p.clienteNome || 'Cliente',
+        tel: p.clienteTel || '',
+        end: p.endereco || '',
+        pag: p.pagamento || '',
+        obs: p.obs || ''
+    };
+    if (p.clienteTel && !p.cliente) {
+        // Fallback: usa campos diretos
+        cliente.tel = p.clienteTel;
+    }
+
     const minutos = Math.floor((Date.now() - new Date(p.criadoEm).getTime()) / 60000);
     const hora = new Date(p.criadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
@@ -154,7 +167,7 @@ function renderPedidoCard(p) {
         cancelado: 'CANCELADO',
     }[p.status] || p.status.toUpperCase();
 
-    const itensHtml = p.itens.map(it => {
+    const itensHtml = (p.itens || []).map(it => {
         let detalhe = '';
         if (it.sabores && it.sabores.length) {
             detalhe = '🍕 ' + it.sabores.join(' + ');
@@ -186,12 +199,12 @@ function renderPedidoCard(p) {
     }
 
     // Cliente: total de pedidos + total gasto (se histórico)
-    const tel = (p.cliente.tel || '').replace(/\D/g, '');
+    const tel = (cliente.tel || '').replace(/\D/g, '');
     const stats = tel ? DB.getEstatisticasCliente(tel) : null;
     let clienteHistorico = '';
     if (stats && stats.total > 1) {
         clienteHistorico = `
-        <button class="cliente-historico-btn" onclick="abrirCliente('${p.cliente.tel}')" title="Ver histórico">
+        <button class="cliente-historico-btn" onclick="abrirCliente('${cliente.tel}')" title="Ver histórico">
             🏆 ${stats.total}º pedido • ${BRL(stats.gastoTotal)} total
         </button>`;
     } else if (stats && stats.total === 1) {
@@ -202,18 +215,18 @@ function renderPedidoCard(p) {
     if (p.status === 'novo') {
         actionsHtml = `
             <button class="btn-acao" onclick="aceitarPedido(${p.id})">✓ Aceitar</button>
-            <button class="btn-acao whatsapp" onclick="contatarCliente('${p.cliente.tel}')" title="WhatsApp">📱</button>
+            ${cliente.tel ? `<button class="btn-acao whatsapp" onclick="contatarCliente('${cliente.tel}')" title="WhatsApp">📱</button>` : ''}
             <button class="btn-acao cancelar" onclick="cancelarPedido(${p.id})" title="Cancelar">✕</button>
         `;
     } else if (p.status === 'preparando') {
         actionsHtml = `
             <button class="btn-acao" onclick="marcarPronto(${p.id})">🍕 Marcar como pronto</button>
-            <button class="btn-acao whatsapp" onclick="contatarCliente('${p.cliente.tel}')">📱</button>
+            ${cliente.tel ? `<button class="btn-acao whatsapp" onclick="contatarCliente('${cliente.tel}')">📱</button>` : ''}
         `;
     } else if (p.status === 'pronto') {
         actionsHtml = `
             <button class="btn-acao motoboy" onclick="abrirDespacho(${p.id})">🛵 Despachar motoboy</button>
-            <button class="btn-acao whatsapp" onclick="contatarCliente('${p.cliente.tel}')">📱</button>
+            ${cliente.tel ? `<button class="btn-acao whatsapp" onclick="contatarCliente('${cliente.tel}')">📱</button>` : ''}
         `;
     } else if (p.status === 'em_entrega') {
         const motoboy = DB.getMotoboy(p.motoboyId);
@@ -226,20 +239,23 @@ function renderPedidoCard(p) {
         actionsHtml = `<button class="btn-acao entregue" disabled>✓ Pedido finalizado</button>`;
     }
 
+    const telWhatsapp = cliente.tel ? cliente.tel.replace(/\D/g, '') : '';
+    const telDisplay = cliente.tel || '—';
+
     return `
     <div class="pedido-card ${p.status}">
         <div class="pedido-card-header">
             <div>
-                <div class="pedido-id">#${p.id.toString().slice(-5)}</div>
+                <div class="pedido-id">#${String(p.id).slice(-5)}</div>
                 <div class="pedido-hora">${hora} • há ${minutos} min</div>
             </div>
             <span class="pedido-status-badge ${p.status}">${statusLabel}</span>
         </div>
 
         <div class="pedido-cliente">
-            <div class="cliente-nome">${p.cliente.nome}</div>
-            <div class="cliente-endereco">📍 ${formatarEndereco(p.cliente)}</div>
-            <a class="cliente-tel" href="https://wa.me/55${p.cliente.tel.replace(/\D/g, '')}" target="_blank">📞 ${p.cliente.tel}</a>
+            <div class="cliente-nome">${cliente.nome}</div>
+            <div class="cliente-endereco">📍 ${formatarEndereco(cliente)}</div>
+            ${telWhatsapp ? `<a class="cliente-tel" href="https://wa.me/55${telWhatsapp}" target="_blank">📞 ${telDisplay}</a>` : `<span class="cliente-tel">📞 ${telDisplay}</span>`}
             ${clienteHistorico}
         </div>
 
@@ -247,12 +263,12 @@ function renderPedidoCard(p) {
             ${itensHtml}
         </div>
 
-        ${p.cliente.obs ? `<div class="peduto-obs"><strong>Obs:</strong> ${p.cliente.obs}</div>` : ''}
+        ${cliente.obs ? `<div class="peduto-obs"><strong>Obs:</strong> ${cliente.obs}</div>` : ''}
 
         ${motoboyInfo}
 
         <div class="pedido-total">
-            <span class="total-label">${p.cliente.pag}</span>
+            <span class="total-label">${cliente.pag}</span>
             <span class="total-valor">${BRL(p.total)}</span>
         </div>
 
