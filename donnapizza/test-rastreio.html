@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Teste de Rastreio</title>
+<style>
+body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #fff; }
+pre { background: #000; padding: 10px; border-radius: 4px; max-height: 400px; overflow: auto; }
+.ok { color: #4ade80; }
+.bad { color: #f87171; }
+.btn { background: #4A90E2; color: #fff; padding: 10px;20px; border: none; border-radius: 4px; cursor: pointer; margin: 5px; }
+</style>
+</head>
+<body>
+<h2>🛵 Teste de Rastreio do Motoboy</h2>
+<div id="status">Aguardando...</div>
+<br>
+<button class="btn" onclick="testar()">1. Testar getMotoboy (síncrono)</button>
+<button class="btn" onclick="testarFirebase()">2. Testar Firebase direto</button>
+<button class="btn" onclick="simularMovimento()">3. Simular movimento</button>
+<button class="btn" onclick="verLogs()">4. Ver logs do DB</button>
+<pre id="log"></pre>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="js/firebase/loader.js"></script>
+
+<script>
+function log(msg, cls) {
+  const pre = document.getElementById('log');
+  const span = cls ? `<span class="${cls}">${msg}</span>` : msg;
+  pre.innerHTML += span + '\n';
+}
+
+document.getElementById('status').textContent = 'DB carregado: ' + (window.DB ? 'OK' : 'ERRO');
+
+async function testar() {
+  log('\n=== TESTE 1: getMotoboy (síncrono) ===');
+  if (!window.DB) { log('ERRO: DB não carregado', 'bad'); return; }
+  const motoboys = DB.getMotoboys();
+  log('Total motoboys: ' + motoboys.length);
+  motoboys.forEach(m => log(' - ID: ' + m.id + ', Nome: ' + m.nome + ', lat: ' + m.lat + ', lng: ' + m.lng, m.lat ? 'ok' : 'bad'));
+  if (motoboys[0]) {
+    const m = DB.getMotoboy(motoboys[0].id);
+    log('\ngetMotoboy(' + motoboys[0].id + ') retornou:');
+    log('  - É Promise? ' + (m instanceof Promise));
+    log('  - Tem .lat? ' + (m && m.lat ? 'SIM (' + m.lat + ')' : 'NÃO'));
+    if (m instanceof Promise) {
+      const real = await m;
+      log('  - Awaited: lat=' + (real && real.lat) + ', lng=' + (real && real.lng));
+    }
+  }
+}
+
+async function testarFirebase() {
+  log('\n=== TESTE 2: Firebase direto ===');
+  try {
+    const snap = await firebase.database().ref('motoboys').once('value');
+    const val = snap.val() || {};
+    const list = Object.values(val);
+    log('Total no Firebase: ' + list.length);
+    list.forEach(m => log(' - ID: ' + m.id + ', Nome: ' + m.nome + ', lat: ' + m.lat + ', lng: ' + m.lng, m.lat ? 'ok' : 'bad'));
+  } catch (e) {
+    log('ERRO: ' + e.message, 'bad');
+  }
+}
+
+async function simularMovimento() {
+  log('\n=== TESTE 3: Simular movimento ===');
+  const motoboys = DB.getMotoboys();
+  if (motoboys.length === 0) { log('Sem motoboys cadastrados', 'bad'); return; }
+  const m = motoboys[0];
+  log('Movendo motoboy ID ' + m.id + ' (' + m.nome + ')');
+  const novoLat = -10.9111 + (Math.random() - 0.5) * 0.01;
+  const novoLng = -37.0717 + (Math.random() - 0.5) * 0.01;
+  log('Nova posição: ' + novoLat + ', ' + novoLng);
+  if (DB.updateMotoboyPos) {
+    DB.updateMotoboyPos(m.id, novoLat, novoLng);
+    log('Posição atualizada!', 'ok');
+    setTimeout(() => {
+      const updated = DB.getMotoboy(m.id);
+      log('Cache depois de 2s: lat=' + (updated && updated.lat) + ', lng=' + (updated && updated.lng), (updated && updated.lat) ? 'ok' : 'bad');
+    }, 2000);
+  } else {
+    log('ERRO: updateMotoboyPos não existe', 'bad');
+  }
+}
+
+function verLogs() {
+  log('\n=== LOGS DO DB ===');
+  log('window.DB: ' + (window.DB ? 'OK' : 'NÃO'));
+  log('DB.backend: ' + (window.DB && window.DB.backend));
+  log('DB._cacheMotoboys: ' + JSON.stringify(window.DB && window.DB._cacheMotoboys ? window.DB._cacheMotoboys.map(m => ({id: m.id, nome: m.nome, lat: m.lat, lng: m.lng})) : null));
+  log('DB.getMotoboys(): ' + JSON.stringify(window.DB ? window.DB.getMotoboys().map(m => ({id: m.id, nome: m.nome, lat: m.lat, lng: m.lng})) : 'ERRO'));
+}
+
+// Listeners em tempo real
+setTimeout(() => {
+  if (window.DB && DB.onChange) {
+    DB.onChange(evt => {
+      log('📡 Evento DB: ' + evt.tipo, 'ok');
+      if (evt.tipo === 'motoboy_update') {
+        const motoboys = DB.getMotoboys();
+        motoboys.forEach(m => log('   motoboy ' + m.id + ' agora em lat=' + m.lat + ', lng=' + m.lng));
+      }
+    });
+    log('✅ Listener registrado');
+  }
+}, 1000);
+</script>
+</body>
+</html>
