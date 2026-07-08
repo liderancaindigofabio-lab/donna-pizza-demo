@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Setar Maria</title></head>
+<body>
+<h2>Setando Maria Silva como logada...</h2>
+<script>
+localStorage.setItem('donna_cliente_logado', '{"tel":"79999990003","nome":"Maria Silva","endereco":"Av. Beira Mar, 100, Apto 502 • Centro • Aracaju • CEP 49000000"}');
+localStorage.setItem('donna_meu_pedido', '1783467800001');
+document.body.innerHTML += '<p>OK, redirecionando...</p>';
+setTimeout(() => {
+  location.href = './?v=acomp&t=' + Date.now();
+}, 1000);
+</script>
+</body></html>
