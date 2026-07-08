@@ -53,6 +53,13 @@ function init() {
             clienteLogado = data;
             renderHeaderCliente();
         }
+        // Atualização reativa do motoboy no mapa (sem esperar o polling de 4s)
+        if (tipo === 'motoboy_update' && mapaCliente && meuPedidoId) {
+            const pedido = (DB._cachePedidos || DB.getPedidos()).find(p => p.id === meuPedidoId);
+            if (pedido && pedido.motoboyId) {
+                atualizarMapaCliente(pedido);
+            }
+        }
     });
 }
 
@@ -940,7 +947,7 @@ function abrirMeusPedidos() {
                     cancelado:  { txt: 'Cancelado',   cor: 'cancelado' },
                 }[p.status] || { txt: p.status, cor: '' };
                 let motoboy = null;
-                try { motoboy = p.motoboyId ? DB.getMotoboy(p.motoboyId) : null; } catch(e) { motoboy = null; }
+                try { const _ms = DB._cacheMotoboys || DB.getMotoboys(); motoboy = p.motoboyId ? _ms.find(x => x.id === p.motoboyId) : null; } catch(e) { motoboy = null; }
                 return `
                 <div class="mpi-card">
                     <div class="mpi-header">
@@ -972,7 +979,7 @@ function checarPedidoLocal() {
     const id = localStorage.getItem('donna_meu_pedido');
     if (id) {
         meuPedidoId = parseInt(id);
-        const pedido = DB.getPedidos().find(p => p.id === meuPedidoId);
+        const pedido = (DB._cachePedidos || DB.getPedidos()).find(p => p.id === meuPedidoId);
         if (pedido && !['entregue', 'cancelado'].includes(pedido.status)) {
             setTimeout(() => {
                 if (confirm('Você tem um pedido em andamento! Quer acompanhar?')) {
@@ -988,7 +995,7 @@ function abrirAcompanhamento() {
         toast('Você não tem pedido ativo', 'warning');
         return;
     }
-    const pedido = DB.getPedidos().find(p => p.id === meuPedidoId);
+    const pedido = (DB._cachePedidos || DB.getPedidos()).find(p => p.id === meuPedidoId);
     if (!pedido) {
         document.getElementById('pedidoAcompanhamento').innerHTML = `<div class="empty-state"><div class="empty-state-icon">📭</div><p>Pedido não encontrado</p></div>`;
         document.getElementById('modalAcompanhamento').style.display = 'flex';
@@ -1014,7 +1021,7 @@ function abrirAcompanhamento() {
 
     const stepAtual = ['novo', 'preparando', 'pronto', 'em_entrega', 'entregue'].indexOf(pedido.status);
     let motoboy = null;
-    try { motoboy = pedido.motoboyId ? DB.getMotoboy(pedido.motoboyId) : null; } catch (e) { motoboy = null; }
+    try { const _ms2 = DB._cacheMotoboys || DB.getMotoboys(); motoboy = pedido.motoboyId ? _ms2.find(x => x.id === pedido.motoboyId) : null; } catch (e) { motoboy = null; }
     const totalItens = (pedido.itens || []).reduce((acc, i) => acc + (i.qtd || 1), 0);
     const criado = new Date(pedido.criadoEm);
     const horaFormatada = criado.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -1163,7 +1170,7 @@ function iniciarMapaCliente(pedidoInicial) {
 
     // Polling: a cada 4s busca posição atualizada do motoboy
     pollMapaCliente = setInterval(() => {
-        const pedido = DB.getPedidos().find(p => p.id === meuPedidoId);
+        const pedido = (DB._cachePedidos || DB.getPedidos()).find(p => p.id === meuPedidoId);
         if (!pedido) return;
         if (['entregue', 'cancelado'].includes(pedido.status)) {
             clearInterval(pollMapaCliente);
@@ -1181,7 +1188,8 @@ function atualizarMapaCliente(pedido) {
     let motoboyPos = null;
     if (pedido.motoboyId) {
         try {
-            const m = DB.getMotoboy(pedido.motoboyId);
+            const motoboys = DB._cacheMotoboys || DB.getMotoboys();
+            const m = motoboys.find(x => x.id === pedido.motoboyId);
             if (m && m.lat && m.lng) motoboyPos = [m.lat, m.lng];
         } catch(e) {}
     }
@@ -1197,7 +1205,8 @@ function atualizarMapaCliente(pedido) {
             });
             markerMotoboyCliente = L.marker(motoboyPos, { icon: mbIcon, zIndexOffset: 1000 }).addTo(mapaCliente);
             try {
-                const m = DB.getMotoboy(pedido.motoboyId);
+                const motoboys = DB._cacheMotoboys || DB.getMotoboys();
+            const m = motoboys.find(x => x.id === pedido.motoboyId);
                 if (m) markerMotoboyCliente.bindPopup(`<b>🛵 ${m.nome}</b><br>${m.moto || ''}`);
             } catch (e) {}
         } else {
@@ -1278,7 +1287,7 @@ function atualizarCardMotoboyCliente(pedido, motoboyPos) {
     const el = document.getElementById('trackerMotoboyCard');
     if (!el) return;
     let m = null;
-    try { m = DB.getMotoboy(pedido.motoboyId); } catch (e) { m = null; }
+    try { const _ms3 = DB._cacheMotoboys || DB.getMotoboys(); m = _ms3.find(x => x.id === pedido.motoboyId); } catch (e) { m = null; }
     if (!m) return;  // Sem motoboy — mantém o card com texto "Aguardando motoboy"
 
     // Só atualiza o card se já temos os dados do motoboy
