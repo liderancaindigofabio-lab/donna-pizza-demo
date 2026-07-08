@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"><title>Debug Painel</title>
+<style>
+body { font-family: monospace; padding: 10px; background: #111; color: #0f0; font-size: 11px; }
+pre { white-space: pre-wrap; }
+.ok { color: #4ade80; } .bad { color: #f87171; } .warn { color: #fbbf24; }
+h2 { color: #fff; font-size: 14px; }
+</style>
+</head>
+<body>
+<h2>🔍 Debug Completo do Sistema Donna</h2>
+<pre id="out">Iniciando auditoria...</pre>
+<script src="/donna-pizza-demo/js/firebase/config.js?v=15"></script>
+<script src="/donna-pizza-demo/js/firebase/loader.js?v=15"></script>
+<script src="/donna-pizza-demo/js/utils-endereco.js?v=1"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/donna-pizza-demo/js/firebase/firebase-storage.js?v=15"></script>
+<script src="/donna-pizza-demo/js/firebase/db-adapter.js?v=15"></script>
+<script>
+const out = document.getElementById('out');
+const log = (m, c) => out.innerHTML += `<span class="${c||''}">${m}</span>\n`;
+
+setTimeout(async () => {
+  log('═══════════════════════════════════════════════════════');
+  log('  AUDITORIA COMPLETA - SISTEMA NONNA PIZZARIA');
+  log('═══════════════════════════════════════════════════════\n');
+
+  // 1. Verifica DB
+  log('1️⃣  DB existe? ' + (typeof DB !== 'undefined' ? 'SIM ✅' : 'NÃO ❌'));
+  if (typeof DB === 'undefined') {
+    log('   ERRO CRÍTICO: DB não está acessível!', 'bad');
+    return;
+  }
+  log('   backend: ' + DB.backend);
+  log('   _cachePedidos: ' + (DB._cachePedidos ? DB._cachePedidos.length + ' itens' : 'vazio'));
+
+  // 2. Firebase
+  log('\n2️⃣  Firebase Database:');
+  if (typeof firebase === 'undefined') {
+    log('   Firebase não carregado!', 'bad');
+    return;
+  }
+  try {
+    const snap = await firebase.database().ref('pedidos').once('value');
+    const fb = snap.val() || {};
+    const arr = Object.values(fb);
+    log('   Total pedidos no Firebase: ' + arr.length, arr.length > 0 ? 'ok' : 'warn');
+    arr.forEach(p => {
+      const flag = p.status === 'em_entrega' ? '🚨' : '✅';
+      log(`   ${flag} ID ${p.id}: ${p.status} | cliente=${(p.clienteNome||p.cliente?.nome||'?')[:20]:20} | motoboy=${p.motoboyId}`, 
+          p.status === 'em_entrega' ? 'warn' : 'ok');
+    });
+
+    // 3. Motoboys
+    const motSnap = await firebase.database().ref('motoboys').once('value');
+    const motArr = Object.values(motSnap.val() || {});
+    log('\n3️⃣  Motoboys no Firebase: ' + motArr.length);
+    motArr.forEach(m => {
+      log(`   - mb_${m.id}: ${m.nome} (status=${m.status}, lat=${m.lat})`);
+    });
+
+    // 4. Cache vs Firebase
+    log('\n4️⃣  COMPARAÇÃO CACHE vs FIREBASE:');
+    const cache = DB.getPedidos();
+    log('   Cache local: ' + cache.length + ' pedidos');
+    log('   Firebase: ' + arr.length + ' pedidos');
+    
+    if (cache.length !== arr.length) {
+      log('   ⚠️  DESSINCRONIZADO! Diferença: ' + Math.abs(cache.length - arr.length), 'bad');
+    } else {
+      log('   ✅ Cache sincronizado', 'ok');
+    }
+
+    // Lista IDs no cache
+    log('\n   IDs no cache:');
+    cache.forEach(p => log('   - ' + p.id + ' (' + p.status + ')'));
+    log('\n   IDs no Firebase:');
+    arr.forEach(p => log('   - ' + p.id + ' (' + p.status + ')'));
+
+  } catch (e) {
+    log('   ERRO Firebase: ' + e.message, 'bad');
+  }
+
+  // 5. Testa marcar pedido como entregue
+  log('\n5️⃣  TESTE: marcar pedido em_entrega como entregue:');
+  if (typeof DB !== 'undefined' && DB.updatePedido) {
+    log('   DB.updatePedido existe ✅');
+  }
+  
+  log('\n═══════════════════════════════════════════════════════');
+  log('  AUDITORIA COMPLETA');
+  log('═══════════════════════════════════════════════════════');
+}, 3000);
+</script>
+</body>
+</html>
