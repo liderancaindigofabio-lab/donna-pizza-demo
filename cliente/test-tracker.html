@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Test Tracker Map</title>
+<script>
+  // Seta localStorage
+  const cliente = {
+    tel: "79999991234", nome: "Fabio Teste Final",
+    end: "Rua do Teste Final, 999 - Centro, Aracaju - SE",
+    endereco: { rua: "Rua do Teste Final", numero: "999", bairro: "Centro", cidade: "Aracaju", cep: "49000-000" }
+  };
+  localStorage.setItem('donna_cliente_logado', JSON.stringify(cliente));
+  localStorage.setItem('donna_meu_pedido', '1783540413580');
+  // Sobrescreve window.confirm pra retornar true (vai abrir modal direto)
+  window.confirm = function() { return true; };
+  setTimeout(() => {
+    location.href = './?demo=fabio&v=' + Date.now();
+  }, 300);
+</script>
+</head>
+<body><h1>Carregando rastreio...</h1>
+<iframe id="ifr" src="about:blank" style="width:100%; height:800px; border:1px solid #0f0; margin-top:10px;"></iframe>
+<pre id="out" style="background:#000; color:#0f0; padding:10px;">Aguardando...</pre>
+<script>
+setTimeout(() => {
+  const ifr = document.getElementById('ifr');
+  ifr.src = window.location.href.replace('test-tracker.html', '?demo=fabio&v=' + Date.now());
+  ifr.onload = () => {
+    setTimeout(() => {
+      try {
+        const w = ifr.contentWindow;
+        const d = ifr.contentDocument;
+        const out = document.getElementById('out');
+        const body = d.getElementById('pedidoAcompanhamento');
+        out.textContent = '';
+        out.textContent += '\nabrirAcompanhamento: ' + (typeof w.abrirAcompanhamento);
+        out.textContent += '\nmodal display: ' + d.getElementById('modalAcompanhamento').style.display;
+        out.textContent += '\nbody HTML length: ' + (body ? body.innerHTML.length : 0);
+        if (body) {
+          out.textContent += '\nbody contains mapaCliente: ' + body.innerHTML.includes('mapaCliente');
+          out.textContent += '\nbody contains tracker-map: ' + body.innerHTML.includes('tracker-map');
+          out.textContent += '\nbody contains tracker-map-section: ' + body.innerHTML.includes('tracker-map-section');
+          out.textContent += '\nbody contains motoboy: ' + body.innerHTML.includes('motoboy');
+          out.textContent += '\nbody contains Em rota: ' + body.innerHTML.includes('Em rota');
+          out.textContent += '\nbody contains Carlos: ' + body.innerHTML.includes('Carlos');
+          // Mostrar final do HTML
+          out.textContent += '\n--- HTML (último 800 chars) ---';
+          out.textContent += body.innerHTML.substring(body.innerHTML.length - 800);
+        }
+        out.textContent += '\n--- #mapaCliente info ---';
+        const mc = d.getElementById('mapaCliente');
+        out.textContent += '\n#mapaCliente: ' + (mc ? 'EXISTS' : 'NÃO EXISTE');
+        if (mc) {
+          out.textContent += '\n  children: ' + mc.children.length;
+          out.textContent += '\n  style: ' + mc.style.cssText;
+          out.textContent += '\n  className: ' + mc.className;
+          out.textContent += '\n  offsetHeight: ' + mc.offsetHeight;
+        }
+        out.textContent += '\nwindow.mapaCliente: ' + (w.mapaCliente ? 'EXISTS' : 'null');
+      } catch (e) {
+        document.getElementById('out').textContent = '❌ ' + e.message;
+      }
+    }, 8000);
+  };
+}, 1000);
+</script>
+</body>
+</html>
