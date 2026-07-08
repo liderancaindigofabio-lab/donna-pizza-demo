@@ -90,15 +90,22 @@ function login(id) {
 
 function iniciarApp() {
     const m = DB.getMotoboy(motoboyAtual);
+    console.log('[motoboy] iniciarApp, motoboyAtual=' + motoboyAtual + ' (type=' + typeof motoboyAtual + '), m=' + (m ? m.nome : 'null'));
+    if (!m) {
+        console.warn('Motoboy não encontrado, indo pro login');
+        renderLogin();
+        return;
+    }
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('appScreen').style.display = 'block';
-    document.getElementById('motoboyAvatar').textContent = m.foto;
-    document.getElementById('motoboyNome').textContent = m.nome;
+    document.getElementById('motoboyAvatar').textContent = m.foto || '🛵';
+    document.getElementById('motoboyNome').textContent = m.nome || '';
     atualizarStatusVisual();
     atualizarContadorEntregas();
     renderHistorico();
     renderPedidosAtuais();
     initMapa();
+    console.log('[motoboy] iniciarApp OK, qtd em rota = ' + DB.getPedidosMotoboy(motoboyAtual).length);
 
     // Escutar mudanças
     DB.onChange(({ tipo, data }) => {
