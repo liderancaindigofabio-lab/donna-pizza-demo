@@ -35,7 +35,7 @@ log('Página carregada', 'ok');
 <script src="https://liderancaindigofabio-lab.github.io/donna-pizza-demo/js/firebase/config.js"></script>
 <script src="https://liderancaindigofabio-lab.github.io/donna-pizza-demo/js/firebase/loader.js"></script>
 <script>
-setTimeout(() => {
+setTimeout(async () => {
   log('=== 8s depois ===', 'ok');
   log('typeof DB = ' + typeof DB);
   log('typeof DBRemote = ' + typeof DBRemote);
@@ -44,6 +44,17 @@ setTimeout(() => {
   if (typeof DB !== 'undefined') {
     log('  DB.backend = ' + DB.backend);
     log('  DB._ready = ' + DB._ready);
+  }
+  // Tentar forçar getPedidosAsync diretamente
+  if (typeof DBRemote !== 'undefined') {
+    log('--- Forçando getPedidosAsync ---');
+    try {
+      const r = await DBRemote.getPedidosAsync();
+      log('  OK! ' + r.length + ' pedidos', 'ok');
+    } catch (e) {
+      log('  ERRO: ' + e.message, 'err');
+      log('  stack: ' + e.stack, 'err');
+    }
   }
 }, 8000);
 </script>
