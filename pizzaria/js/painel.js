@@ -572,7 +572,23 @@ function cancelarPedido(id) {
 function abrirDespacho(pedidoId) {
     pedidoSelecionado = pedidoId;
     motoboySelecionado = null;
-    const pedido = DB.getPedidos().find(p => p.id === pedidoId);
+    // BUGFIX: comparação tolerante (id pode vir como number ou string)
+    const idNum = typeof pedidoId === 'string' ? parseInt(pedidoId) : pedidoId;
+    const pedido = DB.getPedidos().find(p =>
+        p.id === pedidoId || p.id === idNum || String(p.id) === String(pedidoId)
+    );
+    if (!pedido) {
+        notificar('❌ Pedido não encontrado', 'error');
+        return;
+    }
+    // BUGFIX: normaliza cliente (alguns pedidos não têm `cliente` aninhado)
+    const cliente = pedido.cliente || {
+        nome: pedido.clienteNome || 'Cliente',
+        tel: pedido.clienteTel || '',
+        end: pedido.endereco || '',
+        pag: pedido.pagamento || '',
+        obs: pedido.obs || ''
+    };
 
     const motoboys = DB.getMotoboys();
     const motoboysHtml = motoboys.map(m => {
@@ -581,11 +597,11 @@ function abrirDespacho(pedidoId) {
         const isDisponivel = m.status === 'disponivel';
         return `
         <div class="motoboy-card ${!isDisponivel && qtdRota === 0 ? 'indisponivel' : ''}" onclick="${qtdRota === 0 && !isDisponivel ? '' : `selecionarMotoboy(${m.id})`}" data-motoboy="${m.id}">
-            <div class="motoboy-avatar">${m.foto}</div>
+            <div class="motoboy-avatar">${m.foto || '🛵'}</div>
             <div class="motoboy-info">
-                <div class="motoboy-nome">${m.nome}</div>
-                <div class="motoboy-moto">${m.moto}</div>
-                <div class="motoboy-moto">📞 ${m.telefone}</div>
+                <div class="motoboy-nome">${m.nome || 'Sem nome'}</div>
+                <div class="motoboy-moto">${m.moto || ''}</div>
+                <div class="motoboy-moto">📞 ${m.telefone || ''}</div>
                 ${qtdRota > 0 ? `<div class="motoboy-carga">📦 ${qtdRota} entrega${qtdRota > 1 ? 's' : ''} em rota</div>` : ''}
             </div>
             <span class="motoboy-status-tag ${m.status}">${
@@ -606,11 +622,11 @@ function abrirDespacho(pedidoId) {
     document.getElementById('despachoBody').innerHTML = `
         ${dicaAcumular}
         <div class="despacho-info-pedido">
-            <h4>📦 Pedido #${pedido.id.toString().slice(-5)}</h4>
-            <p><strong>Cliente:</strong> ${pedido.cliente.nome}</p>
-            <p><strong>Endereço:</strong> ${formatarEndereco(pedido.cliente)}</p>
-            <p><strong>Itens:</strong> ${pedido.itens.length} ${pedido.itens.length === 1 ? 'item' : 'itens'}</p>
-            <p><strong>Total:</strong> ${BRL(pedido.total)}</p>
+            <h4>📦 Pedido #${String(pedido.id).slice(-5)}</h4>
+            <p><strong>Cliente:</strong> ${cliente.nome}</p>
+            <p><strong>Endereço:</strong> ${formatarEndereco(cliente)}</p>
+            <p><strong>Itens:</strong> ${(pedido.itens || []).length} ${(pedido.itens || []).length === 1 ? 'item' : 'itens'}</p>
+            <p><strong>Total:</strong> ${BRL(pedido.total || 0)}</p>
         </div>
         <h4 style="color:var(--gold);margin-bottom:10px;">Escolha o motoboy:</h4>
         ${motoboysHtml}
@@ -624,25 +640,36 @@ function abrirDespacho(pedidoId) {
 function selecionarMotoboy(id) {
     motoboySelecionado = id;
     document.querySelectorAll('.motoboy-card').forEach(c => c.classList.remove('selected'));
-    document.querySelector(`[data-motoboy="${id}"]`).classList.add('selected');
-    document.getElementById('btnConfirmarDespacho').disabled = false;
+    const el = document.querySelector(`[data-motoboy="${id}"]`);
+    if (el) el.classList.add('selected');
+    const btn = document.getElementById('btnConfirmarDespacho');
+    if (btn) btn.disabled = false;
 }
 
 function confirmarDespacho() {
     if (!pedidoSelecionado || !motoboySelecionado) return;
-    DB.updatePedido(pedidoSelecionado, {
+    // BUGFIX: garantir que o id é número para updatePedido
+    const pedidoIdNum = typeof pedidoSelecionado === 'string' ? parseInt(pedidoSelecionado) : pedidoSelecionado;
+    DB.updatePedido(pedidoIdNum, {
         status: 'em_entrega',
         motoboyId: motoboySelecionado,
     });
     DB.updateMotoboy(motoboySelecionado, { status: 'entregando' });
     const motoboy = DB.getMotoboy(motoboySelecionado);
-    const qtdRota = DB.getPedidosMotoboy(motoboySelecionado).length;
-    const msg = qtdRota > 1
-        ? `🛵 ${qtdRota} entregas em rota com ${motoboy.nome}!`
-        : `🛵 Despachado para ${motoboy.nome}!`;
-    notificar(msg, 'success');
+    if (motoboy) {
+        const qtdRota = DB.getPedidosMotoboy(motoboySelecionado).length;
+        const msg = qtdRota > 1
+            ? `🛵 ${qtdRota} entregas em rota com ${motoboy.nome}!`
+            : `🛵 Despachado para ${motoboy.nome}!`;
+        notificar(msg, 'success');
+    } else {
+        notificar('🛵 Despachado!', 'success');
+    }
     fecharDespacho();
-    filtrarStatus('em_entrega');
+    // v2.1: re-renderiza fila explicitamente
+    if (typeof renderFila === 'function') renderFila();
+    if (typeof renderMetricas === 'function') renderMetricas();
+    if (typeof renderContadores === 'function') renderContadores();
 }
 
 function fecharDespacho() {
