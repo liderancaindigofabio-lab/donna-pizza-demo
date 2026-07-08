@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Debug Painel</title>
+<link rel="stylesheet" href="https://liderancaindigofabio-lab.github.io/donna-pizza-demo/pizzaria/css/painel-v6.css">
+<style>
+  #dbg { position:fixed; bottom:0; left:0; right:0; max-height:50vh; overflow:auto; background:#000; color:#0f0; font:12px monospace; padding:10px; z-index:9999; border-top:3px solid red; }
+  #dbg .err { color:#f55; }
+  #dbg .warn { color:#fa0; }
+  #dbg .ok { color:#5f5; }
+</style>
+</head>
+<body>
+<div id="status">Carregando...</div>
+<div id="dbg"></div>
+<div id="app"></div>
+<script>
+const dbg = document.getElementById('dbg');
+function log(msg, type='') {
+  const div = document.createElement('div');
+  div.className = type;
+  div.textContent = '[' + new Date().toISOString().substr(11,8) + '] ' + msg;
+  dbg.appendChild(div);
+  console.log(msg);
+}
+window.addEventListener('error', e => log('❌ ERROR: ' + e.message + ' @ ' + e.filename + ':' + e.lineno, 'err'));
+window.addEventListener('unhandledrejection', e => log('❌ UNHANDLED PROMISE: ' + (e.reason && e.reason.message || e.reason), 'err'));
+log('Página carregada');
+</script>
+<script src="https://liderancaindigofabio-lab.github.io/donna-pizza-demo/js/firebase/config.js?v=15"></script>
+<script>
+log('config.js carregado. FIREBASE_ATIVO=' + window.FIREBASE_ATIVO);
+</script>
+<script src="https://liderancaindigofabio-lab.github.io/donna-pizza-demo/js/firebase/loader.js?v=16"></script>
+<script>
+setTimeout(() => {
+  log('1.5s depois:', 'ok');
+  log('typeof DB = ' + typeof DB, typeof DB === 'undefined' ? 'err' : 'ok');
+  if (typeof DB !== 'undefined') {
+    log('  DB.backend = ' + DB.backend, 'ok');
+    log('  DB._ready = ' + DB._ready, 'ok');
+    log('  typeof init = ' + typeof init, typeof init === 'undefined' ? 'err' : 'ok');
+  }
+  if (typeof init === 'function') {
+    log('Chamando init()...', 'ok');
+    try { init(); } catch(e) { log('❌ init() threw: ' + e.message, 'err'); }
+  }
+}, 1500);
+</script>
+</body>
+</html>
