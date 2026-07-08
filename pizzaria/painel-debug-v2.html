@@ -2,9 +2,9 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Debug Painel v2</title>
+<title>Debug Direto</title>
 <style>
-  #dbg { position:fixed; bottom:0; left:0; right:0; max-height:50vh; overflow:auto; background:#000; color:#0f0; font:12px monospace; padding:10px; z-index:9999; border-top:3px solid red; }
+  #dbg { position:fixed; top:0; left:0; right:0; max-height:90vh; overflow:auto; background:#000; color:#0f0; font:12px monospace; padding:10px; z-index:9999; }
   #dbg .err { color:#f55; }
   #dbg .warn { color:#fa0; }
   #dbg .ok { color:#5f5; }
@@ -23,38 +23,22 @@ function log(msg, type='') {
 }
 window.addEventListener('error', e => {
   log('❌ ERROR: ' + e.message + ' @ ' + e.filename + ':' + e.lineno + ':' + e.colno, 'err');
-  log('   stack: ' + (e.error && e.error.stack || 'n/a'), 'err');
+  if (e.error) log('   stack: ' + e.error.stack, 'err');
 });
 window.addEventListener('unhandledrejection', e => log('❌ UNHANDLED: ' + (e.reason && e.reason.message || e.reason), 'err'));
 log('Página carregada');
-</script>
-<script src="https://liderancaindigofabio-lab.github.io/donna-pizza-demo/js/firebase/config.js"></script>
-<script src="https://liderancaindigofabio-lab.github.io/donna-pizza-demo/js/firebase/loader.js"></script>
-<script>
-setTimeout(() => {
-  log('1.5s depois');
-  log('typeof DB = ' + typeof DB, typeof DB === 'undefined' ? 'err' : 'ok');
-  log('typeof init = ' + typeof init, typeof init === 'undefined' ? 'err' : 'ok');
-  log('DB._ready = ' + (DB && DB._ready), 'ok');
-  if (typeof init === 'function') {
-    log('Chamando init()...');
-    try { init(); log('init() executou', 'ok'); } catch(e) { log('init() ERROU: ' + e.message + '\n' + e.stack, 'err'); }
-  }
-  // Tentar carregar painel.js manualmente agora
-  if (typeof init === 'undefined') {
-    log('Tentando carregar painel.js manualmente...');
-    const s = document.createElement('script');
-    s.src = 'https://liderancaindigofabio-lab.github.io/donna-pizza-demo/pizzaria/js/painel.js?v=999';
-    s.onload = () => {
-      log('  painel.js carregado', 'ok');
-      log('  typeof init = ' + typeof init, 'ok');
-      if (typeof init === 'function') {
-        try { init(); log('  init() ok', 'ok'); } catch(e) { log('  init() ERROU: ' + e.message, 'err'); }
-      }
-    };
-    document.head.appendChild(s);
-  }
-}, 2500);
+
+// Carrega painel.js direto, sem loader
+const s = document.createElement('script');
+s.src = 'https://liderancaindigofabio-lab.github.io/donna-pizza-demo/pizzaria/js/painel.js?v=debug-direct';
+s.onload = () => {
+  log('painel.js onload disparou', 'ok');
+  log('typeof init = ' + typeof init, 'ok');
+  log('typeof filtroStatus = ' + typeof filtroStatus, 'ok');
+  if (typeof filtroStatus !== 'undefined') log('  valor: ' + filtroStatus, 'ok');
+};
+s.onerror = (e) => log('painel.js ERRO ao carregar: ' + e, 'err');
+document.head.appendChild(s);
 </script>
 </body>
 </html>
