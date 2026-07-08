@@ -27,13 +27,13 @@ function init() {
     setInterval(verificarStatus, 60000);
     checarPedidoLocal();
 
-    // === DEMO MODE: ?demo=maria ou ?demo=maria-pedido ===
+    // === DEMO MODE: ?demo=maria ou ?demo=fabio ===
     // Abre uma das modais automaticamente para screenshots/apresentação
     const demoMode = new URLSearchParams(location.search).get('demo');
-    if (demoMode === 'maria-pedido' || demoMode === 'maria') {
+    if (demoMode === 'maria-pedido' || demoMode === 'maria' || demoMode === 'fabio' || demoMode === 'fabio-pedido') {
         // Espera o Firebase carregar
         setTimeout(() => {
-            if (demoMode === 'maria-pedido') {
+            if (demoMode === 'maria-pedido' || demoMode === 'fabio' || demoMode === 'fabio-pedido') {
                 abrirAcompanhamento();
             } else {
                 abrirMeusPedidos();
