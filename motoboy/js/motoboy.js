@@ -688,7 +688,6 @@ function tocarSom(tipo) {
 const BRL = (v) => 'R$ ' + v.toFixed(2).replace('.', ',');
 
 function sair() {
-    if (!confirm('Sair e trocar de motoboy?')) return;
     localStorage.removeItem('donna_motoboy_logado');
     location.reload();
 }
