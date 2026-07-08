@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Debug Rastreio</title>
+<style>
+body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #0f0; font-size: 13px; }
+pre { white-space: pre-wrap; }
+.ok { color: #4ade80; }
+.bad { color: #f87171; }
+.warn { color: #fbbf24; }
+</style>
+</head>
+<body>
+<h2>🔍 Debug do Rastreio</h2>
+<div id="out">Carregando...</div>
+<script>
+// Cópia do Firebase config
+const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyDpASBZl0V_nzZ4mYshshMI_ytvkIKQ0rw",
+    authDomain: "nonna-pizzaria.firebaseapp.com",
+    databaseURL: "https://nonna-pizzaria-default-rtdb.firebaseio.com",
+    projectId: "nonna-pizzaria",
+};
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script>
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.database();
+const out = document.getElementById('out');
+function log(msg, cls) { out.innerHTML += `<span class="${cls||''}">${msg}</span>\n`; }
+
+(async () => {
+  try {
+    log('=== ESTADO ATUAL DO FIREBASE ===\n');
+    
+    // Pedido da Maria
+    const pedidoSnap = await db.ref('pedidos/1783467800001').once('value');
+    const pedido = pedidoSnap.val();
+    log('PEDIDO Maria Silva:');
+    log('  Status: ' + pedido.status);
+    log('  MotoboyId: ' + pedido.motoboyId);
+    log('  Coords cliente: ' + JSON.stringify(pedido.coords), pedido.coords ? 'ok' : 'bad');
+    log('  Endereço: ' + pedido.endereco);
+    
+    // Motoboy Carlos
+    const motoboySnap = await db.ref('motoboys/mb_1').once('value');
+    const motoboy = motoboySnap.val();
+    log('\nMOTOBOY Carlos Silva:');
+    log('  ID: ' + motoboy.id);
+    log('  Nome: ' + motoboy.nome);
+    log('  lat: ' + motoboy.lat, motoboy.lat ? 'ok' : 'bad');
+    log('  lng: ' + motoboy.lng, motoboy.lng ? 'ok' : 'bad');
+    log('  pos: ' + JSON.stringify(motoboy.pos), 'ok');
+    
+    // Calcula distância
+    if (pedido.coords && motoboy.lat) {
+      const dLat = (motoboy.lat - pedido.coords.lat) * 111;
+      const dLng = (motoboy.lng - pedido.coords.lng) * 111 * Math.cos(pedido.coords.lat * Math.PI/180);
+      const dist = Math.sqrt(dLat*dLat + dLng*dLng);
+      log('\nDISTÂNCIA: ' + dist.toFixed(2) + ' km', dist < 1 ? 'ok' : 'warn');
+    }
+    
+    log('\n=== SIMULANDO MOVIMENTO ===');
+    // Move o motoboy 50m mais perto
+    const novoLat = pedido.coords.lat + (motoboy.lat - pedido.coords.lat) * 0.5;
+    const novoLng = pedido.coords.lng + (motoboy.lng - pedido.coords.lng) * 0.5;
+    log('Movendo para: ' + novoLat + ', ' + novoLng);
+    await db.ref('motoboys/mb_1').update({
+      lat: novoLat, lng: novoLng,
+      pos: { lat: novoLat, lng: novoLng, t: Date.now() }
+    });
+    log('Movimento feito! Verifique no cliente se atualizou.', 'ok');
+    
+    log('\n=== SIMULANDO POSIÇÃO DO CLIENTE (caso coords esteja faltando) ===');
+    if (!pedido.coords) {
+      await db.ref('pedidos/1783467800001/coords').set({
+        lat: -10.9111, lng: -37.0717
+      });
+      log('Coords do cliente adicionadas: -10.9111, -37.0717', 'ok');
+    } else {
+      log('Coords já existem', 'ok');
+    }
+  } catch (e) {
+    log('ERRO: ' + e.message, 'bad');
+  }
+})();
+</script>
+</body>
+</html>
