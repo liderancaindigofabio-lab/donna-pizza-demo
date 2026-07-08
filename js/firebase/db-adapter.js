@@ -431,12 +431,26 @@ const DB = {
             DBRemote.onAllPedidosChange(arr => {
                 const oldArr = this._cachePedidos || [];
                 this._cachePedidos = arr;
-                // Se tem mais pedidos, é pedido NOVO
-                if (arr.length > oldArr.length) {
-                    const novo = arr[arr.length - 1];
-                    callback({ tipo: 'pedido_novo', data: novo });
-                } else {
-                    // Mesmo número (ou menos) = UPDATE
+                // Detecta qual pedido mudou
+                const oldById = new Map(oldArr.map(p => [String(p.id), p]));
+                const newById = new Map(arr.map(p => [String(p.id), p]));
+                // Procura pedidos novos
+                for (const p of arr) {
+                    if (!oldById.has(String(p.id))) {
+                        callback({ tipo: 'pedido_novo', data: p });
+                        return;
+                    }
+                }
+                // Procura pedidos que mudaram
+                for (const p of arr) {
+                    const old = oldById.get(String(p.id));
+                    if (old && JSON.stringify(old) !== JSON.stringify(p)) {
+                        callback({ tipo: 'pedido_update', data: p });
+                        return;
+                    }
+                }
+                // Se nada mudou de conteúdo mas cache existe, atualiza de qualquer jeito
+                if (oldArr.length > 0) {
                     callback({ tipo: 'pedido_update', data: null });
                 }
             });
