@@ -41,20 +41,53 @@ setTimeout(async () => {
     log('  DB.backend = ' + DB.backend, 'ok');
     log('  DB._ready = ' + DB._ready, 'ok');
     log('  typeof init = ' + typeof init, typeof init === 'undefined' ? 'err' : 'ok');
-    log('--- TENTANDO DB.init() manualmente ---', 'ok');
+    log('--- INSTRUMENTANDO DB.init() ---', 'ok');
+    const origInit = DB.init.bind(DB);
+    DB.init = async function() {
+      log('→ init() entrou', 'ok');
+      try {
+        log('→ chamando getPedidosAsync()...');
+        const pedidos = await DBRemote.getPedidosAsync();
+        log('  getPedidosAsync OK, ' + pedidos.length + ' pedidos', 'ok');
+        log('→ chamando getMotoboysAsync()...');
+        const motoboys = await DBRemote.getMotoboysAsync();
+        log('  getMotoboysAsync OK, ' + motoboys.length + ' motoboys', 'ok');
+        log('→ chamando getConfigAsync()...');
+        const config = await DBRemote.getConfigAsync();
+        log('  getConfigAsync OK, nome=' + (config && config.nome), 'ok');
+        log('→ chamando getCardapioAsync()...');
+        const cardapio = await DBRemote.getCardapioAsync();
+        log('  getCardapioAsync OK, null? ' + (cardapio === null), 'ok');
+        log('→ setando _ready = true');
+        DB._ready = true;
+        if (DB._onReady) DB._onReady();
+        return true;
+      } catch (e) {
+        log('❌ ERRO: ' + e.message + '\\n' + e.stack, 'err');
+        throw e;
+      }
+    };
     try {
       const result = await DB.init();
       log('DB.init() resolved: ' + JSON.stringify(result), 'ok');
       log('DB._ready APÓS init: ' + DB._ready, 'ok');
-      log('DB._cachePedidos length: ' + (DB._cachePedidos || []).length, 'ok');
-      log('DB._cacheMotoboys length: ' + (DB._cacheMotoboys || []).length, 'ok');
     } catch (e) {
-      log('❌ DB.init() ERROU: ' + e.message + '\\n' + e.stack, 'err');
+      log('❌ DB.init() ERROU: ' + e.message, 'err');
     }
   }
-  if (typeof init === 'function') {
-    log('Chamando init()...', 'ok');
-    try { init(); } catch(e) { log('❌ init() threw: ' + e.message, 'err'); }
+  // depois de DB._ready, tentar carregar o painel
+  if (DB._ready && typeof init !== 'function') {
+    log('--- Carregando painel.js manualmente ---', 'ok');
+    const s = document.createElement('script');
+    s.src = 'https://liderancaindigofabio-lab.github.io/donna-pizza-demo/pizzaria/js/painel.js?v=999';
+    s.onload = () => {
+      log('  painel.js carregado, typeof init = ' + typeof init, typeof init === 'function' ? 'ok' : 'err');
+      if (typeof init === 'function') {
+        try { init(); log('  init() chamado!', 'ok'); } catch (e) { log('❌ init() threw: ' + e.message, 'err'); }
+      }
+    };
+    s.onerror = (e) => log('❌ Erro carregando painel.js: ' + e, 'err');
+    document.head.appendChild(s);
   }
 }, 1500);
 </script>
