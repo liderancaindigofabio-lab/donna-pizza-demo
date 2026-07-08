@@ -995,7 +995,8 @@ function abrirAcompanhamento() {
         toast('Você não tem pedido ativo', 'warning');
         return;
     }
-    const pedido = (DB._cachePedidos || DB.getPedidos()).find(p => p.id === meuPedidoId);
+    const pedido = (DB._cachePedidos || DB.getPedidos()).find(p => p.id === meuPedidoId || p.id === parseInt(meuPedidoId) || String(p.id) === String(meuPedidoId));
+    console.log('[cliente] abrirAcompanhamento: meuPedidoId=' + meuPedidoId + ' pedido=' + (pedido ? '#' + String(pedido.id).slice(-5) + ' status=' + pedido.status : 'null'));
     if (!pedido) {
         document.getElementById('pedidoAcompanhamento').innerHTML = `<div class="empty-state"><div class="empty-state-icon">📭</div><p>Pedido não encontrado</p></div>`;
         document.getElementById('modalAcompanhamento').style.display = 'flex';
@@ -1111,6 +1112,7 @@ let pollMapaCliente = null;
 const PIZZARIA_COORDS_CLIENTE = [-10.9893597, -37.0605839];
 
 function iniciarMapaCliente(pedidoInicial) {
+    console.log('[cliente] iniciarMapaCliente chamado para pedido #' + String(pedidoInicial.id).slice(-5));
     // Evita recriar se já existe
     if (mapaCliente) {
         mapaCliente.remove();
