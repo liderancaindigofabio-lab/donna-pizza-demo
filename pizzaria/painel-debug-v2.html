@@ -34,13 +34,23 @@ log('config.js carregado. FIREBASE_ATIVO=' + window.FIREBASE_ATIVO);
 </script>
 <script src="https://liderancaindigofabio-lab.github.io/donna-pizza-demo/js/firebase/loader.js?v=16"></script>
 <script>
-setTimeout(() => {
+setTimeout(async () => {
   log('1.5s depois:', 'ok');
   log('typeof DB = ' + typeof DB, typeof DB === 'undefined' ? 'err' : 'ok');
   if (typeof DB !== 'undefined') {
     log('  DB.backend = ' + DB.backend, 'ok');
     log('  DB._ready = ' + DB._ready, 'ok');
     log('  typeof init = ' + typeof init, typeof init === 'undefined' ? 'err' : 'ok');
+    log('--- TENTANDO DB.init() manualmente ---', 'ok');
+    try {
+      const result = await DB.init();
+      log('DB.init() resolved: ' + JSON.stringify(result), 'ok');
+      log('DB._ready APÓS init: ' + DB._ready, 'ok');
+      log('DB._cachePedidos length: ' + (DB._cachePedidos || []).length, 'ok');
+      log('DB._cacheMotoboys length: ' + (DB._cacheMotoboys || []).length, 'ok');
+    } catch (e) {
+      log('❌ DB.init() ERROU: ' + e.message + '\\n' + e.stack, 'err');
+    }
   }
   if (typeof init === 'function') {
     log('Chamando init()...', 'ok');
