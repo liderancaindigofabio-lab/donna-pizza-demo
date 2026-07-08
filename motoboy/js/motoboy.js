@@ -35,27 +35,20 @@ function garantirCoords(pedido) {
 
 // ===== INIT =====
 function init() {
-    console.log('[motoboy] init() chamado');
-    // BUGFIX: espera DB estar pronto
     if (typeof DB === 'undefined') {
-        console.warn('⚠️ DB não definido, aguardando...');
         setTimeout(init, 200);
         return;
     }
     if (DB._ready) {
-        console.log('[motoboy] DB já _ready');
         _startMotoboy();
     } else if (typeof DB.onReady === 'function') {
-        console.log('[motoboy] esperando DB.onReady()');
         DB.onReady(() => _startMotoboy());
     } else {
-        // Tenta novamente em 1s
         setTimeout(init, 500);
     }
 }
 
 function _startMotoboy() {
-    console.log('[motoboy] iniciando app');
     const saved = localStorage.getItem('donna_motoboy_logado');
     if (saved) {
         motoboyAtual = parseInt(saved);
@@ -90,9 +83,7 @@ function login(id) {
 
 function iniciarApp() {
     const m = DB.getMotoboy(motoboyAtual);
-    console.log('[motoboy] iniciarApp, motoboyAtual=' + motoboyAtual + ' (type=' + typeof motoboyAtual + '), m=' + (m ? m.nome : 'null'));
     if (!m) {
-        console.warn('Motoboy não encontrado, indo pro login');
         renderLogin();
         return;
     }
@@ -109,7 +100,6 @@ function iniciarApp() {
     renderHistorico();
     renderPedidosAtuais();
     initMapa();
-    console.log('[motoboy] iniciarApp OK, qtd em rota = ' + DB.getPedidosMotoboy(motoboyAtual).length);
 
     // Escutar mudanças
     DB.onChange(({ tipo, data }) => {
@@ -665,7 +655,8 @@ function renderHistorico() {
             </div>
             <span class="historico-valor">${BRL(p.total || 0)}</span>
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 // ===== TOAST =====
