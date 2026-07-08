@@ -1,25 +1,57 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<title>Modal Direct</title>
+<meta charset="utf-8">
+<title>Test Modal</title>
+<style>body { background:#000; color:#0f0; font-family:monospace; padding:10px; font-size:11px; }</style>
 </head>
 <body>
-<h1>Carregando cliente e abrindo modal...</h1>
+<div id="out">Carregando...</div>
 <script>
-const cliente = { nome: "Fabio Junior", tel: "16997902168", endereco: "Rua das Oliveiras, 123 - Centro", criadoEm: "2024-06-15" };
-const clientes = {};
-clientes[cliente.tel] = cliente;
-localStorage.setItem('donna_clientes', JSON.stringify(clientes));
-localStorage.setItem('donna_cliente_logado', cliente.tel);
-const pedidos = [
-  { id: 1001, cliente, itens: [{nome:"Pizza Margherita", qtd:1}, {nome:"Coca-Cola 2L", qtd:1}], total: 62, pagamento: "PIX", status: "em_entrega", motoboyId: 1, criadoEm: new Date().toISOString() },
-  { id: 1002, cliente, itens: [{nome:"Pizza Calabresa", qtd:1}], total: 62, pagamento: "Cartão", status: "entregue", criadoEm: "2025-06-20" }
-];
-localStorage.setItem('donna_pedidos', JSON.stringify(pedidos));
-localStorage.setItem('donna_meu_pedido', '1001');
-const motoboys = { 1: { id: 1, nome: "Carlos Silva", tel: "16988887777", placa: "BRA2E19" } };
-localStorage.setItem('donna_motoboys', JSON.stringify(motoboys));
+const out = document.getElementById('out');
+const origLog = console.log;
+console.log = function(...args) { out.textContent += '\nLOG: ' + args.join(' '); origLog.apply(console, args); };
+window.addEventListener('error', e => { out.textContent += '\n❌ ERR: ' + e.message; });
+</script>
+<script src="https://liderancaindigofabio-lab.github.io/donna-pizza-demo/js/firebase/config.js"></script>
+<script src="https://liderancaindigofabio-lab.github.io/donna-pizza-demo/js/firebase/loader.js"></script>
+<script>
+setTimeout(() => {
+  out.textContent += '\n--- @5s ---';
+  out.textContent += '\nwindow.abrirAcompanhamento = ' + (typeof abrirAcompanhamento);
+  out.textContent += '\nwindow.iniciarMapaCliente = ' + (typeof iniciarMapaCliente);
+  out.textContent += '\nwindow.mapaCliente = ' + (typeof mapaCliente);
+  // Verifica o modal
+  const modal = document.getElementById('modalAcompanhamento');
+  out.textContent += '\nmodal = ' + (modal ? 'EXISTS display=' + modal.style.display : 'NÃO EXISTE');
+  if (modal) {
+    const body = document.getElementById('pedidoAcompanhamento');
+    out.textContent += '\nbody HTML length = ' + (body ? body.innerHTML.length : 0);
+    if (body && body.innerHTML) {
+      out.textContent += '\nbody contains mapa: ' + body.innerHTML.includes('mapaCliente');
+      out.textContent += '\nbody contains tracker-map: ' + body.innerHTML.includes('tracker-map');
+      out.textContent += '\nbody contains motoboy: ' + body.innerHTML.includes('motoboy');
+    }
+  }
+  // Tenta abrir
+  if (typeof abrirAcompanhamento === 'function') {
+    try {
+      abrirAcompanhamento();
+      out.textContent += '\nabrirAcompanhamento OK';
+      setTimeout(() => {
+        const mc = document.getElementById('mapaCliente');
+        out.textContent += '\n#mapaCliente = ' + (mc ? 'EXISTS' : 'NÃO');
+        if (mc) {
+          out.textContent += '\n#mapaCliente children = ' + mc.children.length;
+          out.textContent += '\n#mapaCliente style = ' + mc.style.cssText;
+        }
+        out.textContent += '\nmapaCliente global = ' + (window.mapaCliente ? 'EXISTS' : 'null');
+      }, 2000);
+    } catch (e) {
+      out.textContent += '\n❌ ERRO abrirAcompanhamento: ' + e.message;
+    }
+  }
+}, 5000);
 </script>
 </body>
 </html>
