@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Debug3</title>
+<style>
+body { font-family: monospace; padding: 10px; background: #111; color: #0f0; font-size: 12px; }
+pre { white-space: pre-wrap; }
+.ok { color: #4ade80; } .bad { color: #f87171; } .warn { color: #fbbf24; }
+</style>
+</head>
+<body>
+<h2>Auditoria</h2>
+<pre id="out">Iniciando...</pre>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script>
+const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyDpASBZl0V_nzZ4mYshshMI_ytvkIKQ0rw",
+    authDomain: "nonna-pizzaria.firebaseapp.com",
+    databaseURL: "https://nonna-pizzaria-default-rtdb.firebaseio.com",
+    projectId: "nonna-pizzaria"
+};
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.database();
+const out = document.getElementById('out');
+const log = (m, c) => { out.innerHTML += `<span class="${c||''}">${m}</span>\n`; out.scrollTop = out.scrollHeight; };
+
+(async () => {
+  log('1. Firebase inicializado');
+  try {
+    const pedSnap = await db.ref('pedidos').once('value');
+    const peds = Object.values(pedSnap.val() || {});
+    log('Total pedidos: ' + peds.length);
+    peds.forEach(p => {
+      log(`  ID ${p.id}: ${p.status} | cliente=${(p.clienteNome||p.cliente?.nome||'?')[:25]} | motoboy=${p.motoboyId}`, 
+          p.status === 'em_entrega' ? 'warn' : 'ok');
+    });
+    
+    const motSnap = await db.ref('motoboys').once('value');
+    const mots = Object.values(motSnap.val() || {});
+    log('\nMotoboys: ' + mots.length);
+    mots.forEach(m => log(`  mb_${m.id}: ${m.nome} (status=${m.status})`));
+    
+    // Tenta finalizar um pedido
+    log('\n2. Testando finalizar pedido 1783465995603...');
+    const result = await db.ref('pedidos/1783465995603').update({
+      status: 'entregue',
+      entregueEm: new Date().toISOString()
+    });
+    log('  Resultado update: ' + (result ? 'OK' : 'ERRO'), 'ok');
+    
+    // Verifica
+    const newSnap = await db.ref('pedidos/1783465995603').once('value');
+    const novo = newSnap.val();
+    log('  Status agora: ' + novo.status, novo.status === 'entregue' ? 'ok' : 'bad');
+  } catch (e) {
+    log('ERRO: ' + e.message, 'bad');
+    log(e.stack, 'bad');
+  }
+})();
+</script>
+</body>
+</html>
