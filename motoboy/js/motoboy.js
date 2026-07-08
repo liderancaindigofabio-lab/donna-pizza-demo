@@ -96,10 +96,14 @@ function iniciarApp() {
         renderLogin();
         return;
     }
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('appScreen').style.display = 'block';
-    document.getElementById('motoboyAvatar').textContent = m.foto || '🛵';
-    document.getElementById('motoboyNome').textContent = m.nome || '';
+    const loginEl = document.getElementById('loginScreen');
+    const appEl = document.getElementById('appScreen');
+    if (loginEl) loginEl.style.display = 'none';
+    if (appEl) appEl.style.display = 'block';
+    const avatar = document.getElementById('motoboyAvatar');
+    const nome = document.getElementById('motoboyNome');
+    if (avatar) avatar.textContent = m.foto || '🛵';
+    if (nome) nome.textContent = m.nome || '';
     atualizarStatusVisual();
     atualizarContadorEntregas();
     renderHistorico();
@@ -145,7 +149,13 @@ function toggleStatus() {
 function atualizarStatusVisual() {
     const m = DB.getMotoboy(motoboyAtual);
     const el = document.getElementById('statusToggle');
+    if (!el) return;
     const qtdRota = DB.getPedidosMotoboy(motoboyAtual).length;
+    if (!m) {
+        el.className = 'motoboy-status-toggle';
+        el.innerHTML = '<span class="status-dot"></span> Indisponível';
+        return;
+    }
     if (m.status === 'disponivel') {
         el.className = 'motoboy-status-toggle';
         el.innerHTML = '<span class="status-dot"></span> Disponível';
@@ -453,6 +463,7 @@ function calcularDistanciaHaversine(lat1, lon1, lat2, lon2) {
 // ===== LISTA DE PEDIDOS ATUAIS (a nova tela principal) =====
 function renderPedidosAtuais() {
     const container = document.getElementById('pedidoAtual');
+    if (!container) return;
     const pedidos = DB.getPedidosMotoboy(motoboyAtual);
 
     if (pedidos.length === 0) {
@@ -487,31 +498,44 @@ function renderPedidosAtuais() {
     const cardsHtml = ordenados.map((p, i) => {
         const ehProxima = i === 0;
         const minutos = Math.floor((Date.now() - new Date(p.criadoEm).getTime()) / 60000);
-        const itens = p.itens.map(it => `
+        // BUGFIX: normaliza cliente (alguns pedidos não têm `cliente` aninhado)
+        const cliente = p.cliente || {
+            nome: p.clienteNome || 'Cliente',
+            tel: p.clienteTel || '',
+            end: p.endereco || '',
+            pag: p.pagamento || '',
+            obs: p.obs || ''
+        };
+        const itens = (p.itens || []).map(it => {
+            // BUGFIX: pizzas têm `sabores` e `tamanho`, não `tipo`
+            const desc = it.sabores ? it.sabores.join(' + ') : (it.tipo || '');
+            const tam = it.tamanho ? ' (' + it.tamanho + ')' : '';
+            return `
             <div class="pac-item">
-                <span>${it.nome} (${it.tipo})</span>
-                <span>${BRL(it.preco)}</span>
+                <span>${(it.nome || 'Item')}${tam} ${desc ? '- ' + desc : ''}</span>
+                <span>${BRL(it.preco || 0)}</span>
             </div>
-        `).join('');
+        `;
+        }).join('');
 
         return `
         <div class="pedido-atual-card ${ehProxima ? 'proxima' : ''}">
             ${ehProxima ? '<div class="proxima-tag">📍 PRÓXIMA ENTREGA</div>' : ''}
             <div class="ordem-numero">${i + 1}</div>
             <div class="pac-header">
-                <span class="pac-id">#${p.id.toString().slice(-5)}</span>
+                <span class="pac-id">#${String(p.id).slice(-5)}</span>
                 <span class="pac-tempo">⏱️ há ${minutos} min</span>
             </div>
             <div class="pac-cliente">
-                <div class="pac-cliente-nome">${p.cliente.nome}</div>
-                <div class="pac-cliente-end">📍 ${formatarEndereco(p.cliente)}</div>
-                <a class="pac-cliente-tel" href="https://wa.me/55${p.cliente.tel.replace(/\D/g, '')}" target="_blank">
-                    📞 ${p.cliente.tel}
+                <div class="pac-cliente-nome">${cliente.nome}</div>
+                <div class="pac-cliente-end">📍 ${formatarEndereco(cliente)}</div>
+                <a class="pac-cliente-tel" href="https://wa.me/55${(cliente.tel || '').replace(/\D/g, '')}" target="_blank">
+                    📞 ${cliente.tel || 'sem tel'}
                 </a>
             </div>
             <div class="pac-itens">${itens}</div>
-            <div class="pac-total">${BRL(p.total)} • ${p.cliente.pag}</div>
-            ${p.cliente.obs ? `<div class="pac-obs"><strong>Obs:</strong> ${p.cliente.obs}</div>` : ''}
+            <div class="pac-total">${BRL(p.total || 0)} • ${cliente.pag || ''}</div>
+            ${cliente.obs ? `<div class="pac-obs"><strong>Obs:</strong> ${cliente.obs}</div>` : ''}
             <div class="pac-acoes">
                 <button class="btn-mb secondary" onclick="abrirNavegacao(${p.id})">🧭 Google Maps</button>
                 <button class="btn-mb secondary" onclick="abrirWaze(${p.id})">🟣 Waze</button>
@@ -526,7 +550,7 @@ function renderPedidosAtuais() {
     // Botão de navegação "ir pra primeira entrega"
     const irParaProxima = ordenados.length > 0 ? `
         <button class="btn-ir-proxima" onclick="irParaProximaEntrega()">
-            🧭 Navegar até a próxima entrega (${ordenados[0].cliente.nome.split(' ')[0]})
+            🧭 Navegar até a próxima entrega (${(ordenados[0].cliente?.nome || 'Cliente').split(' ')[0]})
         </button>
     ` : '';
 
@@ -539,6 +563,10 @@ function renderPedidosAtuais() {
 function irParaProximaEntrega() {
     const pedidos = DB.getPedidosMotoboy(motoboyAtual);
     if (pedidos.length === 0) return;
+    if (!markerMotoboy) {
+        toast('⚠️ Aguarde o mapa carregar', 'warning');
+        return;
+    }
     const pontoAtual = markerMotoboy.getLatLng();
     const pedidosComCoords = pedidos.map(garantirCoords);
     const ordenados = vizinhoMaisProximo(pontoAtual, pedidosComCoords);
@@ -582,7 +610,11 @@ function iniciarEntrega(id) {
 function ligarCliente(pedidoId) {
     const p = DB.getPedidos().find(x => x.id === pedidoId);
     if (!p) return;
-    const tel = p.cliente.tel.replace(/\D/g, '');
+    const tel = (p.cliente?.tel || p.clienteTel || '').replace(/\D/g, '');
+    if (!tel) {
+        toast('❌ Cliente sem telefone', 'error');
+        return;
+    }
     window.location.href = `tel:+55${tel}`;
 }
 
@@ -612,6 +644,7 @@ function atualizarContadorEntregas() {
 
 function renderHistorico() {
     const container = document.getElementById('historicoLista');
+    if (!container) return;
     const historico = DB.getPedidos().filter(p =>
         p.motoboyId === motoboyAtual && p.status === 'entregue'
     ).slice(0, 20);
@@ -621,14 +654,16 @@ function renderHistorico() {
         return;
     }
 
-    container.innerHTML = historico.map(p => `
+    container.innerHTML = historico.map(p => {
+        const cliente = p.cliente || { nome: p.clienteNome || 'Cliente', end: p.endereco || '' };
+        return `
         <div class="historico-item">
             <div class="historico-emoji">✅</div>
             <div class="historico-info">
-                <div class="historico-cliente">${p.cliente.nome}</div>
-                <div class="historico-end">${formatarEnderecoCurto(p.cliente)}</div>
+                <div class="historico-cliente">${cliente.nome}</div>
+                <div class="historico-end">${formatarEnderecoCurto(cliente)}</div>
             </div>
-            <span class="historico-valor">${BRL(p.total)}</span>
+            <span class="historico-valor">${BRL(p.total || 0)}</span>
         </div>
     `).join('');
 }
