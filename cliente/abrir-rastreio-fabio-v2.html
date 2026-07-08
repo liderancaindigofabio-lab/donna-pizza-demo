@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Login Fabio + Rastreio v2</title>
+<script>
+  const cliente = {
+    tel: "79999991234",
+    nome: "Fabio Teste Final",
+    end: "Rua do Teste Final, 999 - Centro, Aracaju - SE",
+    endereco: { rua: "Rua do Teste Final", numero: "999", bairro: "Centro", cidade: "Aracaju", cep: "49000-000" }
+  };
+  localStorage.setItem('donna_cliente_logado', JSON.stringify(cliente));
+  localStorage.setItem('donna_meu_pedido', '1783540413580');
+  // Sobrescreve window.confirm pra retornar true
+  window.confirm = function() { return true; };
+  setTimeout(() => {
+    location.href = './?demo=fabio&v=' + Date.now();
+  }, 300);
+</script>
+</head>
+<body><h1>Setando login Fabio + pedido + auto-accept confirm...</h1></body>
+</html>
