@@ -433,24 +433,32 @@ const DB = {
                 this._cachePedidos = arr;
                 // Detecta qual pedido mudou
                 const oldById = new Map(oldArr.map(p => [String(p.id), p]));
-                const newById = new Map(arr.map(p => [String(p.id), p]));
-                // Procura pedidos novos
+                let changed = false;
+                // Pedidos novos
                 for (const p of arr) {
                     if (!oldById.has(String(p.id))) {
                         callback({ tipo: 'pedido_novo', data: p });
-                        return;
+                        changed = true;
+                        // NÃO return — deixa o loop continuar
                     }
                 }
-                // Procura pedidos que mudaram
+                // Pedidos que mudaram
                 for (const p of arr) {
                     const old = oldById.get(String(p.id));
                     if (old && JSON.stringify(old) !== JSON.stringify(p)) {
                         callback({ tipo: 'pedido_update', data: p });
-                        return;
+                        changed = true;
                     }
                 }
-                // Se nada mudou de conteúdo mas cache existe, atualiza de qualquer jeito
-                if (oldArr.length > 0) {
+                // Pedidos removidos
+                for (const old of oldArr) {
+                    if (!arr.find(p => String(p.id) === String(old.id))) {
+                        callback({ tipo: 'pedido_remove', data: old });
+                        changed = true;
+                    }
+                }
+                // Se foi o primeiro sync (oldArr estava vazio) e agora tem pedidos, força render
+                if (!changed && oldArr.length === 0 && arr.length > 0) {
                     callback({ tipo: 'pedido_update', data: null });
                 }
             });
