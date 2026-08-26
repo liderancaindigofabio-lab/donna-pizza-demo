@@ -457,6 +457,34 @@ body {
     flex: 0 0 50px;
 }
 
+.canal-filters {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 10px 20px 14px;
+}
+.canal-filter-label { font-size: .8rem; color: var(--gray); font-weight: 700; }
+.canal-filter {
+    border: 1px solid var(--border);
+    background: var(--cream-2);
+    color: var(--text);
+    border-radius: 999px;
+    padding: 7px 13px;
+    cursor: pointer;
+    font-weight: 600;
+}
+.canal-filter.active { background: var(--gold); color: #17120a; border-color: var(--gold); }
+.pedido-canal-badge { display: inline-block; margin-left: 6px; padding: 4px 8px; border-radius: 999px; background: rgba(184,138,54,.14); color: var(--gold); font-size: .7rem; font-weight: 700; }
+.detalhes-resumo { display:flex; justify-content:space-between; gap:16px; padding-bottom:16px; border-bottom:1px solid var(--border); }
+.pedido-timeline { padding: 16px 4px; }
+.timeline-event { display:flex; gap:12px; position:relative; padding:0 0 18px 4px; }
+.timeline-event:not(:last-child)::before { content:""; position:absolute; left:8px; top:14px; bottom:0; width:2px; background:var(--border); }
+.timeline-dot { flex:0 0 10px; width:10px; height:10px; margin-top:4px; border-radius:50%; background:var(--gold); z-index:1; }
+.timeline-event strong, .timeline-event small { display:block; }
+.timeline-event small { color:var(--gray); margin-top:3px; }
+.timeline-motivo { margin-top:5px; color:var(--text); font-size:.88rem; }
+
 .pedido-motoboy-info {
     background: rgba(33, 150, 243, 0.08);
     border-left: 3px solid var(--azul);
