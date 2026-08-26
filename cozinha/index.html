@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#11100e">
+  <title>NONNA Cozinha — KDS</title>
+  <link rel="stylesheet" href="css/cozinha.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="kds-shell">
+    <header class="kds-header">
+      <div class="brand"><span class="brand-mark">N</span><div><h1>NONNA <em>Cozinha</em></h1><p>KITCHEN DISPLAY SYSTEM</p></div></div>
+      <div class="header-meta"><span class="live-dot"></span><span id="connectionLabel">Conectando…</span><time id="clock"></time><button id="soundToggle" class="icon-button" type="button" aria-pressed="false" title="Ativar som">🔇</button></div>
+    </header>
+    <main class="board" aria-live="polite">
+      <section class="lane lane-new" data-lane="novo"><header class="lane-header"><div><span class="lane-kicker">ENTRADA</span><h2>Novos</h2></div><span class="lane-count" id="count-novo">0</span></header><div class="orders" id="orders-novo"></div></section>
+      <section class="lane lane-preparing" data-lane="preparando"><header class="lane-header"><div><span class="lane-kicker">EM PRODUÇÃO</span><h2>Preparando</h2></div><span class="lane-count" id="count-preparando">0</span></header><div class="orders" id="orders-preparando"></div></section>
+      <section class="lane lane-ready" data-lane="pronto"><header class="lane-header"><div><span class="lane-kicker">EXPEDIÇÃO</span><h2>Prontos</h2></div><span class="lane-count" id="count-pronto">0</span></header><div class="orders" id="orders-pronto"></div></section>
+    </main>
+    <footer class="kds-footer"><span><b id="totalActive">0</b> pedidos ativos</span><span class="legend"><i class="legend-dot normal"></i> no prazo <i class="legend-dot overdue"></i> atrasado</span><span>Atualização em tempo real</span></footer>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="../js/firebase/config.js?v=4"></script>
+  <script src="../js/firebase/loader.js?v=4"></script>
+</body>
+</html>
