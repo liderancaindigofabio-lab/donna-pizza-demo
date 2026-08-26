@@ -664,6 +664,22 @@ function renderMetricas() {
     document.getElementById('metFat').textContent = BRL(m.faturamento);
     document.getElementById('metAndamento').textContent = m.emAndamento;
     document.getElementById('metTicket').textContent = BRL(m.ticketMedio);
+    renderResumoGestao();
+}
+
+function renderResumoGestao() {
+    const pedidos = DB.getPedidos() || [];
+    const hoje = new Date().toDateString();
+    const doDia = pedidos.filter(p => p.criadoEm && new Date(p.criadoEm).toDateString() === hoje);
+    const por = status => doDia.filter(p => p.status === status).length;
+    const canal = origem => doDia.filter(p => (p.origem || p.canal || 'delivery') === origem).length;
+    const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+    set('dashNovo', por('novo')); set('dashPreparando', por('preparando'));
+    set('dashPronto', por('pronto')); set('dashEntrega', por('em_entrega'));
+    set('dashDelivery', canal('delivery')); set('dashSalao', canal('salao')); set('dashBalcao', canal('balcao'));
+    const atrasados = doDia.filter(p => ['novo','preparando'].includes(p.status) && p.criadoEm && Date.now() - new Date(p.criadoEm).getTime() > 20 * 60000).length;
+    const alertas = document.getElementById('dashAlertas');
+    if (alertas) alertas.innerHTML = atrasados ? `⚠ ${atrasados} pedido(s) aguardando há mais de 20 minutos.` : 'Nenhum alerta no momento.';
 }
 
 function renderContadores() {
