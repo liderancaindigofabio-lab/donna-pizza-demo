@@ -11,9 +11,9 @@
 </head>
 <body>
 <style>
-#accessGate{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:24px;background:rgba(10,10,10,.98);font-family:Inter,Arial,sans-serif;color:#fff}#accessGate[hidden]{display:none!important}.access-card{width:min(420px,100%);padding:32px;background:#181818;border:1px solid #b88a36;border-radius:16px;box-shadow:0 18px 60px #000}.access-card h2{margin:16px 0 8px}.access-card p{color:#bbb}.access-card label{display:grid;gap:7px;margin:14px 0;font-size:13px}.access-card input{padding:12px;border-radius:8px;border:1px solid #555;background:#101010;color:#fff;font-size:15px}.access-card button{width:100%;padding:12px;border:0;border-radius:8px;background:#c99a3b;color:#111;font-weight:800;font-size:15px}.access-error{min-height:20px;color:#ff8080;font-size:13px}
+#accessGate{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:24px;background:rgba(10,10,10,.98);font-family:Inter,Arial,sans-serif;color:#fff}#accessGate[hidden]{display:none!important}.access-card{width:min(420px,100%);padding:32px;background:#181818;border:1px solid #b88a36;border-radius:16px;box-shadow:0 18px 60px #000}.access-card h2{margin:16px 0 8px}.access-card p{color:#bbb}.access-card label{display:grid;gap:7px;margin:14px 0;font-size:13px}.access-card input{padding:12px;border-radius:8px;border:1px solid #555;background:#101010;color:#fff;font-size:15px}.access-card button{width:100%;padding:12px;border:0;border-radius:8px;background:#c99a3b;color:#111;font-weight:800;font-size:15px}.access-error{min-height:20px;color:#ff8080;font-size:13px}body[data-profile="kitchen"] #btnConfig,body[data-profile="kitchen"] [data-aba="cardapio"],body[data-profile="kitchen"] [onclick*="abrirDespacho"],body[data-profile="kitchen"] [onclick*="abrirConfig"],body[data-profile="kitchen"] [onclick*="limparDados"],body[data-profile="kitchen"] #abaCardapio{display:none!important}
 </style>
-<div id="accessGate" role="dialog" aria-modal="true" aria-labelledby="accessTitle"><form class="access-card" id="accessForm"><div style="font-size:40px">🏪</div><h2 id="accessTitle">Acesso ao painel</h2><p>Entre com o acesso administrativo da pizzaria.</p><label>E-mail<input name="email" type="email" autocomplete="username" required></label><label>Senha<input name="password" type="password" autocomplete="current-password" required></label><p id="accessError" class="access-error" role="alert"></p><button type="submit">Entrar no painel</button></form></div>
+<div id="accessGate" role="dialog" aria-modal="true" aria-labelledby="accessTitle"><form class="access-card" id="accessForm"><div style="font-size:40px">🏪</div><h2 id="accessTitle">Acesso ao painel</h2><p>Entre com o acesso administrativo da pizzaria.</p><label>Usuário ou e-mail<input name="email" type="text" autocomplete="username" required></label><label>Senha<input name="password" type="password" autocomplete="current-password" required></label><p id="accessError" class="access-error" role="alert"></p><button type="submit">Entrar no painel</button></form></div>
 
 <!-- HEADER -->
 <header class="painel-header">
@@ -32,7 +32,7 @@
     </div>
     <div class="header-right">
         <div class="relogio" id="relogio">--:--</div>
-        <button class="icon-btn" onclick="abrirConfig()" title="Configurações">⚙️</button>
+        <button id="btnConfig" class="icon-btn" onclick="abrirConfig()" title="Configurações">⚙️</button>
     </div>
 </header>
 
