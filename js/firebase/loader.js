@@ -10,8 +10,9 @@
         'pizzaria':   ['/donna-pizza-demo/pizzaria/js/painel.js'],
         'garcom':     ['/donna-pizza-demo/garcom/js/garcom.js'],
         'caixa':      ['/donna-pizza-demo/caixa/js/caixa.js'],
+        'cozinha':    ['/donna-pizza-demo/cozinha/js/cozinha.js'],
     };
-    const appName = (location.pathname.match(/\/(cliente|motoboy|pizzaria|garcom|caixa)(\/|$)/) || [])[1];
+    const appName = (location.pathname.match(/\/(cliente|motoboy|pizzaria|garcom|caixa|cozinha)(\/|$)/) || [])[1];
     const extras = APPS[appName] || [];
 
     function loadScript(src, cb) {
