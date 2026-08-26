@@ -57,7 +57,11 @@
                 firebase.initializeApp(FIREBASE_CONFIG);
                 loadScript('/donna-pizza-demo/js/firebase/firebase-storage.js', () => {
                     loadScript('/donna-pizza-demo/js/firebase/db-adapter.js', () => {
-                        DB.init().then(startApp);
+                        DB.init().then(startApp).catch(err => {
+                            console.warn('Firebase indisponível; iniciando modo local de contingência.', err);
+                            DB._backend = 'local'; DB._ready = false;
+                            Promise.resolve(DB.init()).then(startApp);
+                        });
                     });
                 });
             });
