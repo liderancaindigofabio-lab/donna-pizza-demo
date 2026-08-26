@@ -6,6 +6,7 @@
    ============================================ */
 
 let filtroStatus = 'novo';
+let filtroCanal = 'todos';
 let pedidoSelecionado = null;
 let motoboySelecionado = null;
 let abaAtiva = 'visao';
@@ -86,6 +87,9 @@ function renderFila() {
     if (filtroStatus !== 'todos') {
         pedidos = pedidos.filter(p => p.status === filtroStatus);
     }
+    if (filtroCanal !== 'todos') {
+        pedidos = pedidos.filter(p => normalizarCanal(p) === filtroCanal);
+    }
 
     if (pedidos.length === 0) {
         container.innerHTML = `
@@ -104,6 +108,7 @@ function renderPedidoCard(p) {
     const minutos = Math.floor((Date.now() - new Date(p.criadoEm).getTime()) / 60000);
     const hora = new Date(p.criadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
+    const canalLabel = { delivery: 'Delivery', salao: 'Salão', balcao: 'Balcão', agendado: 'Agendado' }[normalizarCanal(p)] || 'Delivery';
     const statusLabel = {
         novo: 'NOVO',
         preparando: 'PREPARANDO',
@@ -193,6 +198,7 @@ function renderPedidoCard(p) {
                 <div class="pedido-hora">${hora} • há ${minutos} min</div>
             </div>
             <span class="pedido-status-badge ${p.status}">${statusLabel}</span>
+            <span class="pedido-canal-badge">${canalLabel}</span>
         </div>
 
         <div class="pedido-cliente">
@@ -217,17 +223,56 @@ function renderPedidoCard(p) {
 
         <div class="pedido-actions">
             ${actionsHtml}
+            <button class="btn-acao detalhes" onclick="abrirDetalhes(${p.id})" title="Ver timeline">🕘 Detalhes</button>
         </div>
     </div>
     `;
 }
 
+function normalizarCanal(pedido) {
+    const canal = String(pedido && (pedido.canal || pedido.origem) || 'delivery').toLowerCase();
+    if (['salao', 'salão', 'mesa'].includes(canal)) return 'salao';
+    if (['balcao', 'balcão', 'retirada'].includes(canal)) return 'balcao';
+    if (['agendado', 'agendamento', 'scheduled'].includes(canal)) return 'agendado';
+    return 'delivery';
+}
+
 function filtrarStatus(status) {
     filtroStatus = status;
-    document.querySelectorAll('.status-tab').forEach(t => t.classList.remove('active'));
-    document.querySelector(`[data-status="${status}"]`).classList.add('active');
+    document.querySelectorAll('.status-tab').forEach(t => t.classList.toggle('active', t.dataset.status === status));
     renderFila();
 }
+
+function filtrarCanal(canal) {
+    filtroCanal = canal;
+    document.querySelectorAll('.canal-filter').forEach(t => t.classList.toggle('active', t.dataset.canal === canal));
+    renderFila();
+}
+
+function abrirDetalhes(id) {
+    const pedido = DB.getPedidos().find(p => String(p.id) === String(id));
+    if (!pedido) return;
+    const timeline = Array.isArray(pedido.timeline) ? pedido.timeline : Object.values(pedido.timeline || {});
+    const ordenada = timeline.filter(Boolean).sort((a, b) => new Date(a.em || a.createdAt || 0) - new Date(b.em || b.createdAt || 0));
+    const labels = { pedido_criado: 'Pedido criado', status_alterado: 'Status atualizado', pedido_cancelado: 'Pedido cancelado', despacho: 'Pedido despachado' };
+    const body = document.getElementById('detalhesBody');
+    document.getElementById('detalhesTitulo').textContent = `Pedido #${String(pedido.id).slice(-5)}`;
+    body.innerHTML = `<div class="detalhes-resumo"><strong>${pedido.cliente && pedido.cliente.nome || 'Cliente'}</strong><span>${BRL(Number(pedido.total) || 0)}</span></div>` +
+        `<div class="pedido-timeline">${ordenada.length ? ordenada.map(ev => {
+            const quando = ev.em || ev.createdAt || ev.at || ev.timestamp;
+            const data = quando ? new Date(quando).toLocaleString('pt-BR') : '—';
+            const nomeEvento = ev.evento || ev.tipo || ev.type;
+            const titulo = labels[nomeEvento] || ev.descricao || String(nomeEvento || 'Evento').replace(/_/g, ' ');
+            const status = ev.status ? ` • ${String(ev.status).replace(/_/g, ' ')}` : '';
+            const motivoTexto = ev.motivoCancelamento || ev.motivo || ev.reason;
+            const motivo = motivoTexto ? `<div class="timeline-motivo">Motivo: ${escapeHtml(motivoTexto)}</div>` : '';
+            return `<div class="timeline-event"><span class="timeline-dot"></span><div><strong>${escapeHtml(titulo)}</strong><small>${escapeHtml(data)}${escapeHtml(status)}</small>${motivo}</div></div>`;
+        }).join('') : '<p>Nenhum evento registrado.</p>'}</div>`;
+    document.getElementById('modalDetalhes').style.display = 'flex';
+}
+
+function fecharDetalhes() { document.getElementById('modalDetalhes').style.display = 'none'; }
+function escapeHtml(value) { return String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 // ===== AÇÕES =====
 function aceitarPedido(id) {
@@ -496,8 +541,17 @@ function marcarEntregue(id) {
 
 function cancelarPedido(id) {
     if (!confirm('Cancelar este pedido?')) return;
-    DB.updatePedido(id, { status: 'cancelado' });
-    notificar('❌ Pedido cancelado', 'error');
+    const motivo = prompt('Informe o motivo do cancelamento (obrigatório):', '');
+    if (motivo === null) return;
+    if (!String(motivo).trim()) {
+        notificar('Informe um motivo para cancelar.', 'error');
+        return;
+    }
+    const resultado = typeof DB.cancelarPedido === 'function'
+        ? DB.cancelarPedido(id, motivo.trim(), { createdBy: document.body.dataset.profile || 'pizzaria' })
+        : null;
+    if (resultado && typeof resultado.then === 'function') resultado.catch(() => notificar('Não foi possível cancelar o pedido.', 'error'));
+    if (resultado) notificar('❌ Pedido cancelado', 'error');
 }
 
 // ===== DESPACHO =====
