@@ -20,7 +20,7 @@ const DBRemote = {
     async getPedidosAsync() {
         const snap = await this._ref('pedidos').once('value');
         const val = snap.val() || {};
-        return Object.values(val).sort((a, b) => (b.id || 0) - (a.id || 0));
+        return Object.values(val).sort((a, b) => new Date(b.criadoEm || b.createdAt || 0).getTime() - new Date(a.criadoEm || a.createdAt || 0).getTime());
     },
 
     _normalizarPedido(pedido) {
@@ -47,17 +47,30 @@ const DBRemote = {
         return { ...(dados || {}), evento: (dados && dados.evento) || 'status_alterado', status: status || (dados && dados.status) || null, em: (dados && dados.em) || agora, createdAt: (dados && dados.createdAt) || agora, createdBy: (dados && dados.createdBy) || 'sistema' };
     },
 
-    addPedido(pedido) {
+    async addPedido(pedido) {
         const normalizado = this._normalizarPedido(pedido);
-        normalizado.id = Date.now();
-        this._ref('pedidos/' + normalizado.id).set(normalizado);
+        const key = this._ref('pedidos').push().key;
+        normalizado.id = key;
+        normalizado.firebaseKey = key;
+        await this._ref('pedidos/' + key).set(normalizado);
         this._notify('pedido_novo', normalizado);
         return normalizado;
     },
 
+    async _resolvePedidoRef(id) {
+        const direct = this._ref('pedidos/' + id);
+        const directSnap = await direct.once('value');
+        if (directSnap.exists()) return direct;
+        const snap = await this._ref('pedidos').orderByChild('id').equalTo(id).once('value');
+        const val = snap.val() || {};
+        const key = Object.keys(val)[0];
+        return key ? this._ref('pedidos/' + key) : null;
+    },
+
     updatePedido(id, updates) {
-        const ref = this._ref('pedidos/' + id);
-        return ref.once('value').then(snap => {
+        return this._resolvePedidoRef(id).then(ref => {
+            if (!ref) return null;
+            return ref.once('value').then(snap => {
             const anterior = snap.val();
             if (!anterior) return null;
             const agora = new Date().toISOString();
@@ -74,22 +87,26 @@ const DBRemote = {
                 if (p) this._notify('pedido_update', p);
                 return p;
             });
+            });
         });
     },
 
     registrarEventoPedido(id, evento, dados) {
         const nome = typeof evento === 'string' ? evento : ((evento || {}).evento || 'evento');
         const extra = typeof evento === 'object' ? evento : (dados || {});
-        return this._ref('pedidos/' + id).once('value').then(snap => {
+        return this._resolvePedidoRef(id).then(ref => {
+            if (!ref) return null;
+            return ref.once('value').then(snap => {
             const p = snap.val();
             if (!p) return null;
             const item = this._evento(extra.status || p.status, { ...extra, evento: nome });
-            const eventRef = this._ref('pedidos/' + id + '/timeline').push();
+            const eventRef = ref.child('timeline').push();
             return eventRef.set(item).then(() => {
-                return this._ref('pedidos/' + id).update({ updatedAt: item.em }).then(() => {
+                return ref.update({ updatedAt: item.em }).then(() => {
                     this._notify('pedido_update', { ...p, updatedAt: item.em });
                     return item;
                 });
+            });
             });
         });
     },
@@ -138,8 +155,8 @@ const DBRemote = {
 
     updateMotoboyPos(id, lat, lng) {
         const pos = { lat, lng, t: Date.now() };
-        // Salva em DOIS caminhos: pos (com timestamp) e lat/lng direto (pra ler fácil)
-        this._ref('motoboys/' + this._motoboyKey(id)).update({ lat, lng, pos });
+        // Salva em DOIS caminhos: pos (com timestamp) e lat/lng direto (pra ler fácil).
+        return this._ref('motoboys/' + this._motoboyKey(id)).update({ lat, lng, pos });
     },
 
     // === TRACKING em tempo real ===
@@ -156,8 +173,9 @@ const DBRemote = {
 
     // === PEDIDOS em tempo real ===
     onPedidoChange(id, callback) {
-        this._ref('pedidos/' + id).on('value', snap => {
-            callback(snap.val());
+        this._resolvePedidoRef(id).then(ref => {
+            if (!ref) return;
+            ref.on('value', snap => callback(snap.val()));
         });
     },
 
@@ -211,6 +229,79 @@ const DBRemote = {
         });
     },
 
+    // === ESTOQUE / FICHA TÉCNICA / FINANCEIRO / AUDITORIA ===
+    async getEstoqueAsync() {
+        const snap = await this._ref('gestao/estoque').once('value');
+        return Object.values(snap.val() || {});
+    },
+    async salvarEstoque(item) {
+        const id = item.id || ('stk_' + Date.now());
+        const novo = { ...item, id, atualizado: new Date().toISOString() };
+        await this._ref('gestao/estoque/' + id).set(novo);
+        return novo;
+    },
+    async movimentarEstoque(stockId, movimento) {
+        const ref = this._ref('gestao/estoque/' + stockId);
+        const movRef = this._ref('gestao/movimentacoes').push();
+        const agora = new Date().toISOString();
+        let resultado = null;
+        const tx = await ref.transaction(atual => {
+            if (!atual) return;
+            const qtd = Number(movimento.quantidade || 0);
+            if (!Number.isFinite(qtd) || qtd <= 0) return;
+            const delta = movimento.tipo === 'saida' ? -qtd : qtd;
+            const saldo = Number(atual.saldo || 0) + delta;
+            if (saldo < 0) return;
+            resultado = { ...atual, saldo, atualizado: agora };
+            return resultado;
+        });
+        if (!tx.committed || !resultado) throw new Error('Movimentação de estoque não pôde ser aplicada.');
+        await movRef.set({ id: movRef.key, stockId, ...movimento, em: agora });
+        return resultado;
+    },
+    async getFichasTecnicasAsync() {
+        const snap = await this._ref('gestao/fichasTecnicas').once('value');
+        return snap.val() || {};
+    },
+    async salvarFichaTecnica(produtoId, ficha) {
+        const data = { produtoId, ...ficha, atualizado: new Date().toISOString() };
+        await this._ref('gestao/fichasTecnicas/' + produtoId).set(data);
+        return data;
+    },
+    async baixarEstoquePorPedido(pedido) {
+        if (!pedido || pedido.estoqueBaixadoEm || !Array.isArray(pedido.itens)) return { aplicado: false };
+        const fichas = await this.getFichasTecnicasAsync();
+        const movimentos = [];
+        for (const item of pedido.itens) {
+            const ficha = fichas[item.id];
+            if (!ficha || !Array.isArray(ficha.insumos)) continue;
+            for (const insumo of ficha.insumos) {
+                const qtd = Number(insumo.quantidade || 0) * Number(item.quantidade || item.qtd || 1);
+                if (qtd > 0) {
+                    await this.movimentarEstoque(insumo.stockId, { tipo: 'saida', quantidade: qtd, observacao: `Consumo do pedido ${pedido.id}`, origem: 'pedido', pedidoId: pedido.id });
+                    movimentos.push({ stockId: insumo.stockId, quantidade: qtd });
+                }
+            }
+        }
+        if (movimentos.length) {
+            const ref = await this._resolvePedidoRef(pedido.id);
+            if (ref) await ref.update({ estoqueBaixadoEm: new Date().toISOString(), estoqueMovimentos: movimentos });
+        }
+        return { aplicado: movimentos.length > 0, movimentos };
+    },
+    async registrarFinanceiro(transacao) {
+        const ref = this._ref('gestao/financeiro').push();
+        const data = { id: ref.key, criadoEm: new Date().toISOString(), status: 'registrado', ...transacao };
+        await ref.set(data);
+        return data;
+    },
+    async registrarAuditoria(evento) {
+        const ref = this._ref('gestao/auditoria').push();
+        const data = { id: ref.key, em: new Date().toISOString(), ...evento };
+        await ref.set(data);
+        return data;
+    },
+
     // === NOTIFICAÇÃO local ===
     _notify(tipo, data) {
         if (typeof window !== 'undefined') {
@@ -218,3 +309,6 @@ const DBRemote = {
         }
     }
 };
+
+// Exposição explícita para o bootloader e diagnóstico.
+window.DBRemote = DBRemote;
