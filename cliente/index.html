@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nonna Pizzaria — Cardápio</title>
-    <link rel="stylesheet" href="css/cliente-final.css?v=5">
+    <link rel="stylesheet" href="css/cliente-final.css?v=3">
+    <link rel="stylesheet" href="css/cliente-ux.css?v=1">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍕</text></svg>">
@@ -125,15 +126,23 @@
         <div class="form-grid">
             <div class="form-group full">
                 <label>Seu nome *</label>
-                <input type="text" id="cliNome" placeholder="João Silva">
+                <input type="text" id="cliNome" placeholder="João Silva" autocomplete="name">
             </div>
             <div class="form-group">
                 <label>Telefone *</label>
-                <input type="tel" id="cliTel" placeholder="(00) 90000-0000">
+                <input type="tel" id="cliTel" placeholder="(00) 90000-0000" autocomplete="tel">
             </div>
+            <div class="form-group full">
+                <label>Como receber? *</label>
+                <div class="tipo-pedido-options" role="group" aria-label="Como receber o pedido">
+                    <label class="tipo-pedido-option"><input type="radio" name="tipoPedido" value="delivery" checked> <span>🛵 Entrega</span></label>
+                    <label class="tipo-pedido-option"><input type="radio" name="tipoPedido" value="retirada"> <span>🏪 Retirar no local</span></label>
+                </div>
+            </div>
+            <div id="enderecoEntregaCampos" class="checkout-endereco-campos">
             <div class="form-group">
                 <label>CEP <span id="cepStatus" class="cep-status"></span></label>
-                <input type="text" id="cliCep" placeholder="00000-000" maxlength="9" inputmode="numeric">
+                <input type="text" id="cliCep" placeholder="00000-000" maxlength="9" inputmode="numeric" autocomplete="postal-code">
             </div>
             <div class="form-group cep-aviso full" id="cepAviso" style="display:none">
                 ⚠️ CEP não encontrado. Preencha o endereço manualmente.
@@ -162,14 +171,20 @@
                 <label>Referência (opcional)</label>
                 <input type="text" id="cliRef" placeholder="Casa amarela, próximo à padaria...">
             </div>
+            </div><!-- /enderecoEntregaCampos -->
             <div class="form-group full">
                 <label>Forma de pagamento *</label>
                 <select id="cliPag">
-                    <option value="Dinheiro">💵 Dinheiro (troco para ?)</option>
+                    <option value="Dinheiro">💵 Dinheiro</option>
                     <option value="Pix">📱 Pix</option>
                     <option value="Cartão na entrega (Débito)">💳 Cartão Débito</option>
                     <option value="Cartão na entrega (Crédito)">💳 Cartão Crédito</option>
                 </select>
+            </div>
+            <div class="form-group full" id="trocoGrupo" style="display:none">
+                <label for="cliTroco">Troco para quanto? <span class="campo-opcional">(opcional)</span></label>
+                <input type="number" id="cliTroco" min="0" step="0.01" inputmode="decimal" placeholder="Ex.: 100,00">
+                <small class="campo-ajuda">Deixe em branco se não precisar de troco.</small>
             </div>
             <div class="form-group full">
                 <label>Observações</label>
@@ -209,7 +224,7 @@
 <div id="toastContainer"></div>
 
 <script src="../js/firebase/config.js?v=11"></script>
-<script src="../js/firebase/loader.js?v=12"></script>
+<script src="../js/firebase/loader.js?v=11"></script>
 <script src="../js/utils-endereco.js?v=1"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </body>
