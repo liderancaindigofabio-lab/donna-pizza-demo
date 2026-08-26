@@ -3,20 +3,12 @@
    - Abas: Pedidos + Cardápio
    - Card de cliente clicável (mostra histórico)
    - Mostrar motoboy em todos os status
-
-   v2.1 — CORREÇÕES:
-   - init() robusto: espera DB estar pronto
-   - renderRelogio: checa se elemento existe antes de mexer
-   - renderFila: SEMPRE re-renderiza ao receber pedido_update
-   - marcarEntregue: força renderFila() após update
-   - filtroStatus: começa em "todos" pra mostrar tudo
    ============================================ */
 
-let filtroStatus = 'todos';  // v2.1: começa em "todos" pra mostrar pedidos existentes
+let filtroStatus = 'novo';
 let pedidoSelecionado = null;
 let motoboySelecionado = null;
 let abaAtiva = 'pedidos';
-let _dbReady = false;
 
 // Coordenadas da pizzaria (Atalaia - Aracaju/SE)
 // Av. Melício Machado, 1060 - Atalaia, Aracaju - SE, 49037-440
@@ -40,65 +32,30 @@ function calcularDistanciaHaversine(lat1, lng1, lat2, lng2) {
 
 // ===== INIT =====
 function init() {
-    console.log('[painel] init() chamado');
-
-    // Espera DB estar pronto antes de qualquer coisa
-    if (typeof DB === 'undefined') {
-        console.warn('⚠️ DB não definido, aguardando...');
-        setTimeout(init, 200);
-        return;
-    }
-
-    // Se o DB já tá pronto, inicializa
-    if (DB._ready) {
-        console.log('[painel] DB já _ready, _startApp()');
-        _startApp();
-    } else if (typeof DB.onReady === 'function') {
-        console.log('[painel] esperando DB.onReady()');
-        DB.onReady(() => _startApp());
-    } else {
-        // DB.init() está em progresso
-        console.log('[painel] DB.init() em progresso, esperando 1.5s');
-        setTimeout(_startApp, 1500);
-    }
-}
-
-function _startApp() {
-    _dbReady = true;
-    console.log('🚀 Painel iniciando com DB pronto');
-
-    // v2.1: checa se os elementos DOM existem antes de manipular
-    if (document.getElementById('relogio')) {
-        renderRelogio();
-        setInterval(renderRelogio, 1000);
-    }
-
+    renderRelogio();
+    setInterval(renderRelogio, 1000);
     renderFila();
     renderMetricas();
     renderContadores();
 
     DB.onChange(({ tipo, data }) => {
-        if (tipo === 'pedido_novo' && data) {
-            notificar(`🍕 Novo pedido de ${data.cliente?.nome || 'cliente'}!`, 'success');
+        if (tipo === 'pedido_novo') {
+            notificar(`🍕 Novo pedido de ${data.cliente.nome}!`, 'success');
             tocarSom();
         }
         if (tipo === 'cardapio_update' && abaAtiva === 'cardapio') {
             renderEditorCardapio();
         }
-        // v2.1: SEMPRE re-renderiza a fila quando há update
-        if (tipo === 'pedido_update' || tipo === 'pedido_novo' || tipo === 'storage_update') {
-            renderFila();
-            renderMetricas();
-            renderContadores();
-        }
+        renderFila();
+        renderMetricas();
+        renderContadores();
     });
 }
 
 function renderRelogio() {
-    const el = document.getElementById('relogio');
-    if (!el) return;  // v2.1: checagem defensiva
     const agora = new Date();
-    el.textContent = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('relogio').textContent =
+        agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
 // ===== ABAS =====
@@ -114,19 +71,11 @@ function trocarAba(aba) {
 // ===== FILA DE PEDIDOS =====
 function renderFila() {
     const container = document.getElementById('filaPedidos');
-    if (!container) return;  // v2.1: checagem defensiva
-
     let pedidos = DB.getPedidos();
 
-    // v2.1: normaliza comparação de id (pode vir como número ou string)
     if (filtroStatus !== 'todos') {
         pedidos = pedidos.filter(p => p.status === filtroStatus);
     }
-
-    // v2.1: atualiza aba ativa do filtro
-    document.querySelectorAll('.status-tab').forEach(t => {
-        t.classList.toggle('active', t.dataset.status === filtroStatus);
-    });
 
     if (pedidos.length === 0) {
         container.innerHTML = `
@@ -142,19 +91,6 @@ function renderFila() {
 }
 
 function renderPedidoCard(p) {
-    // v2.1: normaliza dados do cliente (alguns pedidos não têm `cliente` aninhado)
-    const cliente = p.cliente || {
-        nome: p.clienteNome || 'Cliente',
-        tel: p.clienteTel || '',
-        end: p.endereco || '',
-        pag: p.pagamento || '',
-        obs: p.obs || ''
-    };
-    if (p.clienteTel && !p.cliente) {
-        // Fallback: usa campos diretos
-        cliente.tel = p.clienteTel;
-    }
-
     const minutos = Math.floor((Date.now() - new Date(p.criadoEm).getTime()) / 60000);
     const hora = new Date(p.criadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
@@ -167,7 +103,7 @@ function renderPedidoCard(p) {
         cancelado: 'CANCELADO',
     }[p.status] || p.status.toUpperCase();
 
-    const itensHtml = (p.itens || []).map(it => {
+    const itensHtml = p.itens.map(it => {
         let detalhe = '';
         if (it.sabores && it.sabores.length) {
             detalhe = '🍕 ' + it.sabores.join(' + ');
@@ -199,12 +135,12 @@ function renderPedidoCard(p) {
     }
 
     // Cliente: total de pedidos + total gasto (se histórico)
-    const tel = (cliente.tel || '').replace(/\D/g, '');
+    const tel = (p.cliente.tel || '').replace(/\D/g, '');
     const stats = tel ? DB.getEstatisticasCliente(tel) : null;
     let clienteHistorico = '';
     if (stats && stats.total > 1) {
         clienteHistorico = `
-        <button class="cliente-historico-btn" onclick="abrirCliente('${cliente.tel}')" title="Ver histórico">
+        <button class="cliente-historico-btn" onclick="abrirCliente('${p.cliente.tel}')" title="Ver histórico">
             🏆 ${stats.total}º pedido • ${BRL(stats.gastoTotal)} total
         </button>`;
     } else if (stats && stats.total === 1) {
@@ -215,18 +151,18 @@ function renderPedidoCard(p) {
     if (p.status === 'novo') {
         actionsHtml = `
             <button class="btn-acao" onclick="aceitarPedido(${p.id})">✓ Aceitar</button>
-            ${cliente.tel ? `<button class="btn-acao whatsapp" onclick="contatarCliente('${cliente.tel}')" title="WhatsApp">📱</button>` : ''}
+            <button class="btn-acao whatsapp" onclick="contatarCliente('${p.cliente.tel}')" title="WhatsApp">📱</button>
             <button class="btn-acao cancelar" onclick="cancelarPedido(${p.id})" title="Cancelar">✕</button>
         `;
     } else if (p.status === 'preparando') {
         actionsHtml = `
             <button class="btn-acao" onclick="marcarPronto(${p.id})">🍕 Marcar como pronto</button>
-            ${cliente.tel ? `<button class="btn-acao whatsapp" onclick="contatarCliente('${cliente.tel}')">📱</button>` : ''}
+            <button class="btn-acao whatsapp" onclick="contatarCliente('${p.cliente.tel}')">📱</button>
         `;
     } else if (p.status === 'pronto') {
         actionsHtml = `
             <button class="btn-acao motoboy" onclick="abrirDespacho(${p.id})">🛵 Despachar motoboy</button>
-            ${cliente.tel ? `<button class="btn-acao whatsapp" onclick="contatarCliente('${cliente.tel}')">📱</button>` : ''}
+            <button class="btn-acao whatsapp" onclick="contatarCliente('${p.cliente.tel}')">📱</button>
         `;
     } else if (p.status === 'em_entrega') {
         const motoboy = DB.getMotoboy(p.motoboyId);
@@ -239,23 +175,20 @@ function renderPedidoCard(p) {
         actionsHtml = `<button class="btn-acao entregue" disabled>✓ Pedido finalizado</button>`;
     }
 
-    const telWhatsapp = cliente.tel ? cliente.tel.replace(/\D/g, '') : '';
-    const telDisplay = cliente.tel || '—';
-
     return `
     <div class="pedido-card ${p.status}">
         <div class="pedido-card-header">
             <div>
-                <div class="pedido-id">#${String(p.id).slice(-5)}</div>
+                <div class="pedido-id">#${p.id.toString().slice(-5)}</div>
                 <div class="pedido-hora">${hora} • há ${minutos} min</div>
             </div>
             <span class="pedido-status-badge ${p.status}">${statusLabel}</span>
         </div>
 
         <div class="pedido-cliente">
-            <div class="cliente-nome">${cliente.nome}</div>
-            <div class="cliente-endereco">📍 ${formatarEndereco(cliente)}</div>
-            ${telWhatsapp ? `<a class="cliente-tel" href="https://wa.me/55${telWhatsapp}" target="_blank">📞 ${telDisplay}</a>` : `<span class="cliente-tel">📞 ${telDisplay}</span>`}
+            <div class="cliente-nome">${p.cliente.nome}${p.mesa ? ` <span class="mesa-badge">🍽️ Mesa ${p.mesa}</span>` : ''}</div>
+            <div class="cliente-endereco">📍 ${formatarEndereco(p.cliente)}${p.contaFechada ? ` <span class="mesa-badge">✓ Conta fechada (${p.formaPagamento || 'paga'})</span>` : ''}</div>
+            <a class="cliente-tel" href="https://wa.me/55${p.cliente.tel.replace(/\D/g, '')}" target="_blank">📞 ${p.cliente.tel}</a>
             ${clienteHistorico}
         </div>
 
@@ -263,12 +196,12 @@ function renderPedidoCard(p) {
             ${itensHtml}
         </div>
 
-        ${cliente.obs ? `<div class="peduto-obs"><strong>Obs:</strong> ${cliente.obs}</div>` : ''}
+        ${p.cliente.obs ? `<div class="peduto-obs"><strong>Obs:</strong> ${p.cliente.obs}</div>` : ''}
 
         ${motoboyInfo}
 
         <div class="pedido-total">
-            <span class="total-label">${cliente.pag}</span>
+            <span class="total-label">${p.cliente.pag}</span>
             <span class="total-valor">${BRL(p.total)}</span>
         </div>
 
@@ -539,27 +472,16 @@ function fecharMapaRota() {
 }
 
 function marcarEntregue(id) {
-    // v2.1: força update direto no cache local pra UI atualizar na hora
-    const pedido = DB.getPedidos().find(p => p.id === id || String(p.id) === String(id));
-    if (!pedido) {
-        console.error('❌ Pedido não encontrado:', id);
-        notificar('❌ Erro: pedido não encontrado', 'error');
-        return;
-    }
-    // Atualiza Firebase (que vai disparar listener e atualizar cache)
     DB.updatePedido(id, { status: 'entregue', entregueEm: new Date().toISOString() });
-    // Libera o motoboy se não tem mais pedidos
-    if (pedido.motoboyId) {
+    const pedido = DB.getPedidos().find(p => p.id === id);
+    if (pedido && pedido.motoboyId) {
         const restantes = DB.getPedidosMotoboy(pedido.motoboyId);
         if (restantes.length === 0) {
             DB.updateMotoboy(pedido.motoboyId, { status: 'disponivel' });
         }
     }
     notificar('🎉 Pedido entregue!', 'success');
-    // v2.1: re-renderiza FILA (não só contadores) pra o pedido sumir
-    renderFila();
     renderContadores();
-    renderMetricas();
 }
 
 function cancelarPedido(id) {
@@ -572,23 +494,7 @@ function cancelarPedido(id) {
 function abrirDespacho(pedidoId) {
     pedidoSelecionado = pedidoId;
     motoboySelecionado = null;
-    // BUGFIX: comparação tolerante (id pode vir como number ou string)
-    const idNum = typeof pedidoId === 'string' ? parseInt(pedidoId) : pedidoId;
-    const pedido = DB.getPedidos().find(p =>
-        p.id === pedidoId || p.id === idNum || String(p.id) === String(pedidoId)
-    );
-    if (!pedido) {
-        notificar('❌ Pedido não encontrado', 'error');
-        return;
-    }
-    // BUGFIX: normaliza cliente (alguns pedidos não têm `cliente` aninhado)
-    const cliente = pedido.cliente || {
-        nome: pedido.clienteNome || 'Cliente',
-        tel: pedido.clienteTel || '',
-        end: pedido.endereco || '',
-        pag: pedido.pagamento || '',
-        obs: pedido.obs || ''
-    };
+    const pedido = DB.getPedidos().find(p => p.id === pedidoId);
 
     const motoboys = DB.getMotoboys();
     const motoboysHtml = motoboys.map(m => {
@@ -597,11 +503,11 @@ function abrirDespacho(pedidoId) {
         const isDisponivel = m.status === 'disponivel';
         return `
         <div class="motoboy-card ${!isDisponivel && qtdRota === 0 ? 'indisponivel' : ''}" onclick="${qtdRota === 0 && !isDisponivel ? '' : `selecionarMotoboy(${m.id})`}" data-motoboy="${m.id}">
-            <div class="motoboy-avatar">${m.foto || '🛵'}</div>
+            <div class="motoboy-avatar">${m.foto}</div>
             <div class="motoboy-info">
-                <div class="motoboy-nome">${m.nome || 'Sem nome'}</div>
-                <div class="motoboy-moto">${m.moto || ''}</div>
-                <div class="motoboy-moto">📞 ${m.telefone || ''}</div>
+                <div class="motoboy-nome">${m.nome}</div>
+                <div class="motoboy-moto">${m.moto}</div>
+                <div class="motoboy-moto">📞 ${m.telefone}</div>
                 ${qtdRota > 0 ? `<div class="motoboy-carga">📦 ${qtdRota} entrega${qtdRota > 1 ? 's' : ''} em rota</div>` : ''}
             </div>
             <span class="motoboy-status-tag ${m.status}">${
@@ -622,11 +528,11 @@ function abrirDespacho(pedidoId) {
     document.getElementById('despachoBody').innerHTML = `
         ${dicaAcumular}
         <div class="despacho-info-pedido">
-            <h4>📦 Pedido #${String(pedido.id).slice(-5)}</h4>
-            <p><strong>Cliente:</strong> ${cliente.nome}</p>
-            <p><strong>Endereço:</strong> ${formatarEndereco(cliente)}</p>
-            <p><strong>Itens:</strong> ${(pedido.itens || []).length} ${(pedido.itens || []).length === 1 ? 'item' : 'itens'}</p>
-            <p><strong>Total:</strong> ${BRL(pedido.total || 0)}</p>
+            <h4>📦 Pedido #${pedido.id.toString().slice(-5)}</h4>
+            <p><strong>Cliente:</strong> ${pedido.cliente.nome}</p>
+            <p><strong>Endereço:</strong> ${formatarEndereco(pedido.cliente)}</p>
+            <p><strong>Itens:</strong> ${pedido.itens.length} ${pedido.itens.length === 1 ? 'item' : 'itens'}</p>
+            <p><strong>Total:</strong> ${BRL(pedido.total)}</p>
         </div>
         <h4 style="color:var(--gold);margin-bottom:10px;">Escolha o motoboy:</h4>
         ${motoboysHtml}
@@ -640,36 +546,25 @@ function abrirDespacho(pedidoId) {
 function selecionarMotoboy(id) {
     motoboySelecionado = id;
     document.querySelectorAll('.motoboy-card').forEach(c => c.classList.remove('selected'));
-    const el = document.querySelector(`[data-motoboy="${id}"]`);
-    if (el) el.classList.add('selected');
-    const btn = document.getElementById('btnConfirmarDespacho');
-    if (btn) btn.disabled = false;
+    document.querySelector(`[data-motoboy="${id}"]`).classList.add('selected');
+    document.getElementById('btnConfirmarDespacho').disabled = false;
 }
 
 function confirmarDespacho() {
     if (!pedidoSelecionado || !motoboySelecionado) return;
-    // BUGFIX: garantir que o id é número para updatePedido
-    const pedidoIdNum = typeof pedidoSelecionado === 'string' ? parseInt(pedidoSelecionado) : pedidoSelecionado;
-    DB.updatePedido(pedidoIdNum, {
+    DB.updatePedido(pedidoSelecionado, {
         status: 'em_entrega',
         motoboyId: motoboySelecionado,
     });
     DB.updateMotoboy(motoboySelecionado, { status: 'entregando' });
     const motoboy = DB.getMotoboy(motoboySelecionado);
-    if (motoboy) {
-        const qtdRota = DB.getPedidosMotoboy(motoboySelecionado).length;
-        const msg = qtdRota > 1
-            ? `🛵 ${qtdRota} entregas em rota com ${motoboy.nome}!`
-            : `🛵 Despachado para ${motoboy.nome}!`;
-        notificar(msg, 'success');
-    } else {
-        notificar('🛵 Despachado!', 'success');
-    }
+    const qtdRota = DB.getPedidosMotoboy(motoboySelecionado).length;
+    const msg = qtdRota > 1
+        ? `🛵 ${qtdRota} entregas em rota com ${motoboy.nome}!`
+        : `🛵 Despachado para ${motoboy.nome}!`;
+    notificar(msg, 'success');
     fecharDespacho();
-    // v2.1: re-renderiza fila explicitamente
-    if (typeof renderFila === 'function') renderFila();
-    if (typeof renderMetricas === 'function') renderMetricas();
-    if (typeof renderContadores === 'function') renderContadores();
+    filtrarStatus('em_entrega');
 }
 
 function fecharDespacho() {
@@ -764,36 +659,19 @@ function contatarMotoboy(tel) {
 
 // ===== MÉTRICAS =====
 function renderMetricas() {
-    // v2.1: checagem defensiva
-    if (typeof DB === 'undefined' || !DB.getMetricasHoje) return;
-    try {
-        const m = DB.getMetricasHoje();
-        const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-        set('metTotal', m.total);
-        set('metFat', BRL(m.faturamento));
-        set('metAndamento', m.emAndamento);
-        set('metTicket', BRL(m.ticketMedio));
-    } catch (e) {
-        console.warn('Erro em renderMetricas:', e.message);
-    }
+    const m = DB.getMetricasHoje();
+    document.getElementById('metTotal').textContent = m.total;
+    document.getElementById('metFat').textContent = BRL(m.faturamento);
+    document.getElementById('metAndamento').textContent = m.emAndamento;
+    document.getElementById('metTicket').textContent = BRL(m.ticketMedio);
 }
 
 function renderContadores() {
-    // v2.1: checagem defensiva — pode não ter DB pronto ainda
-    if (typeof DB === 'undefined' || !DB.getMetricasHoje) return;
-    try {
-        const m = DB.getMetricasHoje();
-        const cnt = (id) => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = (m.porStatus[id.replace('cnt-', '')] || 0);
-        };
-        cnt('cnt-novo');
-        cnt('cnt-preparando');
-        cnt('cnt-pronto');
-        cnt('cnt-em_entrega');
-    } catch (e) {
-        console.warn('Erro em renderContadores:', e.message);
-    }
+    const m = DB.getMetricasHoje();
+    document.getElementById('cnt-novo').textContent = m.porStatus.novo;
+    document.getElementById('cnt-preparando').textContent = m.porStatus.preparando;
+    document.getElementById('cnt-pronto').textContent = m.porStatus.pronto;
+    document.getElementById('cnt-em_entrega').textContent = m.porStatus.em_entrega;
 }
 
 // ============================================
