@@ -64,7 +64,7 @@ const DBRemote = {
             const patch = { ...(updates || {}), updatedAt: agora };
             const mudouStatus = patch.status && patch.status !== anterior.status;
             if (mudouStatus) {
-                const evento = this._evento(patch.status, { evento: 'status_alterado' });
+                const evento = this._evento(patch.status, { evento: patch.status === 'cancelado' ? 'pedido_cancelado' : 'status_alterado', motivoCancelamento: patch.motivoCancelamento || null, createdBy: patch.createdBy || 'sistema' });
                 // Timeline é um mapa no Firebase: push evita colisões entre dispositivos.
                 const eventoRef = ref.child('timeline').push();
                 patch['timeline/' + eventoRef.key] = evento;
@@ -96,6 +96,12 @@ const DBRemote = {
 
     atualizarStatusPedido(id, status, dados) {
         return this.updatePedido(id, { ...(dados || {}), status });
+    },
+
+    cancelarPedido(id, motivo, dados) {
+        const razao = String(motivo || '').trim();
+        if (!razao) return null;
+        return this.atualizarStatusPedido(id, 'cancelado', { ...(dados || {}), motivoCancelamento: razao, canceladoEm: new Date().toISOString() });
     },
 
     getPedidosCliente(telefone) {
