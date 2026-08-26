@@ -35,20 +35,6 @@ function garantirCoords(pedido) {
 
 // ===== INIT =====
 function init() {
-    if (typeof DB === 'undefined') {
-        setTimeout(init, 200);
-        return;
-    }
-    if (DB._ready) {
-        _startMotoboy();
-    } else if (typeof DB.onReady === 'function') {
-        DB.onReady(() => _startMotoboy());
-    } else {
-        setTimeout(init, 500);
-    }
-}
-
-function _startMotoboy() {
     const saved = localStorage.getItem('donna_motoboy_logado');
     if (saved) {
         motoboyAtual = parseInt(saved);
@@ -61,40 +47,45 @@ function _startMotoboy() {
     renderLogin();
 }
 
+const MOTOBOY_PASSWORD_HASH = 'cfa8dabd6587192c8807dbcbace372109f89c51c0b4437d219d4934e630a357a';
+async function hashSenha(value) {
+    const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+    return [...new Uint8Array(bytes)].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+
 function renderLogin() {
     const motoboys = DB.getMotoboys();
     document.getElementById('motoboyLoginList').innerHTML = motoboys.map(m => `
-        <div class="motoboy-login-item" onclick="login(${m.id})">
+        <form class="motoboy-login-item" onsubmit="login(event, ${m.id})">
             <div class="motoboy-avatar-small">${m.foto}</div>
-            <div class="mli-info">
-                <div class="mli-nome">${m.nome}</div>
-                <div class="mli-moto">${m.moto}</div>
-            </div>
-            <div class="mli-arrow">→</div>
-        </div>
+            <div class="mli-info"><div class="mli-nome">${m.nome}</div><div class="mli-moto">Usuário: ${m.nome}</div></div>
+            <input name="password" type="password" placeholder="Senha" autocomplete="current-password" required aria-label="Senha de ${m.nome}" style="max-width:130px">
+            <button class="mli-arrow" type="submit" aria-label="Entrar como ${m.nome}">→</button>
+        </form>
     `).join('');
 }
 
-function login(id) {
-    motoboyAtual = id;
-    localStorage.setItem('donna_motoboy_logado', id);
-    iniciarApp();
+function sairMotoboy(event) { event.preventDefault(); localStorage.removeItem('donna_motoboy_logado'); location.reload(); }
+
+async function login(event, id) {
+    event.preventDefault();
+    const senha = event.currentTarget.querySelector('input[name="password"]').value;
+    const button = event.currentTarget.querySelector('button');
+    button.disabled = true;
+    try {
+        if (await hashSenha(senha) !== MOTOBOY_PASSWORD_HASH) throw new Error('Senha inválida.');
+        motoboyAtual = id;
+        localStorage.setItem('donna_motoboy_logado', id);
+        iniciarApp();
+    } catch (e) { toast(e.message, 'error'); button.disabled = false; }
 }
 
 function iniciarApp() {
     const m = DB.getMotoboy(motoboyAtual);
-    if (!m) {
-        renderLogin();
-        return;
-    }
-    const loginEl = document.getElementById('loginScreen');
-    const appEl = document.getElementById('appScreen');
-    if (loginEl) loginEl.style.display = 'none';
-    if (appEl) appEl.style.display = 'block';
-    const avatar = document.getElementById('motoboyAvatar');
-    const nome = document.getElementById('motoboyNome');
-    if (avatar) avatar.textContent = m.foto || '🛵';
-    if (nome) nome.textContent = m.nome || '';
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display = 'block';
+    document.getElementById('motoboyAvatar').textContent = m.foto;
+    document.getElementById('motoboyNome').textContent = m.nome;
     atualizarStatusVisual();
     atualizarContadorEntregas();
     renderHistorico();
@@ -139,13 +130,7 @@ function toggleStatus() {
 function atualizarStatusVisual() {
     const m = DB.getMotoboy(motoboyAtual);
     const el = document.getElementById('statusToggle');
-    if (!el) return;
     const qtdRota = DB.getPedidosMotoboy(motoboyAtual).length;
-    if (!m) {
-        el.className = 'motoboy-status-toggle';
-        el.innerHTML = '<span class="status-dot"></span> Indisponível';
-        return;
-    }
     if (m.status === 'disponivel') {
         el.className = 'motoboy-status-toggle';
         el.innerHTML = '<span class="status-dot"></span> Disponível';
@@ -453,7 +438,6 @@ function calcularDistanciaHaversine(lat1, lon1, lat2, lon2) {
 // ===== LISTA DE PEDIDOS ATUAIS (a nova tela principal) =====
 function renderPedidosAtuais() {
     const container = document.getElementById('pedidoAtual');
-    if (!container) return;
     const pedidos = DB.getPedidosMotoboy(motoboyAtual);
 
     if (pedidos.length === 0) {
@@ -488,44 +472,31 @@ function renderPedidosAtuais() {
     const cardsHtml = ordenados.map((p, i) => {
         const ehProxima = i === 0;
         const minutos = Math.floor((Date.now() - new Date(p.criadoEm).getTime()) / 60000);
-        // BUGFIX: normaliza cliente (alguns pedidos não têm `cliente` aninhado)
-        const cliente = p.cliente || {
-            nome: p.clienteNome || 'Cliente',
-            tel: p.clienteTel || '',
-            end: p.endereco || '',
-            pag: p.pagamento || '',
-            obs: p.obs || ''
-        };
-        const itens = (p.itens || []).map(it => {
-            // BUGFIX: pizzas têm `sabores` e `tamanho`, não `tipo`
-            const desc = it.sabores ? it.sabores.join(' + ') : (it.tipo || '');
-            const tam = it.tamanho ? ' (' + it.tamanho + ')' : '';
-            return `
+        const itens = p.itens.map(it => `
             <div class="pac-item">
-                <span>${(it.nome || 'Item')}${tam} ${desc ? '- ' + desc : ''}</span>
-                <span>${BRL(it.preco || 0)}</span>
+                <span>${it.nome} (${it.tipo})</span>
+                <span>${BRL(it.preco)}</span>
             </div>
-        `;
-        }).join('');
+        `).join('');
 
         return `
         <div class="pedido-atual-card ${ehProxima ? 'proxima' : ''}">
             ${ehProxima ? '<div class="proxima-tag">📍 PRÓXIMA ENTREGA</div>' : ''}
             <div class="ordem-numero">${i + 1}</div>
             <div class="pac-header">
-                <span class="pac-id">#${String(p.id).slice(-5)}</span>
+                <span class="pac-id">#${p.id.toString().slice(-5)}</span>
                 <span class="pac-tempo">⏱️ há ${minutos} min</span>
             </div>
             <div class="pac-cliente">
-                <div class="pac-cliente-nome">${cliente.nome}</div>
-                <div class="pac-cliente-end">📍 ${formatarEndereco(cliente)}</div>
-                <a class="pac-cliente-tel" href="https://wa.me/55${(cliente.tel || '').replace(/\D/g, '')}" target="_blank">
-                    📞 ${cliente.tel || 'sem tel'}
+                <div class="pac-cliente-nome">${p.cliente.nome}</div>
+                <div class="pac-cliente-end">📍 ${formatarEndereco(p.cliente)}</div>
+                <a class="pac-cliente-tel" href="https://wa.me/55${p.cliente.tel.replace(/\D/g, '')}" target="_blank">
+                    📞 ${p.cliente.tel}
                 </a>
             </div>
             <div class="pac-itens">${itens}</div>
-            <div class="pac-total">${BRL(p.total || 0)} • ${cliente.pag || ''}</div>
-            ${cliente.obs ? `<div class="pac-obs"><strong>Obs:</strong> ${cliente.obs}</div>` : ''}
+            <div class="pac-total">${BRL(p.total)} • ${p.cliente.pag}</div>
+            ${p.cliente.obs ? `<div class="pac-obs"><strong>Obs:</strong> ${p.cliente.obs}</div>` : ''}
             <div class="pac-acoes">
                 <button class="btn-mb secondary" onclick="abrirNavegacao(${p.id})">🧭 Google Maps</button>
                 <button class="btn-mb secondary" onclick="abrirWaze(${p.id})">🟣 Waze</button>
@@ -540,7 +511,7 @@ function renderPedidosAtuais() {
     // Botão de navegação "ir pra primeira entrega"
     const irParaProxima = ordenados.length > 0 ? `
         <button class="btn-ir-proxima" onclick="irParaProximaEntrega()">
-            🧭 Navegar até a próxima entrega (${(ordenados[0].cliente?.nome || 'Cliente').split(' ')[0]})
+            🧭 Navegar até a próxima entrega (${ordenados[0].cliente.nome.split(' ')[0]})
         </button>
     ` : '';
 
@@ -553,10 +524,6 @@ function renderPedidosAtuais() {
 function irParaProximaEntrega() {
     const pedidos = DB.getPedidosMotoboy(motoboyAtual);
     if (pedidos.length === 0) return;
-    if (!markerMotoboy) {
-        toast('⚠️ Aguarde o mapa carregar', 'warning');
-        return;
-    }
     const pontoAtual = markerMotoboy.getLatLng();
     const pedidosComCoords = pedidos.map(garantirCoords);
     const ordenados = vizinhoMaisProximo(pontoAtual, pedidosComCoords);
@@ -600,11 +567,7 @@ function iniciarEntrega(id) {
 function ligarCliente(pedidoId) {
     const p = DB.getPedidos().find(x => x.id === pedidoId);
     if (!p) return;
-    const tel = (p.cliente?.tel || p.clienteTel || '').replace(/\D/g, '');
-    if (!tel) {
-        toast('❌ Cliente sem telefone', 'error');
-        return;
-    }
+    const tel = p.cliente.tel.replace(/\D/g, '');
     window.location.href = `tel:+55${tel}`;
 }
 
@@ -634,7 +597,6 @@ function atualizarContadorEntregas() {
 
 function renderHistorico() {
     const container = document.getElementById('historicoLista');
-    if (!container) return;
     const historico = DB.getPedidos().filter(p =>
         p.motoboyId === motoboyAtual && p.status === 'entregue'
     ).slice(0, 20);
@@ -644,19 +606,16 @@ function renderHistorico() {
         return;
     }
 
-    container.innerHTML = historico.map(p => {
-        const cliente = p.cliente || { nome: p.clienteNome || 'Cliente', end: p.endereco || '' };
-        return `
+    container.innerHTML = historico.map(p => `
         <div class="historico-item">
             <div class="historico-emoji">✅</div>
             <div class="historico-info">
-                <div class="historico-cliente">${cliente.nome}</div>
-                <div class="historico-end">${formatarEnderecoCurto(cliente)}</div>
+                <div class="historico-cliente">${p.cliente.nome}</div>
+                <div class="historico-end">${formatarEnderecoCurto(p.cliente)}</div>
             </div>
-            <span class="historico-valor">${BRL(p.total || 0)}</span>
+            <span class="historico-valor">${BRL(p.total)}</span>
         </div>
-        `;
-    }).join('');
+    `).join('');
 }
 
 // ===== TOAST =====
@@ -686,10 +645,5 @@ function tocarSom(tipo) {
 }
 
 const BRL = (v) => 'R$ ' + v.toFixed(2).replace('.', ',');
-
-function sair() {
-    localStorage.removeItem('donna_motoboy_logado');
-    location.reload();
-}
 
 document.addEventListener('DOMContentLoaded', init);
