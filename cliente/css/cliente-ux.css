@@ -1,0 +1,13 @@
+/* Melhorias de checkout e histórico — cliente Nonna */
+.tipo-pedido-options { display:flex; gap:10px; flex-wrap:wrap; }
+.tipo-pedido-option { flex:1; min-width:145px; cursor:pointer; }
+.tipo-pedido-option input { position:absolute; opacity:0; pointer-events:none; }
+.tipo-pedido-option span { display:block; border:1px solid var(--border); border-radius:10px; padding:11px 12px; text-align:center; background:#fff; font-weight:600; }
+.tipo-pedido-option input:checked + span { border-color:var(--green); background:rgba(47,74,44,.1); color:var(--green); box-shadow:0 0 0 2px rgba(47,74,44,.12); }
+.checkout-endereco-campos { display:contents; }
+.checkout-endereco-campos.retirada { display:none; }
+.campo-opcional { color:var(--text-soft); font-weight:400; font-size:.8em; }
+.campo-ajuda { display:block; color:var(--text-soft); font-size:.78rem; margin-top:4px; }
+.btn-repeat-order { width:100%; margin-top:11px; padding:9px 12px; border:1px solid var(--green); border-radius:9px; background:#fff; color:var(--green); font:600 .85rem Inter,sans-serif; cursor:pointer; }
+.btn-repeat-order:hover { background:var(--green); color:#fff; }
+@media (max-width:480px) { .tipo-pedido-option { min-width:100%; } }
