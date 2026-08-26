@@ -2,27 +2,16 @@
    FIREBASE STORAGE — Implementação remota do DB
    Mesma API do storage.js (localStorage), mas usa Firebase Realtime DB
    Funciona entre múltiplos dispositivos/celulares em tempo real
-
-   v2 — CORREÇÕES:
-   - Mantém o _id original no objeto do pedido (NÃO usa key Firebase como ID)
-   - Salva pedidos usando o próprio id como key Firebase
-   - updatePedido busca a key Firebase correta via _idMap
-   - onAllPedidosChange retorna o id original e a key
    ============================================ */
 
 const DBRemote = {
     // === PEDIDOS ===
     _ref(path) { return firebase.database().ref(path); },
 
-    // Mapa id -> key Firebase (pra achar o path certo no update)
-    _idMap: new Map(),
-
     getPedidos(callback) {
         this._ref('pedidos').once('value', snap => {
             const val = snap.val() || {};
-            this._syncIdMap(val);
-            const arr = Object.entries(val).map(([key, p]) => ({ ...p, _firebaseKey: key }));
-            arr.sort(this._sortPedidos);
+            const arr = Object.values(val).sort((a, b) => (b.id || 0) - (a.id || 0));
             callback(arr);
         });
     },
@@ -31,77 +20,103 @@ const DBRemote = {
     async getPedidosAsync() {
         const snap = await this._ref('pedidos').once('value');
         const val = snap.val() || {};
-        this._syncIdMap(val);
-        const arr = Object.entries(val).map(([key, p]) => ({ ...p, _firebaseKey: key }));
-        arr.sort(this._sortPedidos);
-        return arr;
+        return Object.values(val).sort((a, b) => (b.id || 0) - (a.id || 0));
     },
 
-    // Sync mapa id -> key Firebase
-    _syncIdMap(val) {
-        this._idMap = new Map();
-        Object.entries(val).forEach(([key, p]) => {
-            if (p && p.id != null) {
-                this._idMap.set(String(p.id), key);
-            }
-        });
+    _normalizarPedido(pedido) {
+        const p = { ...(pedido || {}) };
+        const ts = new Date().toISOString();
+        const origem = p.origem || p.canal || 'cliente';
+        p.origem = origem;
+        p.canal = p.canal || origem;
+        p.clienteTelIndex = p.clienteTelIndex || (p.cliente && p.cliente.tel ? String(p.cliente.tel).replace(/\D/g, '') : '');
+        p.createdBy = p.createdBy || (origem === 'salao' ? 'garcom' : origem);
+        p.status = p.status || 'novo';
+        ['subtotal', 'taxa', 'desconto', 'total'].forEach(k => { p[k] = p[k] == null || Number.isNaN(Number(p[k])) ? 0 : Number(p[k]); });
+        p.criadoEm = p.criadoEm || p.createdAt || ts;
+        p.createdAt = p.createdAt || p.criadoEm;
+        p.updatedAt = p.updatedAt || p.criadoEm;
+        if (!Array.isArray(p.timeline) || !p.timeline.length) p.timeline = [{ evento: 'pedido_criado', status: p.status, em: p.criadoEm, createdAt: p.criadoEm, createdBy: p.createdBy }];
+        if (p.motoboyId === undefined) p.motoboyId = null;
+        if (p.rota === undefined) p.rota = null;
+        return p;
     },
 
-    // Sort seguro: trata id como número quando possível
-    _sortPedidos(a, b) {
-        const aId = typeof a.id === 'number' ? a.id : parseInt(a.id) || 0;
-        const bId = typeof b.id === 'number' ? b.id : parseInt(b.id) || 0;
-        return bId - aId;
+    _evento(status, dados) {
+        const agora = new Date().toISOString();
+        return { ...(dados || {}), evento: (dados && dados.evento) || 'status_alterado', status: status || (dados && dados.status) || null, em: (dados && dados.em) || agora, createdAt: (dados && dados.createdAt) || agora, createdBy: (dados && dados.createdBy) || 'sistema' };
     },
 
     addPedido(pedido) {
-        pedido.id = pedido.id || Date.now();
-        pedido.criadoEm = pedido.criadoEm || new Date().toISOString();
-        pedido.status = pedido.status || 'novo';
-        pedido.motoboyId = pedido.motoboyId || null;
-        pedido.rota = pedido.rota || null;
-        // USA O PRÓPRIO ID COMO KEY (consistência com updatePedido)
-        this._ref('pedidos/' + pedido.id).set(pedido);
-        this._idMap.set(String(pedido.id), String(pedido.id));
-        this._notify('pedido_novo', pedido);
-        return pedido;
+        const normalizado = this._normalizarPedido(pedido);
+        normalizado.id = Date.now();
+        this._ref('pedidos/' + normalizado.id).set(normalizado);
+        this._notify('pedido_novo', normalizado);
+        return normalizado;
     },
 
     updatePedido(id, updates) {
-        const idStr = String(id);
-        // Primeiro tenta achar pela key Firebase (caso exista)
-        let key = this._idMap.get(idStr);
-        // Se não tem, tenta usar o próprio id (assumindo que foi salvo com id como key)
-        if (!key) {
-            key = idStr;
-        }
-        // Validação: se updates tem id, mantém
-        const safeUpdates = { ...updates };
-        this._ref('pedidos/' + key).update(safeUpdates);
-        // Atualiza o mapa com a key
-        this._idMap.set(idStr, key);
-        // Notifica com o pedido completo
-        this._ref('pedidos/' + key).once('value', snap => {
-            const p = snap.val();
-            if (p) {
-                this._notify('pedido_update', p);
+        const ref = this._ref('pedidos/' + id);
+        return ref.once('value').then(snap => {
+            const anterior = snap.val();
+            if (!anterior) return null;
+            const agora = new Date().toISOString();
+            const patch = { ...(updates || {}), updatedAt: agora };
+            const mudouStatus = patch.status && patch.status !== anterior.status;
+            if (mudouStatus) {
+                const evento = this._evento(patch.status, { evento: 'status_alterado' });
+                // Timeline é um mapa no Firebase: push evita colisões entre dispositivos.
+                const eventoRef = ref.child('timeline').push();
+                patch['timeline/' + eventoRef.key] = evento;
             }
+            return ref.update(patch).then(() => ref.once('value')).then(finalSnap => {
+                const p = finalSnap.val();
+                if (p) this._notify('pedido_update', p);
+                return p;
+            });
         });
+    },
+
+    registrarEventoPedido(id, evento, dados) {
+        const nome = typeof evento === 'string' ? evento : ((evento || {}).evento || 'evento');
+        const extra = typeof evento === 'object' ? evento : (dados || {});
+        return this._ref('pedidos/' + id).once('value').then(snap => {
+            const p = snap.val();
+            if (!p) return null;
+            const item = this._evento(extra.status || p.status, { ...extra, evento: nome });
+            const eventRef = this._ref('pedidos/' + id + '/timeline').push();
+            return eventRef.set(item).then(() => {
+                return this._ref('pedidos/' + id).update({ updatedAt: item.em }).then(() => {
+                    this._notify('pedido_update', { ...p, updatedAt: item.em });
+                    return item;
+                });
+            });
+        });
+    },
+
+    atualizarStatusPedido(id, status, dados) {
+        return this.updatePedido(id, { ...(dados || {}), status });
     },
 
     getPedidosCliente(telefone) {
         return new Promise(resolve => {
             const tel = (telefone || '').replace(/\D/g, '');
-            this._ref('pedidos').orderByChild('clienteTelIndex').equalTo(tel).once('value', snap => {
+            // Lê a coleção para manter compatibilidade com pedidos legados que
+            // ainda não possuem clienteTelIndex.
+            this._ref('pedidos').once('value', snap => {
                 const val = snap.val() || {};
-                const arr = Object.values(val).map(p => ({ ...p }));
-                arr.sort(this._sortPedidos);
+                const arr = Object.values(val).filter(p => p && (
+                    p.clienteTelIndex === tel ||
+                    (p.cliente && p.cliente.tel && String(p.cliente.tel).replace(/\D/g, '') === tel)
+                )).sort((a, b) => (b.id || 0) - (a.id || 0));
                 resolve(arr);
             });
         });
     },
 
     // === MOTOBOYS ===
+    // Converte ID numérico (1, 2, 3) em chave Firebase ("mb_1", "mb_2", "mb_3")
+    // Necessário porque chaves numéricas viram arrays no Firebase
     _motoboyKey(id) { return 'mb_' + id; },
 
     getMotoboysAsync() {
@@ -117,10 +132,12 @@ const DBRemote = {
 
     updateMotoboyPos(id, lat, lng) {
         const pos = { lat, lng, t: Date.now() };
+        // Salva em DOIS caminhos: pos (com timestamp) e lat/lng direto (pra ler fácil)
         this._ref('motoboys/' + this._motoboyKey(id)).update({ lat, lng, pos });
     },
 
     // === TRACKING em tempo real ===
+    // Listener que dispara toda vez que a posição de QUALQUER motoboy muda
     onMotoboyChange(id, callback) {
         this._ref('motoboys/' + this._motoboyKey(id)).on('value', snap => {
             callback(snap.val());
@@ -133,25 +150,19 @@ const DBRemote = {
 
     // === PEDIDOS em tempo real ===
     onPedidoChange(id, callback) {
-        const idStr = String(id);
-        const key = this._idMap.get(idStr) || idStr;
-        this._ref('pedidos/' + key).on('value', snap => {
+        this._ref('pedidos/' + id).on('value', snap => {
             callback(snap.val());
         });
     },
 
     offPedidoChange(id) {
-        const idStr = String(id);
-        const key = this._idMap.get(idStr) || idStr;
-        this._ref('pedidos/' + key).off();
+        this._ref('pedidos/' + id).off();
     },
 
     onAllPedidosChange(callback) {
         this._ref('pedidos').on('value', snap => {
             const val = snap.val() || {};
-            this._syncIdMap(val);
-            const arr = Object.entries(val).map(([key, p]) => ({ ...p, _firebaseKey: key }));
-            arr.sort(this._sortPedidos);
+            const arr = Object.values(val).sort((a, b) => (b.id || 0) - (a.id || 0));
             callback(arr);
         });
     },
