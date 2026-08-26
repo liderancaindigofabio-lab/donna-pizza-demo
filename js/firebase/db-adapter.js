@@ -244,7 +244,7 @@ const DB = {
         const agora = new Date().toISOString();
         const atualizado = { ...anterior, ...(updates || {}), updatedAt: agora };
         if (updates && updates.status && updates.status !== anterior.status) {
-            atualizado.timeline = [...(Array.isArray(anterior.timeline) ? anterior.timeline : []), this._novoEventoPedido(updates.status, { evento: 'status_alterado' })];
+            atualizado.timeline = [...(Array.isArray(anterior.timeline) ? anterior.timeline : []), this._novoEventoPedido(updates.status, { evento: updates.status === 'cancelado' ? 'pedido_cancelado' : 'status_alterado', motivoCancelamento: updates.motivoCancelamento || null, createdBy: updates.createdBy || 'sistema' })];
         }
         pedidos[idx] = atualizado;
         localStorage.setItem(this.KEY_PEDIDOS, JSON.stringify(pedidos));
@@ -270,6 +270,17 @@ const DB = {
 
     atualizarStatusPedido(id, status, dados) {
         return this.updatePedido(id, { ...(dados || {}), status });
+    },
+
+    // Cancela com motivo obrigatório e deixa o motivo na timeline central.
+    cancelarPedido(id, motivo, dados) {
+        const razao = String(motivo || '').trim();
+        if (!razao) return null;
+        return this.atualizarStatusPedido(id, 'cancelado', {
+            ...(dados || {}),
+            motivoCancelamento: razao,
+            canceladoEm: new Date().toISOString()
+        });
     },
 
     getPedidosCliente(telefone) {
