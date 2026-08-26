@@ -11,7 +11,11 @@ const DBRemote = {
     getPedidos(callback) {
         this._ref('pedidos').once('value', snap => {
             const val = snap.val() || {};
-            const arr = Object.values(val).sort((a, b) => (b.id || 0) - (a.id || 0));
+            const arr = Object.values(val).sort((a, b) => {
+                const bt = Date.parse(b.criadoEm || b.createdAt || b.updatedAt || '') || Number(b.id) || 0;
+                const at = Date.parse(a.criadoEm || a.createdAt || a.updatedAt || '') || Number(a.id) || 0;
+                return bt - at;
+            });
             callback(arr);
         });
     },
@@ -131,7 +135,7 @@ const DBRemote = {
                 const arr = Object.values(val).filter(p => p && (
                     p.clienteTelIndex === tel ||
                     (p.cliente && p.cliente.tel && String(p.cliente.tel).replace(/\D/g, '') === tel)
-                )).sort((a, b) => (b.id || 0) - (a.id || 0));
+                )).sort((a, b) => (Date.parse(b.criadoEm || b.createdAt || '') || Number(b.id) || 0) - (Date.parse(a.criadoEm || a.createdAt || '') || Number(a.id) || 0));
                 resolve(arr);
             });
         });
@@ -186,7 +190,7 @@ const DBRemote = {
     onAllPedidosChange(callback) {
         this._ref('pedidos').on('value', snap => {
             const val = snap.val() || {};
-            const arr = Object.values(val).sort((a, b) => (b.id || 0) - (a.id || 0));
+            const arr = Object.values(val).sort((a, b) => (Date.parse(b.criadoEm || b.createdAt || '') || Number(b.id) || 0) - (Date.parse(a.criadoEm || a.createdAt || '') || Number(a.id) || 0));
             callback(arr);
         });
     },

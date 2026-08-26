@@ -418,7 +418,7 @@ const DB = {
     },
 
     getMotoboy(id) {
-        return this.getMotoboys().find(m => m.id === id);
+        return this.getMotoboys().find(m => String(m.id) === String(id));
     },
 
     getMotoboyPos(id) {
@@ -427,13 +427,15 @@ const DB = {
     },
 
     getPedidosMotoboy(motoboyId) {
-        return this.getPedidos().filter(p => p.motoboyId === motoboyId && p.status === 'em_entrega');
+        return this.getPedidos().filter(p => String(p.motoboyId) === String(motoboyId) && p.status === 'em_entrega');
     },
 
     updateMotoboy(id, updates) {
         if (this.backend === 'firebase') {
-            firebase.database().ref('motoboys/mb_' + id).update(updates);
-            return;
+            return firebase.database().ref('motoboys/mb_' + id).update(updates).then(() => {
+                this._notify('motoboy_update', { id, ...updates });
+                return { id, ...updates };
+            });
         }
         const motoboys = this.getMotoboys();
         const idx = motoboys.findIndex(m => m.id === id);

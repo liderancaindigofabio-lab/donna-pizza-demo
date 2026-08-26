@@ -6,9 +6,9 @@
 (function () {
   const BASE = '/donna-pizza-demo/';
   const APPS = {
-    cliente: BASE + 'cliente/js/app.js',
+    cliente: BASE + 'cliente/js/app.js?v=2',
     motoboy: BASE + 'motoboy/js/motoboy.js',
-    pizzaria: BASE + 'pizzaria/js/painel.js',
+    pizzaria: BASE + 'pizzaria/js/painel.js?v=2',
     garcom: BASE + 'garcom/js/garcom.js?v=3',
     cozinha: BASE + 'cozinha/js/cozinha.js'
   };
@@ -57,7 +57,7 @@
         // no primeiro ciclo sem corrida entre scripts.
         await loadScript('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js');
         await loadScript(BASE + 'js/firebase/auth.js');
-        await loadScript(BASE + 'js/firebase/staff-auth.js');
+        await loadScript(BASE + 'js/firebase/staff-auth.js?v=2');
         await loadScript(BASE + 'js/firebase/firebase-storage.js');
         await loadScript(BASE + 'js/firebase/db-adapter.js?v=31');
         window.DB = DB;

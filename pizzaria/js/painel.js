@@ -817,7 +817,7 @@ function renderEditorSabores(sabores, precos, tamanhos) {
             </div>
             <div class="ei-campos">
                 <label class="full">Nome <input type="text" value="${s.nome}" onchange="atualizarSabor(${i}, 'nome', this.value)"></label>
-                <label class="full">Descrição <input type="text" value="${s.desc}" onchange="atualizarSabor(${i}, 'desc', this.value)"></label>
+                <label class="full">Descrição <input type="text" value="${s.desc}" onchange="atualizarSabor(${i}, 'desc', this.value)"></label><label>Emoji <input type="text" maxlength="4" value="${s.emoji||'🍕'}" onchange="atualizarSabor(${i}, 'emoji', this.value)"></label><label class="full">Foto (URL) <input type="url" maxlength="500" value="${s.foto||''}" placeholder="https://..." onchange="atualizarSabor(${i}, 'foto', this.value)"></label>
                 ${tamanhos.map(t => `
                     <label>${t.id} R$ <input type="number" step="0.50" value="${p[t.id] || 0}" onchange="atualizarPrecoSabor('${s.id}', '${t.id}', +this.value)"></label>
                 `).join('')}
@@ -851,7 +851,7 @@ function renderEditorCalzones(calzones) {
         </div>
         <div class="ei-campos">
             <label class="full">Nome <input type="text" value="${c.nome}" onchange="atualizarCalzone(${i}, 'nome', this.value)"></label>
-            <label class="full">Descrição <input type="text" value="${c.desc}" onchange="atualizarCalzone(${i}, 'desc', this.value)"></label>
+            <label class="full">Descrição <input type="text" value="${c.desc}" onchange="atualizarCalzone(${i}, 'desc', this.value)"></label><label>Emoji <input type="text" maxlength="4" value="${c.emoji||'🥟'}" onchange="atualizarCalzone(${i}, 'emoji', this.value)"></label><label class="full">Foto (URL) <input type="url" maxlength="500" value="${c.foto||''}" placeholder="https://..." onchange="atualizarCalzone(${i}, 'foto', this.value)"></label>
             <label>Preço R$ <input type="number" step="0.50" value="${c.preco}" onchange="atualizarCalzone(${i}, 'preco', +this.value)"></label>
         </div>
     </div>`).join('');
@@ -866,7 +866,7 @@ function renderEditorBebidas(bebidas) {
         </div>
         <div class="ei-campos">
             <label class="full">Nome <input type="text" value="${b.nome}" onchange="atualizarBebida(${i}, 'nome', this.value)"></label>
-            <label>Emoji <input type="text" value="${b.emoji}" onchange="atualizarBebida(${i}, 'emoji', this.value)"></label>
+            <label>Emoji <input type="text" maxlength="4" value="${b.emoji||'🥤'}" onchange="atualizarBebida(${i}, 'emoji', this.value)"></label><label class="full">Foto (URL) <input type="url" maxlength="500" value="${b.foto||''}" placeholder="https://..." onchange="atualizarBebida(${i}, 'foto', this.value)"></label>
             <label>Preço R$ <input type="number" step="0.50" value="${b.preco}" onchange="atualizarBebida(${i}, 'preco', +this.value)"></label>
         </div>
     </div>`).join('');
@@ -882,7 +882,7 @@ function renderEditorCombos(combos) {
         <div class="ei-campos">
             <label class="full">Nome <input type="text" value="${c.nome}" onchange="atualizarCombo(${i}, 'nome', this.value)"></label>
             <label class="full">Descrição <input type="text" value="${c.desc}" onchange="atualizarCombo(${i}, 'desc', this.value)"></label>
-            <label>Emoji <input type="text" value="${c.emoji}" onchange="atualizarCombo(${i}, 'emoji', this.value)"></label>
+            <label>Emoji <input type="text" maxlength="4" value="${c.emoji||'🎁'}" onchange="atualizarCombo(${i}, 'emoji', this.value)"></label><label class="full">Foto (URL) <input type="url" maxlength="500" value="${c.foto||''}" placeholder="https://..." onchange="atualizarCombo(${i}, 'foto', this.value)"></label>
             <label>Preço R$ <input type="number" step="0.50" value="${c.preco}" onchange="atualizarCombo(${i}, 'preco', +this.value)"></label>
         </div>
     </div>`).join('');
@@ -1080,7 +1080,7 @@ function abrirConfig() {
     document.getElementById('cfgNome').value = c.nome;
     document.getElementById('cfgEnd').value = c.endereco;
     document.getElementById('cfgZap').value = c.whatsapp;
-    document.getElementById('cfgTaxa').value = c.taxaEntrega;
+    document.getElementById('cfgTaxa').value = c.taxaEntrega;['Cnpj','Cor','Abertura','Fechamento','Logo'].forEach(k=>{const e=document.getElementById('cfg'+k);if(e)e.value=c[{Cnpj:'cnpj',Cor:'corPrimaria',Abertura:'abertura',Fechamento:'fechamento',Logo:'logoData'}[k]||'']});
     document.getElementById('modalConfig').style.display = 'flex';
 }
 function fecharConfig() { document.getElementById('modalConfig').style.display = 'none'; }
@@ -1089,7 +1089,7 @@ function salvarConfig() {
         nome: document.getElementById('cfgNome').value,
         endereco: document.getElementById('cfgEnd').value,
         whatsapp: document.getElementById('cfgZap').value,
-        taxaEntrega: parseFloat(document.getElementById('cfgTaxa').value) || 0,
+        taxaEntrega: parseFloat(document.getElementById('cfgTaxa').value) || 0,cnpj:document.getElementById('cfgCnpj').value.trim(),corPrimaria:document.getElementById('cfgCor').value,abertura:document.getElementById('cfgAbertura').value,fechamento:document.getElementById('cfgFechamento').value,logoData:/^https:\/\//i.test(document.getElementById('cfgLogo').value)?document.getElementById('cfgLogo').value.trim():'',
     });
     notificar('⚙️ Configurações salvas!', 'success');
     fecharConfig();

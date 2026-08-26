@@ -1,30 +1,20 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#11100e">
-  <title>NONNA Cozinha — KDS</title>
-  <link rel="stylesheet" href="css/cozinha.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#11100e">
+  <title>NONNA Cozinha — KDS</title><link rel="stylesheet" href="css/cozinha.css?v=2">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
 </head>
-<body><div id="staffGate" style="position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:#11100e;color:#fff;padding:24px"><form id="staffLogin" style="width:min(380px,100%);background:#1c1a17;border:1px solid #444;border-radius:18px;padding:28px;display:grid;gap:12px"><strong style="font-size:28px">NONNA</strong><h2 style="margin:0">Acesso da cozinha</h2><input name="email" type="email" placeholder="E-mail" autocomplete="username" required style="padding:13px;border-radius:10px;border:1px solid #555;background:#111;color:#fff"><input name="password" type="password" placeholder="Senha" autocomplete="current-password" required style="padding:13px;border-radius:10px;border:1px solid #555;background:#111;color:#fff"><p id="staffError" style="min-height:20px;color:#ff8b8b"></p><button style="padding:13px;border:0;border-radius:10px;font-weight:800">Entrar</button></form></div>
-  <div class="kds-shell">
-    <header class="kds-header">
-      <div class="brand"><span class="brand-mark">N</span><div><h1>NONNA <em>Cozinha</em></h1><p>KITCHEN DISPLAY SYSTEM</p></div></div>
-      <div class="header-meta"><span class="live-dot"></span><span id="connectionLabel" data-donna-connection>Conectando…</span><time id="clock"></time><button id="soundToggle" class="icon-button" type="button" aria-pressed="false" title="Ativar som">🔇</button></div>
-    </header>
+<body>
+  <div id="staffGate" style="position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:#11100e;color:#fff;padding:24px"><form id="staffLogin" style="width:min(380px,100%);background:#1c1a17;border:1px solid #444;border-radius:18px;padding:28px;display:grid;gap:12px"><strong style="font-size:28px">NONNA</strong><h2 style="margin:0">Acesso da cozinha</h2><input name="email" type="email" placeholder="E-mail" autocomplete="username" required style="padding:13px;border-radius:10px;border:1px solid #555;background:#111;color:#fff"><input name="password" type="password" placeholder="Senha" autocomplete="current-password" required style="padding:13px;border-radius:10px;border:1px solid #555;background:#111;color:#fff"><p id="staffError" style="min-height:20px;color:#ff8b8b"></p><button style="padding:13px;border:0;border-radius:10px;font-weight:800">Entrar</button></form></div>
+  <div id="bootError" class="boot-error" role="alert" hidden><strong>Não foi possível carregar a cozinha.</strong><span id="bootErrorText">Verifique a conexão e tente novamente.</span><button type="button" onclick="location.reload()">Tentar novamente</button></div>
+  <div class="kds-shell"><header class="kds-header"><div class="brand"><span class="brand-mark">N</span><div><h1>NONNA <em>Cozinha</em></h1><p>KITCHEN DISPLAY SYSTEM</p></div></div><div class="header-meta"><span class="live-dot"></span><span id="connectionLabel" data-donna-connection>Conectando…</span><time id="clock"></time><button id="soundToggle" class="icon-button" type="button" aria-pressed="false" title="Ativar som">🔇</button></div></header>
     <main class="board" aria-live="polite">
-      <section class="lane lane-new" data-lane="novo"><header class="lane-header"><div><span class="lane-kicker">ENTRADA</span><h2>Novos</h2></div><span class="lane-count" id="count-novo">0</span></header><div class="orders" id="orders-novo"></div></section>
-      <section class="lane lane-preparing" data-lane="preparando"><header class="lane-header"><div><span class="lane-kicker">EM PRODUÇÃO</span><h2>Preparando</h2></div><span class="lane-count" id="count-preparando">0</span></header><div class="orders" id="orders-preparando"></div></section>
-      <section class="lane lane-ready" data-lane="pronto"><header class="lane-header"><div><span class="lane-kicker">EXPEDIÇÃO</span><h2>Prontos</h2></div><span class="lane-count" id="count-pronto">0</span></header><div class="orders" id="orders-pronto"></div></section>
-    </main>
-    <footer class="kds-footer"><span><b id="totalActive">0</b> pedidos ativos</span><span class="legend"><i class="legend-dot normal"></i> no prazo <i class="legend-dot overdue"></i> atrasado</span><span>Atualização em tempo real</span></footer>
-  </div>
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="../js/firebase/config.js?v=4"></script>
-  <script src="../js/firebase/loader.js?v=31"></script>
-</body>
-</html>
+      <section class="service-block service-delivery"><header class="service-header"><span>🛵</span><div><h2>Delivery</h2><p>Pedidos para entrega</p></div></header><div class="service-lanes"><div class="lane lane-new"><header class="lane-header"><h3>Novos</h3><span class="lane-count" id="count-delivery-novo">0</span></header><div class="orders" id="orders-delivery-novo"></div></div><div class="lane lane-preparing"><header class="lane-header"><h3>Preparando</h3><span class="lane-count" id="count-delivery-preparando">0</span></header><div class="orders" id="orders-delivery-preparando"></div></div><div class="lane lane-ready"><header class="lane-header"><h3>Prontos</h3><span class="lane-count" id="count-delivery-pronto">0</span></header><div class="orders" id="orders-delivery-pronto"></div></div></div></section>
+      <section class="service-block service-balcao"><header class="service-header"><span>🏪</span><div><h2>Retirada no balcão</h2><p>Pedidos para retirada</p></div></header><div class="service-lanes"><div class="lane lane-new"><header class="lane-header"><h3>Novos</h3><span class="lane-count" id="count-balcao-novo">0</span></header><div class="orders" id="orders-balcao-novo"></div></div><div class="lane lane-preparing"><header class="lane-header"><h3>Preparando</h3><span class="lane-count" id="count-balcao-preparando">0</span></header><div class="orders" id="orders-balcao-preparando"></div></div><div class="lane lane-ready"><header class="lane-header"><h3>Prontos</h3><span class="lane-count" id="count-balcao-pronto">0</span></header><div class="orders" id="orders-balcao-pronto"></div></div></div></section>
+      <section class="service-block service-salao"><header class="service-header"><span>🍽️</span><div><h2>Mesa / salão</h2><p>Pedidos feitos no salão</p></div></header><div class="service-lanes"><div class="lane lane-new"><header class="lane-header"><h3>Novos</h3><span class="lane-count" id="count-salao-novo">0</span></header><div class="orders" id="orders-salao-novo"></div></div><div class="lane lane-preparing"><header class="lane-header"><h3>Preparando</h3><span class="lane-count" id="count-salao-preparando">0</span></header><div class="orders" id="orders-salao-preparando"></div></div><div class="lane lane-ready"><header class="lane-header"><h3>Prontos</h3><span class="lane-count" id="count-salao-pronto">0</span></header><div class="orders" id="orders-salao-pronto"></div></div></div></section>
+    </main><footer class="kds-footer"><span><b id="totalActive">0</b> pedidos ativos</span><span class="legend"><i class="legend-dot normal"></i> no prazo <i class="legend-dot overdue"></i> atrasado</span><span>Atualização em tempo real</span></footer>
+  </div><div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script>window.addEventListener('nonna_boot_status',function(e){if(e.detail&&e.detail.status==='error'){var b=document.getElementById('bootError');b.hidden=false;document.getElementById('bootErrorText').textContent=e.detail.error||'Verifique a conexão e tente novamente.';document.getElementById('staffGate').style.display='none';}});</script>
+  <script src="../js/firebase/config.js?v=5"></script><script src="../js/firebase/loader.js?v=32"></script>
+</body></html>
