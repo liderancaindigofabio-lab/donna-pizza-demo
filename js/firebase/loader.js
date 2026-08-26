@@ -10,7 +10,7 @@
     motoboy: BASE + 'motoboy/js/motoboy.js',
     pizzaria: BASE + 'pizzaria/js/painel.js?v=2',
     garcom: BASE + 'garcom/js/garcom.js?v=3',
-    cozinha: BASE + 'cozinha/js/cozinha.js'
+    cozinha: BASE + 'cozinha/js/cozinha.js?v=2'
   };
   const appName = (location.pathname.match(/\/(cliente|motoboy|pizzaria|garcom|caixa|cozinha)(\/|$)/) || [])[1] || null;
   const state = window.NONNA_BOOT = window.NONNA_BOOT || {
@@ -44,7 +44,8 @@
 
       const firebaseActive = typeof FIREBASE_ATIVO !== 'undefined' && FIREBASE_ATIVO;
       if (!firebaseActive) {
-        await loadScript(BASE + 'js/firebase/db-adapter.js?v=32');
+        await loadScript(BASE + 'js/firebase/db-adapter.js?v=33');
+        await loadScript(BASE + 'js/branding.js?v=1');
         window.DB = DB;
         await DB.init();
         state.backend = DB.backend;
@@ -59,7 +60,8 @@
         await loadScript(BASE + 'js/firebase/auth.js');
         await loadScript(BASE + 'js/firebase/staff-auth.js?v=3');
         await loadScript(BASE + 'js/firebase/firebase-storage.js');
-        await loadScript(BASE + 'js/firebase/db-adapter.js?v=32');
+        await loadScript(BASE + 'js/firebase/db-adapter.js?v=33');
+        await loadScript(BASE + 'js/branding.js?v=1');
         window.DB = DB;
         window.DBRemote = DBRemote;
 

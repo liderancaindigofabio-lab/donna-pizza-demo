@@ -131,8 +131,10 @@ const DB = {
             catch (_) { this._cachePedidos = []; }
             try { this._cacheMotoboys = await DBRemote.getMotoboysAsync(); }
             catch (_) { this._cacheMotoboys = []; }
-            this._cacheConfig = await DBRemote.getConfigAsync();
-            this._cacheCardapio = await DBRemote.getCardapioAsync() || this.CARDAPIO_DEFAULT;
+            try { this._cacheConfig = await DBRemote.getConfigAsync(); }
+            catch (_) { this._cacheConfig = {}; }
+            try { this._cacheCardapio = await DBRemote.getCardapioAsync() || this.CARDAPIO_DEFAULT; }
+            catch (_) { this._cacheCardapio = this.CARDAPIO_DEFAULT; }
 
             // Seeds são apenas de compatibilidade com instalações antigas.
             // Falha de escrita não pode derrubar o boot se o catálogo já foi lido.
@@ -164,7 +166,9 @@ const DB = {
                     this._cacheCardapio = this.CARDAPIO_DEFAULT;
                 } catch (seedError) {
                     console.warn('[NONNA] seed cardapio ignorado:', seedError.message);
-                    throw new Error('Não foi possível ler o cardápio do Firebase. Verifique as regras de leitura do nó cardapio.');
+                    // O boot continua para que o perfil operacional possa fazer login;
+                    // a tela indicará a falta de dados sincronizados se a leitura continuar bloqueada.
+                    this._cacheCardapio = this.CARDAPIO_DEFAULT;
                 }
             }
             this._ready = true;
