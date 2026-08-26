@@ -83,6 +83,7 @@ const DB = {
 
     // ====== Detecção automática do backend ======
     _backend: null,
+    _ready: false,
     _connection: { mode: 'demo', state: 'starting' },
     get backend() {
         if (this._backend) return this._backend;
@@ -128,30 +129,38 @@ const DB = {
             this._cacheConfig = await DBRemote.getConfigAsync();
             this._cacheCardapio = await DBRemote.getCardapioAsync() || this.CARDAPIO_DEFAULT;
 
-            // Seed inicial no Firebase (só se a config não tiver)
+            // Seeds são apenas de compatibilidade com instalações antigas.
+            // Falha de escrita não pode derrubar o boot se o catálogo já foi lido.
             if (!this._cacheConfig.nome) {
-                await firebase.database().ref('config').set({
-                    nome: 'Nonna Pizzaria',
-                    endereco: 'Av. Melício Machado, 1060 - Atalaia, Aracaju - SE, 49037-440',
-                    whatsapp: '5500900000000',
-                    taxaEntrega: 7.00,
-                    tempoPreparo: 25,
-                    cuponsAtivos: ['NONNA10', 'BEMVINDO', 'FOME10', 'FAMILIA']
-                });
+                try {
+                    await firebase.database().ref('config').set({
+                        nome: 'Nonna Pizzaria',
+                        endereco: 'Av. Melício Machado, 1060 - Atalaia, Aracaju - SE, 49037-440',
+                        whatsapp: '5500900000000',
+                        taxaEntrega: 7.00,
+                        tempoPreparo: 25,
+                        cuponsAtivos: ['NONNA10', 'BEMVINDO', 'FOME10', 'FAMILIA']
+                    });
+                } catch (seedError) { console.warn('[NONNA] seed config ignorado:', seedError.message); }
             }
             if (this._cacheMotoboys.length === 0) {
                 const seed = [
                     { id: 1, nome: 'Carlos Silva', moto: 'Honda CB 500 - Placa ABC-1234', status: 'disponivel', telefone: '16991234567', foto: '👨🏾', lat: -10.9893597, lng: -37.0605839 },
-                    { id: 2, nome: 'João Santos',  moto: 'Yamaha Fazer 250 - Placa XYZ-9876', status: 'disponivel', telefone: '16997654321', foto: '👨🏼', lat: -10.9893597, lng: -37.0605839 },
-                    { id: 3, nome: 'Pedro Costa',  moto: 'Honda CG 160 - Placa DEF-5555', status: 'disponivel', telefone: '16996543210', foto: '🧔🏽', lat: -10.9893597, lng: -37.0605839 },
+                    { id: 2, nome: 'João Santos', moto: 'Yamaha Fazer 250 - Placa XYZ-9876', status: 'disponivel', telefone: '16997654321', foto: '👨🏼', lat: -10.9893597, lng: -37.0605839 },
+                    { id: 3, nome: 'Pedro Costa', moto: 'Honda CG 160 - Placa DEF-5555', status: 'disponivel', telefone: '16996543210', foto: '🧔🏽', lat: -10.9893597, lng: -37.0605839 },
                     { id: 4, nome: 'Lucas Mendes', moto: 'Honda Titan 150 - Placa GHI-7777', status: 'disponivel', telefone: '16995432109', foto: '🧑🏾‍🦱', lat: -10.9893597, lng: -37.0605839 },
                 ];
-                seed.forEach(m => firebase.database().ref('motoboys/mb_' + m.id).set(m));
-                this._cacheMotoboys = seed;
+                try { await Promise.all(seed.map(m => firebase.database().ref('motoboys/mb_' + m.id).set(m))); this._cacheMotoboys = seed; }
+                catch (seedError) { console.warn('[NONNA] seed motoboys ignorado:', seedError.message); }
             }
             if (!this._cacheCardapio || !this._cacheCardapio.sabores) {
-                await firebase.database().ref('cardapio').set(this.CARDAPIO_DEFAULT);
-                this._cacheCardapio = this.CARDAPIO_DEFAULT;
+                try {
+                    await firebase.database().ref('cardapio').set(this.CARDAPIO_DEFAULT);
+                    this._cacheCardapio = this.CARDAPIO_DEFAULT;
+                } catch (seedError) {
+                    console.warn('[NONNA] seed cardapio ignorado:', seedError.message);
+                    throw new Error('Não foi possível ler o cardápio do Firebase. Verifique as regras de leitura do nó cardapio.');
+                }
             }
             this._ready = true;
             this._setConnection('firebase', 'ready');
@@ -279,7 +288,12 @@ const DB = {
 
     addPedido(pedido) {
         const normalizado = this._normalizarPedido(pedido);
-        if (this.backend === 'firebase') return DBRemote.addPedido(normalizado);
+        if (this.backend === 'firebase') return DBRemote.addPedido(normalizado).then(async criado => {
+            if (typeof DBRemote.registrarAuditoria === 'function') {
+                try { await DBRemote.registrarAuditoria({ acao: 'pedido_criado', pedidoId: criado.id, canal: criado.canal, operador: criado.createdBy || 'sistema', valor: criado.total }); } catch (_) {}
+            }
+            return criado;
+        });
         const pedidos = this.getPedidos();
         normalizado.id = Date.now();
         pedidos.unshift(normalizado);
@@ -290,24 +304,15 @@ const DB = {
 
     updatePedido(id, updates) {
         if (this.backend === 'firebase') {
-            const ref = firebase.database().ref('pedidos/' + id);
-            return ref.once('value').then(snap => {
-                const anterior = snap.val();
-                if (!anterior) return null;
-                const agora = new Date().toISOString();
-                const patch = { ...(updates || {}), updatedAt: agora };
-                // Never replace a legacy timeline while applying an order patch.
-                delete patch.timeline;
-                if (patch.status && patch.status !== anterior.status) {
-                    const evento = this._novoEventoPedido(patch.status, { ...patch, evento: patch.status === 'cancelado' ? 'pedido_cancelado' : 'status_alterado' });
-                    const eventoRef = ref.child('timeline').push();
-                    patch['timeline/' + eventoRef.key] = evento;
+            return DBRemote.updatePedido(id, updates).then(async pedido => {
+                if (!pedido) return null;
+                if (updates && ['em_preparo', 'preparando'].includes(updates.status) && typeof DBRemote.baixarEstoquePorPedido === 'function') {
+                    try { await DBRemote.baixarEstoquePorPedido(pedido); } catch (e) { console.warn('[NONNA] baixa de estoque não aplicada:', e.message); }
                 }
-                return ref.update(patch).then(() => ref.once('value')).then(finalSnap => {
-                    const pedido = finalSnap.val();
-                    if (pedido) this._notify('pedido_update', pedido);
-                    return pedido;
-                });
+                if (updates && updates.status && typeof DBRemote.registrarAuditoria === 'function') {
+                    try { await DBRemote.registrarAuditoria({ acao: 'pedido_status', pedidoId: pedido.id, status: updates.status, operador: updates.createdBy || 'sistema' }); } catch (_) {}
+                }
+                return pedido;
             });
         }
         const pedidos = this.getPedidos();
@@ -659,21 +664,70 @@ const DB = {
     },
     abrirCaixa(dados) {
         const caixa = { id: Date.now(), status: 'aberto', operador: dados?.operador || 'Caixa', saldoInicial: Number(dados?.saldoInicial || 0), movimentos: [], abertoEm: new Date().toISOString() };
-        if (this.backend === 'firebase') firebase.database().ref('caixa/atual').set(caixa);
-        else localStorage.setItem('donna_caixa_atual', JSON.stringify(caixa));
+        if (this.backend === 'firebase') {
+            return firebase.database().ref('caixa/atual').transaction(atual => {
+                if (atual && atual.status === 'aberto') return;
+                return caixa;
+            }).then(result => {
+                if (!result.committed) throw new Error('Já existe um caixa aberto.');
+                this._cacheCaixa = result.snapshot.val();
+                this._notify('caixa_update', this._cacheCaixa);
+                return this._cacheCaixa;
+            });
+        }
+        localStorage.setItem('donna_caixa_atual', JSON.stringify(caixa));
         this._cacheCaixa = caixa; this._notify('caixa_update', caixa); return caixa;
     },
-    registrarMovimentoCaixa(movimento) {
+    async registrarMovimentoCaixa(movimento) {
         const caixa = this.getCaixaAtual(); if (!caixa || caixa.status !== 'aberto') return null;
         const mov = { id: Date.now(), tipo: movimento.tipo, valor: Number(movimento.valor || 0), forma: movimento.forma || null, observacao: movimento.observacao || '', operador: movimento.operador || caixa.operador, em: new Date().toISOString() };
+        if (this.backend === 'firebase') {
+            return firebase.database().ref('caixa/atual').transaction(atual => {
+                if (!atual || atual.status !== 'aberto') return;
+                const movimentos = Array.isArray(atual.movimentos) ? atual.movimentos.slice() : Object.values(atual.movimentos || {});
+                movimentos.push(mov);
+                return { ...atual, movimentos, atualizadoEm: mov.em };
+            }).then(async result => {
+                if (!result.committed) throw new Error('O caixa foi fechado ou alterado por outro operador.')
+                this._cacheCaixa = result.snapshot.val();
+                this._notify('caixa_update', this._cacheCaixa);
+                if (typeof DBRemote.registrarAuditoria === 'function') {
+                    try { await DBRemote.registrarAuditoria({ acao: 'movimento_caixa', tipo: mov.tipo, valor: mov.valor, forma: mov.forma, operador: mov.operador }); } catch (_) {}
+                }
+                if (typeof DBRemote.registrarFinanceiro === 'function' && mov.tipo === 'venda') {
+                    try { await DBRemote.registrarFinanceiro({ tipo: 'receita', origem: 'caixa', valor: mov.valor, forma: mov.forma, operador: mov.operador, referencia: this._cacheCaixa.id }); } catch (_) {}
+                }
+                return mov;
+            });
+        }
         caixa.movimentos = [...(caixa.movimentos || []), mov];
-        if (this.backend === 'firebase') firebase.database().ref('caixa/atual').set(caixa); else localStorage.setItem('donna_caixa_atual', JSON.stringify(caixa));
+        localStorage.setItem('donna_caixa_atual', JSON.stringify(caixa));
         this._cacheCaixa = caixa; this._notify('caixa_update', caixa); return mov;
     },
     fecharCaixa(dados) {
         const caixa = this.getCaixaAtual(); if (!caixa || caixa.status !== 'aberto') return null;
-        const fechado = { ...caixa, status: 'fechado', valorContado: Number(dados?.valorContado || 0), fechadoEm: new Date().toISOString(), fechadoPor: dados?.operador || caixa.operador };
-        if (this.backend === 'firebase') firebase.database().ref('caixa/atual').set(fechado); else localStorage.setItem('donna_caixa_atual', JSON.stringify(fechado));
+        const valorContado = Number(dados?.valorContado || 0);
+        const fechadoEm = new Date().toISOString();
+        if (this.backend === 'firebase') {
+            return firebase.database().ref('caixa/atual').transaction(atual => {
+                if (!atual || atual.status !== 'aberto') return;
+                const movimentos = Array.isArray(atual.movimentos) ? atual.movimentos : Object.values(atual.movimentos || {});
+                const esperado = Number(atual.saldoInicial || 0) + movimentos.filter(m => m.tipo === 'venda' && (!m.forma || m.forma === 'dinheiro')).reduce((s,m) => s + Number(m.valor || 0), 0) + movimentos.filter(m => m.tipo === 'suprimento').reduce((s,m) => s + Number(m.valor || 0), 0) - movimentos.filter(m => m.tipo === 'sangria').reduce((s,m) => s + Number(m.valor || 0), 0);
+                const diferenca = valorContado - esperado;
+                return { ...atual, status: 'fechado', valorEsperado: esperado, valorContado, diferenca, fechadoEm, fechadoPor: dados?.operador || atual.operador };
+            }).then(async result => {
+                if (!result.committed) throw new Error('O caixa já foi fechado ou alterado por outro operador.');
+                this._cacheCaixa = result.snapshot.val();
+                await firebase.database().ref('caixa/historico/' + this._cacheCaixa.id).set(this._cacheCaixa);
+                this._notify('caixa_update', this._cacheCaixa);
+                if (typeof DBRemote.registrarAuditoria === 'function') {
+                    try { await DBRemote.registrarAuditoria({ acao: 'fechamento_caixa', caixaId: this._cacheCaixa.id, operador: this._cacheCaixa.fechadoPor, valorContado: this._cacheCaixa.valorContado }); } catch (_) {}
+                }
+                return this._cacheCaixa;
+            });
+        }
+        const fechado = { ...caixa, status: 'fechado', valorContado, fechadoEm, fechadoPor: dados?.operador || caixa.operador };
+        localStorage.setItem('donna_caixa_atual', JSON.stringify(fechado));
         this._cacheCaixa = fechado; this._notify('caixa_update', fechado); return fechado;
     },
 
@@ -681,3 +735,6 @@ const DB = {
         window.dispatchEvent(new CustomEvent('donna_db_change', { detail: { tipo, data } }));
     }
 };
+
+// Exposição explícita para páginas e ferramentas de diagnóstico.
+window.DB = DB;
