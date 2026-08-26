@@ -10,7 +10,7 @@
     motoboy: BASE + 'motoboy/js/motoboy.js',
     pizzaria: BASE + 'pizzaria/js/painel.js?v=2',
     garcom: BASE + 'garcom/js/garcom.js?v=3',
-    cozinha: BASE + 'cozinha/js/cozinha.js?v=2'
+    cozinha: BASE + 'cozinha/js/cozinha.js?v=3'
   };
   const appName = (location.pathname.match(/\/(cliente|motoboy|pizzaria|garcom|caixa|cozinha)(\/|$)/) || [])[1] || null;
   const state = window.NONNA_BOOT = window.NONNA_BOOT || {
@@ -93,6 +93,21 @@
       state.status = 'error';
       state.error = error && error.message ? error.message : String(error);
       emit('nonna_boot_status', state);
+
+      // Páginas operacionais ainda precisam exibir o login quando uma leitura
+      // protegida falha antes da autenticação; não bloquear a tela de acesso.
+      // Após o login, o módulo recarrega os dados com a sessão autenticada.
+      if (appName && typeof DB !== 'undefined') {
+        try {
+          DB._ready = true;
+          if (typeof DB._setConnection === 'function') DB._setConnection('firebase', 'degraded');
+          window.NONNA_DB_READY = Promise.resolve(DB);
+          if (APPS[appName]) await loadScript(APPS[appName]);
+          if (typeof init === 'function') { try { init(); } catch (appError) { console.error('[NONNA APP]', appName, appError); } }
+          emit('nonna_app_ready', { app: appName, db: DB, degraded: true });
+          return DB;
+        } catch (degradedError) { console.error('[NONNA DEGRADED]', degradedError); }
+      }
 
       // Fallback local só quando explicitamente permitido. Em produção, não
       // mascarar uma falha de Firebase como se os dados tivessem sido salvos.
