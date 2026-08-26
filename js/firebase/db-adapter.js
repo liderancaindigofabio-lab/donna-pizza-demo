@@ -124,8 +124,13 @@ const DB = {
         if (this.backend === 'firebase') {
             console.log('🔥 DB usando Firebase Realtime Database');
             // Carrega dados iniciais em cache
-            this._cachePedidos = await DBRemote.getPedidosAsync();
-            this._cacheMotoboys = await DBRemote.getMotoboysAsync();
+            // A sessão do Firebase Auth pode ainda estar sendo restaurada neste
+            // primeiro ciclo. Dados operacionais protegidos não podem impedir o
+            // boot; as telas recarregam após o login.
+            try { this._cachePedidos = await DBRemote.getPedidosAsync(); }
+            catch (_) { this._cachePedidos = []; }
+            try { this._cacheMotoboys = await DBRemote.getMotoboysAsync(); }
+            catch (_) { this._cacheMotoboys = []; }
             this._cacheConfig = await DBRemote.getConfigAsync();
             this._cacheCardapio = await DBRemote.getCardapioAsync() || this.CARDAPIO_DEFAULT;
 
