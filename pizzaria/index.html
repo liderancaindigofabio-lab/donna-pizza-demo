@@ -11,7 +11,7 @@
 </head>
 <body>
 <style>
-#accessGate{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:24px;background:rgba(10,10,10,.98);font-family:Inter,Arial,sans-serif;color:#fff}#accessGate[hidden]{display:none!important}.access-card{width:min(420px,100%);padding:32px;background:#181818;border:1px solid #b88a36;border-radius:16px;box-shadow:0 18px 60px #000}.access-card h2{margin:16px 0 8px}.access-card p{color:#bbb}.access-card label{display:grid;gap:7px;margin:14px 0;font-size:13px}.access-card input{padding:12px;border-radius:8px;border:1px solid #555;background:#101010;color:#fff;font-size:15px}.access-card button{width:100%;padding:12px;border:0;border-radius:8px;background:#c99a3b;color:#111;font-weight:800;font-size:15px}.access-error{min-height:20px;color:#ff8080;font-size:13px}body[data-profile="kitchen"] #btnConfig,body[data-profile="kitchen"] .header-right,body[data-profile="kitchen"] .dashboard,body[data-profile="kitchen"] [data-aba="cardapio"],body[data-profile="kitchen"] [onclick*="abrirDespacho"],body[data-profile="kitchen"] [onclick*="abrirConfig"],body[data-profile="kitchen"] [onclick*="limparDados"],body[data-profile="kitchen"] #abaCardapio,body[data-profile="cashier"] #btnConfig,body[data-profile="cashier"] [data-aba="cardapio"],body[data-profile="cashier"] [onclick*="abrirConfig"],body[data-profile="cashier"] [onclick*="limparDados"],body[data-profile="cashier"] #abaCardapio{display:none!important}
+#accessGate{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:24px;background:rgba(10,10,10,.98);font-family:Inter,Arial,sans-serif;color:#fff}#accessGate[hidden]{display:none!important}.access-card{width:min(420px,100%);padding:32px;background:#181818;border:1px solid #b88a36;border-radius:16px;box-shadow:0 18px 60px #000}.access-card h2{margin:16px 0 8px}.access-card p{color:#bbb}.access-card label{display:grid;gap:7px;margin:14px 0;font-size:13px}.access-card input{padding:12px;border-radius:8px;border:1px solid #555;background:#101010;color:#fff;font-size:15px}.access-card button{width:100%;padding:12px;border:0;border-radius:8px;background:#c99a3b;color:#111;font-weight:800;font-size:15px}.access-error{min-height:20px;color:#ff8080;font-size:13px}body[data-profile="kitchen"] #btnConfig,body[data-profile="kitchen"] .header-right,body[data-profile="kitchen"] .dashboard,body[data-profile="kitchen"] .gestao-resumo,body[data-profile="kitchen"] .gestao-painel-detalhes,body[data-profile="kitchen"] [data-aba="cardapio"],body[data-profile="kitchen"] [onclick*="abrirDespacho"],body[data-profile="kitchen"] [onclick*="abrirConfig"],body[data-profile="kitchen"] [onclick*="limparDados"],body[data-profile="kitchen"] #abaCardapio,body[data-profile="cashier"] #btnConfig,body[data-profile="cashier"] [data-aba="cardapio"],body[data-profile="cashier"] [onclick*="abrirConfig"],body[data-profile="cashier"] [onclick*="limparDados"],body[data-profile="cashier"] #abaCardapio{display:none!important}body[data-profile="kitchen"] .sidebar-link[data-aba="visao"]{display:none!important}
 </style>
 <div id="accessGate" role="dialog" aria-modal="true" aria-labelledby="accessTitle"><form class="access-card" id="accessForm"><div style="font-size:40px">🏪</div><h2 id="accessTitle">Acesso ao painel</h2><p>Entre com o acesso administrativo da pizzaria.</p><label>Usuário ou e-mail<input name="email" type="text" autocomplete="username" required></label><label>Senha<input name="password" type="password" autocomplete="current-password" required></label><p id="accessError" class="access-error" role="alert"></p><button type="submit">Entrar no painel</button></form></div>
 
@@ -35,6 +35,15 @@
         <button id="btnConfig" class="icon-btn" onclick="abrirConfig()" title="Configurações">⚙️</button>
     </div>
 </header>
+
+<!-- NAVEGAÇÃO PRINCIPAL -->
+<aside class="gestao-sidebar" aria-label="Navegação da gestão">
+    <div class="sidebar-kicker">GESTÃO</div>
+    <button class="sidebar-link active" data-aba="visao" onclick="trocarAba('visao')"><span>◉</span> Visão geral</button>
+    <button class="sidebar-link" data-aba="pedidos" onclick="trocarAba('pedidos')"><span>▣</span> Pedidos <b id="sidePedidos">0</b></button>
+    <button class="sidebar-link" data-aba="cardapio" onclick="trocarAba('cardapio')"><span>☷</span> Cardápio</button>
+    <div class="sidebar-foot"><span class="sidebar-dot"></span><span>Dados sincronizados<br><small>em tempo real</small></span></div>
+</aside>
 
 <!-- DASHBOARD -->
 <section class="dashboard">
@@ -65,6 +74,16 @@
     <div class="resumo-bloco"><strong>Pedidos em tempo real</strong><div class="resumo-status"><span>Novos <b id="dashNovo">0</b></span><span>Preparando <b id="dashPreparando">0</b></span><span>Prontos <b id="dashPronto">0</b></span><span>Entrega <b id="dashEntrega">0</b></span></div></div>
     <div class="resumo-bloco"><strong>Vendas por canal</strong><div class="resumo-status"><span>Delivery <b id="dashDelivery">0</b></span><span>Salão <b id="dashSalao">0</b></span><span>Balcão <b id="dashBalcao">0</b></span></div></div>
     <div class="resumo-bloco alertas"><strong>Alertas operacionais</strong><div id="dashAlertas">Nenhum alerta no momento.</div></div>
+</section>
+
+<section class="gestao-painel-detalhes" aria-label="Indicadores da operação">
+    <div class="detalhe-heading"><div><span class="section-kicker">ACOMPANHAMENTO</span><h2>Operação de hoje</h2></div><span class="live-label"><i></i> Atualização ao vivo</span></div>
+    <div class="detalhe-grid">
+        <article class="detalhe-card"><span class="detalhe-icone">🍕</span><div><strong id="dashFinalizados">0</strong><span>Pedidos finalizados</span></div></article>
+        <article class="detalhe-card"><span class="detalhe-icone">🍽️</span><div><strong id="dashItensCardapio">0</strong><span>Itens no cardápio</span></div></article>
+        <article class="detalhe-card"><span class="detalhe-icone">🛵</span><div><strong id="dashMotoboys">0</strong><span>Motoboys disponíveis</span></div></article>
+        <article class="detalhe-card"><span class="detalhe-icone">📦</span><div><strong id="dashEmEntrega">0</strong><span>Entregas ativas</span></div></article>
+    </div>
 </section>
 
 <!-- ABAS DE NAVEGAÇÃO -->
