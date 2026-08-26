@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="css/gestao.css">
 </head>
 <body>
-<header class="topbar"><a class="brand" href="../"><img src="../img/logo.jpg" alt="Nonna"><span>NONNA<small>GESTÃO</small></span></a><div class="top-actions"><span id="dataAtual"></span><span class="connection" id="connection">● conectando</span><button id="refresh" class="icon-btn" title="Atualizar dados">↻</button></div></header>
+<header class="topbar"><a class="brand" href="../"><img src="../img/logo.jpg" alt="Nonna"><span>NONNA<small>GESTÃO</small></span></a><div class="top-actions"><span id="dataAtual"></span><span class="connection" id="connection" data-donna-connection>● conectando…</span><button id="refresh" class="icon-btn" title="Atualizar dados">↻</button></div></header>
 <main class="shell">
 <section class="hero"><div><p class="eyebrow">Centro de controle</p><h1>Gestão da Nonna</h1><p class="muted">Estoque, financeiro e desempenho com os dados reais da operação.</p></div><div class="period"><label for="periodo">Período</label><select id="periodo"><option value="today">Hoje</option><option value="7">Últimos 7 dias</option><option value="30" selected>Últimos 30 dias</option><option value="all">Todo o período</option></select></div></section>
 <nav class="tabs" role="tablist"><button class="tab active" data-tab="visao">Visão geral</button><button class="tab" data-tab="estoque">Estoque</button><button class="tab" data-tab="financeiro">Financeiro</button><button class="tab" data-tab="reservas">Reservas</button><button class="tab" data-tab="relatorios">Relatórios</button></nav>
@@ -18,5 +18,5 @@
 </main>
 <div class="modal" id="modal" hidden><div class="modal-card"><button class="close" id="closeModal">×</button><h2 id="modalTitle"></h2><form id="modalForm"></form></div></div>
 <div id="toast" class="toast" role="status"></div>
-<script src="../js/firebase/config.js?v=2"></script><script src="../js/firebase/loader.js?v=26"></script><script src="js/gestao.js?v=2"></script>
+<script src="../js/firebase/config.js?v=2"></script><script src="../js/firebase/loader.js?v=27"></script><script src="js/gestao.js?v=2"></script>
 </body></html>
