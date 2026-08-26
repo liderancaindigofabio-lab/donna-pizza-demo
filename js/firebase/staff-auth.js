@@ -89,7 +89,40 @@
       }
     }
   }
-  root.NONNA_STAFF_AUTH={signIn,restore,authorizeDiscount,roles:PAGE_ROLES};
+  // Re-authenticate the logged-in operator, or verify a manager/owner in a
+  // disposable secondary Firebase app. Passwords never leave Firebase Auth.
+  async function authorizeCashClosure(activeStaff){
+    if(!root.firebase?.auth || typeof root.firebase.auth.EmailAuthProvider?.credential!=='function')
+      throw new Error('Autenticação Firebase indisponível; o fechamento não foi autorizado.');
+    const email=String(root.prompt('E-mail do operador ou gerente:')||'').trim().toLowerCase();
+    if(!email) throw new Error('Informe o e-mail do operador ou gerente.');
+    const password=root.prompt('Senha para confirmar o fechamento:');
+    if(password===null || !String(password)) throw new Error('Informe a senha para confirmar o fechamento.');
+    const primary=root.firebase.auth(), activeUser=primary.currentUser;
+    let secondary=null, verified=null, profileData=null;
+    try{
+      if(activeUser && String(activeUser.email||'').toLowerCase()===email){
+        await activeUser.reauthenticateWithCredential(root.firebase.auth.EmailAuthProvider.credential(email,String(password)));
+        verified=activeUser.uid; profileData=await profile(verified);
+      }else{
+        const appName='nonna-close-'+Date.now()+'-'+Math.random().toString(36).slice(2);
+        secondary=root.firebase.initializeApp(typeof FIREBASE_CONFIG!=='undefined'?FIREBASE_CONFIG:root.FIREBASE_CONFIG,appName);
+        const result=await secondary.auth().signInWithEmailAndPassword(email,String(password));
+        verified=result.user.uid; profileData=(await secondary.database().ref('userProfiles/'+verified).once('value')).val()||null;
+      }
+      if(!profileData||profileData.ativo===false||!profileData.restaurantId||!['owner','manager','cashier'].includes(profileData.role)) throw new Error('Esse usuário não possui permissão para fechar o caixa.');
+      if(profileData.role==='cashier' && (!activeStaff?.uid || String(verified)!==String(activeStaff.uid))) throw new Error('Somente o operador logado ou um gerente pode fechar o caixa.');
+      if(activeStaff?.restaurantId && String(profileData.restaurantId)!==String(activeStaff.restaurantId)) throw new Error('O usuário pertence a outro estabelecimento.');
+      return {uid:verified,email,role:profileData.role,nome:profileData.nome};
+    }catch(error){
+      const code=String(error?.code||'');
+      if(['auth/wrong-password','auth/invalid-credential','auth/invalid-login-credentials','auth/user-not-found'].includes(code)) throw new Error('E-mail ou senha inválidos.');
+      if(code==='auth/too-many-requests') throw new Error('Muitas tentativas. Aguarde e tente novamente.');
+      if(code==='auth/network-request-failed') throw new Error('Sem conexão com o Firebase. Tente novamente.');
+      throw error instanceof Error?error:new Error('Não foi possível autorizar o fechamento.');
+    }finally{if(secondary){try{await secondary.auth().signOut()}catch(_){} try{await secondary.delete()}catch(_){}}}
+  }
+  root.NONNA_STAFF_AUTH={signIn,restore,authorizeDiscount,authorizeCashClosure,roles:PAGE_ROLES};
   const STAFF_ROLES=['manager','cashier','kitchen','waiter','courier'];
   function cleanEmail(value){const email=String(value||'').trim().toLowerCase();return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)?email:null;}
   async function createStaffAccount({email,password,nome,role,restaurantId}={}){

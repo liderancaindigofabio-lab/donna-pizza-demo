@@ -44,7 +44,7 @@
 
       const firebaseActive = typeof FIREBASE_ATIVO !== 'undefined' && FIREBASE_ATIVO;
       if (!firebaseActive) {
-        await loadScript(BASE + 'js/firebase/db-adapter.js?v=31');
+        await loadScript(BASE + 'js/firebase/db-adapter.js?v=32');
         window.DB = DB;
         await DB.init();
         state.backend = DB.backend;
@@ -57,9 +57,9 @@
         // no primeiro ciclo sem corrida entre scripts.
         await loadScript('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js');
         await loadScript(BASE + 'js/firebase/auth.js');
-        await loadScript(BASE + 'js/firebase/staff-auth.js?v=2');
+        await loadScript(BASE + 'js/firebase/staff-auth.js?v=3');
         await loadScript(BASE + 'js/firebase/firebase-storage.js');
-        await loadScript(BASE + 'js/firebase/db-adapter.js?v=31');
+        await loadScript(BASE + 'js/firebase/db-adapter.js?v=32');
         window.DB = DB;
         window.DBRemote = DBRemote;
 

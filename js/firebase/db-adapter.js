@@ -670,7 +670,8 @@ const DB = {
         try { return JSON.parse(localStorage.getItem('donna_caixa_atual') || 'null'); } catch (_) { return null; }
     },
     abrirCaixa(dados) {
-        const caixa = { id: Date.now(), status: 'aberto', operador: dados?.operador || 'Caixa', saldoInicial: Number(dados?.saldoInicial || 0), movimentos: [], abertoEm: new Date().toISOString() };
+        const abertoEm = new Date().toISOString();
+        const caixa = { id: Date.now(), status: 'aberto', operador: dados?.operador || 'Caixa', saldoInicial: Number(dados?.saldoInicial || 0), movimentos: [{id: 'abertura_'+Date.now(), tipo: 'abertura', valor: Number(dados?.saldoInicial || 0), forma: 'dinheiro', operador: dados?.operador || 'Caixa', em: abertoEm}], abertoEm };
         if (this.backend === 'firebase') {
             return firebase.database().ref('caixa/atual').transaction(atual => {
                 if (atual && atual.status === 'aberto') return;
@@ -721,7 +722,7 @@ const DB = {
                 const movimentos = Array.isArray(atual.movimentos) ? atual.movimentos : Object.values(atual.movimentos || {});
                 const esperado = Number(atual.saldoInicial || 0) + movimentos.filter(m => m.tipo === 'venda' && (!m.forma || m.forma === 'dinheiro')).reduce((s,m) => s + Number(m.valor || 0), 0) + movimentos.filter(m => m.tipo === 'suprimento').reduce((s,m) => s + Number(m.valor || 0), 0) - movimentos.filter(m => m.tipo === 'sangria').reduce((s,m) => s + Number(m.valor || 0), 0);
                 const diferenca = valorContado - esperado;
-                return { ...atual, status: 'fechado', valorEsperado: esperado, valorContado, diferenca, fechadoEm, fechadoPor: dados?.operador || atual.operador };
+                return { ...atual, status: 'fechado', valorEsperado: esperado, valorContado, diferenca, fechadoEm, fechadoPor: dados?.operador || atual.operador, movimentos: [...movimentos, {id: 'fechamento_'+Date.now(), tipo: 'fechamento', valor: valorContado, forma: 'dinheiro', operador: dados?.operador || atual.operador, em: fechadoEm}] };
             }).then(async result => {
                 if (!result.committed) throw new Error('O caixa já foi fechado ou alterado por outro operador.');
                 this._cacheCaixa = result.snapshot.val();
@@ -733,8 +734,15 @@ const DB = {
                 return this._cacheCaixa;
             });
         }
-        const fechado = { ...caixa, status: 'fechado', valorContado, fechadoEm, fechadoPor: dados?.operador || caixa.operador };
+        const fechado = { ...caixa, status: 'fechado', valorContado, fechadoEm, fechadoPor: dados?.operador || caixa.operador, movimentos: [...(caixa.movimentos || []), {id: 'fechamento_'+Date.now(), tipo: 'fechamento', valor: valorContado, forma: 'dinheiro', operador: dados?.operador || caixa.operador, em: fechadoEm}] };
+        const movimentos = fechado.movimentos.filter(m => m.tipo === 'venda' && (!m.forma || m.forma === 'dinheiro')).reduce((s,m) => s + Number(m.valor || 0), 0);
+        const suprimentos = fechado.movimentos.filter(m => m.tipo === 'suprimento').reduce((s,m) => s + Number(m.valor || 0), 0);
+        const sangrias = fechado.movimentos.filter(m => m.tipo === 'sangria').reduce((s,m) => s + Number(m.valor || 0), 0);
+        fechado.valorEsperado = Number(caixa.saldoInicial || 0) + movimentos + suprimentos - sangrias;
+        fechado.diferenca = valorContado - fechado.valorEsperado;
         localStorage.setItem('donna_caixa_atual', JSON.stringify(fechado));
+        const historico = (()=>{try{return JSON.parse(localStorage.getItem('donna_caixa_historico')||'[]')}catch(_){return []}})();
+        historico.unshift(fechado); localStorage.setItem('donna_caixa_historico', JSON.stringify(historico.slice(0,365)));
         this._cacheCaixa = fechado; this._notify('caixa_update', fechado); return fechado;
     },
 

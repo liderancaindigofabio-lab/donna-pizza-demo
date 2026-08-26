@@ -1080,19 +1080,23 @@ function abrirConfig() {
     document.getElementById('cfgNome').value = c.nome;
     document.getElementById('cfgEnd').value = c.endereco;
     document.getElementById('cfgZap').value = c.whatsapp;
-    document.getElementById('cfgTaxa').value = c.taxaEntrega;['Cnpj','Cor','Abertura','Fechamento','Logo'].forEach(k=>{const e=document.getElementById('cfg'+k);if(e)e.value=c[{Cnpj:'cnpj',Cor:'corPrimaria',Abertura:'abertura',Fechamento:'fechamento',Logo:'logoData'}[k]||'']});
+    document.getElementById('cfgTaxa').value = c.taxaEntrega || 0;['Cnpj','Cor','Cor2','Abertura','Fechamento','Logo'].forEach(k=>{const e=document.getElementById('cfg'+k);if(e)e.value=c[{Cnpj:'cnpj',Cor:'corPrimaria',Cor2:'corDestaque',Abertura:'abertura',Fechamento:'fechamento',Logo:'logoData'}[k]||'']});
     document.getElementById('modalConfig').style.display = 'flex';
 }
 function fecharConfig() { document.getElementById('modalConfig').style.display = 'none'; }
-function salvarConfig() {
-    DB.updateConfig({
+async function salvarConfig() {
+    const btn = document.querySelector('#modalConfig button');
+    if (btn) btn.disabled = true;
+    try { await DB.updateConfig({
         nome: document.getElementById('cfgNome').value,
         endereco: document.getElementById('cfgEnd').value,
         whatsapp: document.getElementById('cfgZap').value,
-        taxaEntrega: parseFloat(document.getElementById('cfgTaxa').value) || 0,cnpj:document.getElementById('cfgCnpj').value.trim(),corPrimaria:document.getElementById('cfgCor').value,abertura:document.getElementById('cfgAbertura').value,fechamento:document.getElementById('cfgFechamento').value,logoData:/^https:\/\//i.test(document.getElementById('cfgLogo').value)?document.getElementById('cfgLogo').value.trim():'',
+        taxaEntrega: parseFloat(document.getElementById('cfgTaxa').value) || 0,cnpj:document.getElementById('cfgCnpj').value.trim(),corPrimaria:document.getElementById('cfgCor').value,corDestaque:document.getElementById('cfgCor2').value,abertura:document.getElementById('cfgAbertura').value,fechamento:document.getElementById('cfgFechamento').value,logoData:/^(?:https:\/\/|data:image\/(?:png|jpeg|webp);base64,)/i.test(document.getElementById('cfgLogo').value)?document.getElementById('cfgLogo').value.trim():'',
     });
     notificar('⚙️ Configurações salvas!', 'success');
     fecharConfig();
+    } catch (e) { notificar('Não foi possível salvar as configurações.', 'error'); console.error('[CONFIG]', e); }
+    finally { if (btn) btn.disabled = false; }
 }
 function limparDados() {
     if (!confirm('Apagar TODOS os pedidos, clientes e cardápio customizado?')) return;

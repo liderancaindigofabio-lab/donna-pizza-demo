@@ -24,7 +24,7 @@
             <div>
                 <h1>Painel da Pizzaria</h1>
                 <div class="brand-meta">
-                    <span>Nonna Pizzaria</span>
+                    <span data-donna-brand-name>Nonna Pizzaria</span><span data-donna-brand-cnpj hidden></span>
                     <span class="status-pill" id="statusConexao" data-donna-connection>● conectando…</span>
                 </div>
             </div>
@@ -260,7 +260,7 @@
             <div class="form-group">
                 <label>Taxa de entrega (R$)</label>
                 <input type="number" id="cfgTaxa" step="0.5">
-            </div><div class="form-group"><label>CNPJ</label><input type="text" id="cfgCnpj" maxlength="18"></div><div class="form-group"><label>Cor principal</label><input type="color" id="cfgCor" value="#ae8035"></div><div class="form-group"><label>Horário de funcionamento</label><div><input type="time" id="cfgAbertura"> até <input type="time" id="cfgFechamento"></div></div><div class="form-group"><label>Logo/foto (URL https)</label><input type="url" id="cfgLogo" maxlength="500"></div>
+            </div><div class="form-group"><label>CNPJ</label><input type="text" id="cfgCnpj" maxlength="18"></div><div class="form-group"><label>Cor principal</label><input type="color" id="cfgCor" value="#ae8035"></div><div class="form-group"><label>Cor de destaque</label><input type="color" id="cfgCor2" value="#171614"></div><div class="form-group"><label>Horário de funcionamento</label><div><input type="time" id="cfgAbertura"> até <input type="time" id="cfgFechamento"></div></div><div class="form-group"><label>Logo/foto (URL https)</label><input type="url" id="cfgLogo" maxlength="500"></div>
             <button class="btn-primary" onclick="salvarConfig()">💾 Salvar</button>
             <button class="btn-secondary" onclick="limparDados()" style="margin-top:10px;background:#c62828;color:white;">🗑️ Limpar TODOS os pedidos (demo)</button>
         </div>

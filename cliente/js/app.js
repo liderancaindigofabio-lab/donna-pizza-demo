@@ -13,8 +13,15 @@ let clienteLogado = null; // cliente salvo (autopreenchimento)
 let pizzaBuilder = null;  // { tamanho, sabores: [], adicionais: [] }
 
 const BRL = (v) => 'R$ ' + v.toFixed(2).replace('.', ',');
-const config = DB.getConfig();
+let config = DB.getConfig();
 const cardapio = DB.getCardapio();
+const horaEmMinutos = value => { const m = String(value || '').match(/^(\d{1,2}):(\d{2})$/); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
+function lojaEstaAberta() {
+    const abertura = horaEmMinutos(config.abertura), fechamento = horaEmMinutos(config.fechamento);
+    if (abertura === null || fechamento === null || abertura === fechamento) return true; // preserve default when unset
+    const agora = new Date(), atual = agora.getHours() * 60 + agora.getMinutes();
+    return abertura < fechamento ? atual >= abertura && atual < fechamento : atual >= abertura || atual < fechamento;
+}
 // Mídia opcional do cardápio: somente URLs http(s), evitando HTML arbitrário.
 const mediaProduto = p => { const u=String(p?.foto||''); return /^https:\/\//i.test(u) ? `<img src="${u.replace(/"/g,'&quot;')}" alt="" loading="lazy">` : (p?.emoji||'🍕'); };
 
@@ -48,6 +55,12 @@ function init() {
             // recarrega cardápio se pizzaria editou
             location.reload();
         }
+        if (tipo === 'config_update') {
+            config = data || DB.getConfig();
+            if (window.NONNA_BRANDING) NONNA_BRANDING.apply(config);
+            verificarStatus();
+            atualizarResumoCarrinho?.();
+        }
         if (tipo === 'pedido_update' && meuPedidoId) {
             abrirAcompanhamento();
         }
@@ -66,15 +79,12 @@ function init() {
 }
 
 function verificarStatus() {
-    const hora = new Date().getHours();
     const el = document.getElementById('statusLoja');
-    if (hora >= 18 && hora < 23) {
-        el.className = 'status-badge';
-        el.textContent = '● Aberto';
-    } else {
-        el.className = 'status-badge fechado';
-        el.textContent = '● Fechado';
-    }
+    if (!el) return;
+    const aberto = lojaEstaAberta();
+    el.className = 'status-badge' + (aberto ? '' : ' fechado');
+    el.textContent = aberto ? '● Aberto' : '● Fechado';
+    el.title = config.abertura && config.fechamento ? `Funcionamento: ${config.abertura}–${config.fechamento}` : '';
 }
 
 // ============ HEADER DO CLIENTE (se logado) ============
@@ -755,6 +765,11 @@ async function finalizarPedido() {
     const tipoPedido = getTipoPedido();
     const delivery = tipoPedido === 'delivery';
 
+    // Horário configurado bloqueia novo pedido, mas mantém o catálogo consultável.
+    if (!lojaEstaAberta()) {
+        toast(`A pizzaria está fechada${config.abertura && config.fechamento ? ` (funciona das ${config.abertura} às ${config.fechamento})` : ''}.`, 'warning', 6000);
+        return;
+    }
     // Validação
     if (!nome || !tel) {
         toast('⚠️ Preencha nome e telefone', 'error');
