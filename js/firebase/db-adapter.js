@@ -201,18 +201,43 @@ const DB = {
         p.criadoEm = p.criadoEm || p.createdAt || ts;
         p.createdAt = p.createdAt || p.criadoEm;
         p.updatedAt = p.updatedAt || p.criadoEm;
-        if (!Array.isArray(p.timeline) || !p.timeline.length) {
-            p.timeline = [{ evento: 'pedido_criado', status, em: p.criadoEm, createdAt: p.criadoEm, createdBy: p.createdBy }];
+        // Preserve legacy timeline maps from Firebase; only create one when absent.
+        if (!p.timeline || (Array.isArray(p.timeline) && !p.timeline.length) || (typeof p.timeline === 'object' && !Array.isArray(p.timeline) && !Object.keys(p.timeline).length)) {
+            p.timeline = [{ evento: 'pedido_criado', status, em: p.criadoEm, createdAt: p.criadoEm, createdBy: p.createdBy, timestamp: p.criadoEm, actor: p.createdBy, source: origem }];
         }
         if (p.motoboyId === undefined) p.motoboyId = null;
         if (p.rota === undefined) p.rota = null;
         return p;
     },
 
+    // Single event shape for both localStorage and Firebase, while retaining
+    // the old field names consumed by existing screens.
     _novoEventoPedido(status, dados) {
-        const agora = new Date().toISOString();
         const extra = (dados && typeof dados === 'object') ? dados : {};
-        return { ...extra, evento: extra.evento || 'status_alterado', status: status || extra.status || null, em: extra.em || agora, createdAt: extra.createdAt || agora, createdBy: extra.createdBy || 'sistema' };
+        const agora = new Date().toISOString();
+        const candidata = extra.timestamp || extra.em || extra.createdAt;
+        const timestamp = candidata && !Number.isNaN(Date.parse(candidata)) ? new Date(candidata).toISOString() : agora;
+        const actor = extra.actor || extra.createdBy || extra.operador || 'sistema';
+        const source = extra.source || extra.origem || extra.canal || null;
+        const evento = { ...extra, evento: extra.evento || 'status_alterado', status: status || extra.status || null, timestamp, em: timestamp, createdAt: timestamp };
+        if (actor) { evento.actor = actor; evento.createdBy = actor; }
+        if (source) evento.source = source;
+        return evento;
+    },
+
+    _timelineEntries(timeline) {
+        if (Array.isArray(timeline)) return timeline;
+        if (timeline && typeof timeline === 'object') return Object.values(timeline);
+        return [];
+    },
+
+    _appendTimeline(timeline, item) {
+        if (Array.isArray(timeline)) return [...timeline, item];
+        if (timeline && typeof timeline === 'object') {
+            const key = 'evento_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+            return { ...timeline, [key]: item };
+        }
+        return [item];
     },
 
     getPedidos() {
@@ -236,15 +261,38 @@ const DB = {
     },
 
     updatePedido(id, updates) {
-        if (this.backend === 'firebase') return DBRemote.updatePedido(id, updates);
+        if (this.backend === 'firebase') {
+            const ref = firebase.database().ref('pedidos/' + id);
+            return ref.once('value').then(snap => {
+                const anterior = snap.val();
+                if (!anterior) return null;
+                const agora = new Date().toISOString();
+                const patch = { ...(updates || {}), updatedAt: agora };
+                // Never replace a legacy timeline while applying an order patch.
+                delete patch.timeline;
+                if (patch.status && patch.status !== anterior.status) {
+                    const evento = this._novoEventoPedido(patch.status, { ...patch, evento: patch.status === 'cancelado' ? 'pedido_cancelado' : 'status_alterado' });
+                    const eventoRef = ref.child('timeline').push();
+                    patch['timeline/' + eventoRef.key] = evento;
+                }
+                return ref.update(patch).then(() => ref.once('value')).then(finalSnap => {
+                    const pedido = finalSnap.val();
+                    if (pedido) this._notify('pedido_update', pedido);
+                    return pedido;
+                });
+            });
+        }
         const pedidos = this.getPedidos();
         const idx = pedidos.findIndex(p => String(p.id) === String(id));
         if (idx < 0) return null;
         const anterior = pedidos[idx];
         const agora = new Date().toISOString();
-        const atualizado = { ...anterior, ...(updates || {}), updatedAt: agora };
-        if (updates && updates.status && updates.status !== anterior.status) {
-            atualizado.timeline = [...(Array.isArray(anterior.timeline) ? anterior.timeline : []), this._novoEventoPedido(updates.status, { evento: updates.status === 'cancelado' ? 'pedido_cancelado' : 'status_alterado', motivoCancelamento: updates.motivoCancelamento || null, createdBy: updates.createdBy || 'sistema' })];
+        const patch = { ...(updates || {}) };
+        // Timeline is append-only; callers cannot replace legacy history via a patch.
+        delete patch.timeline;
+        const atualizado = { ...anterior, ...patch, updatedAt: agora };
+        if (patch.status && patch.status !== anterior.status) {
+            atualizado.timeline = this._appendTimeline(anterior.timeline, this._novoEventoPedido(patch.status, { ...patch, evento: patch.status === 'cancelado' ? 'pedido_cancelado' : 'status_alterado' }));
         }
         pedidos[idx] = atualizado;
         localStorage.setItem(this.KEY_PEDIDOS, JSON.stringify(pedidos));
@@ -253,7 +301,21 @@ const DB = {
     },
 
     registrarEventoPedido(id, evento, dados) {
-        if (this.backend === 'firebase') return DBRemote.registrarEventoPedido(id, evento, dados);
+        if (this.backend === 'firebase') {
+            const nomeEvento = typeof evento === 'string' ? evento : ((evento || {}).evento || 'evento');
+            const extra = typeof evento === 'object' ? evento : (dados || {});
+            const ref = firebase.database().ref('pedidos/' + id);
+            return ref.once('value').then(snap => {
+                const pedido = snap.val();
+                if (!pedido) return null;
+                const item = this._novoEventoPedido(extra.status || pedido.status, { ...extra, evento: nomeEvento });
+                const eventRef = ref.child('timeline').push();
+                return eventRef.set(item).then(() => ref.update({ updatedAt: item.timestamp })).then(() => {
+                    this._notify('pedido_update', { ...pedido, updatedAt: item.timestamp });
+                    return item;
+                });
+            });
+        }
         const pedidos = this.getPedidos();
         const idx = pedidos.findIndex(p => String(p.id) === String(id));
         if (idx < 0) return null;
@@ -261,7 +323,7 @@ const DB = {
         const nomeEvento = typeof evento === 'string' ? evento : ((evento || {}).evento || 'evento');
         const extra = typeof evento === 'object' ? evento : (dados || {});
         const item = this._novoEventoPedido(extra.status || p.status, { ...extra, evento: nomeEvento });
-        p.timeline = [...(Array.isArray(p.timeline) ? p.timeline : []), item];
+        p.timeline = this._appendTimeline(p.timeline, item);
         p.updatedAt = item.em;
         localStorage.setItem(this.KEY_PEDIDOS, JSON.stringify(pedidos));
         this._notify('pedido_update', p);
