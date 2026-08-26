@@ -193,6 +193,7 @@ function renderProdutos(filtro = '') {
                     : `${BRL(p.precoMin)} — ${BRL(p.precoMax)}`;
                 return `
                 <div class="produto produto-tamanho" onclick="abrirBuilderPizza('${p.tamanho.id}')">
+                    <button class="produto-favorito ${isFavorito('tam_' + p.tamanho.id) ? 'ativo' : ''}" onclick="toggleFavorito('tam_${p.tamanho.id}', event)" aria-label="Favoritar ${p.nome}">${isFavorito('tam_' + p.tamanho.id) ? '★' : '☆'}</button>
                     <div class="produto-img">${p.emoji}</div>
                     <div class="produto-info">
                         <div>
@@ -208,6 +209,7 @@ function renderProdutos(filtro = '') {
             } else if (p.tipo === 'combo') {
                 return `
                 <div class="produto produto-combo" onclick='adicionarCombo(${JSON.stringify(p).replace(/'/g, "&apos;")})'>
+                    <button class="produto-favorito ${isFavorito(String(p.id)) ? 'ativo' : ''}" onclick="toggleFavorito('${String(p.id)}', event)" aria-label="Favoritar ${p.nome}">${isFavorito(String(p.id)) ? '★' : '☆'}</button>
                     <div class="produto-img combo">${p.emoji}</div>
                     <div class="produto-info">
                         <div>
@@ -224,6 +226,7 @@ function renderProdutos(filtro = '') {
             } else {
                 return `
                 <div class="produto" onclick='adicionarItemSimples(${JSON.stringify(p).replace(/'/g, "&apos;")})'>
+                    <button class="produto-favorito ${isFavorito(String(p.id)) ? 'ativo' : ''}" onclick="toggleFavorito('${String(p.id)}', event)" aria-label="Favoritar ${p.nome}">${isFavorito(String(p.id)) ? '★' : '☆'}</button>
                     <div class="produto-img">${p.emoji || '🥟'}</div>
                     <div class="produto-info">
                         <div>
@@ -501,7 +504,7 @@ function renderCarrinho() {
         document.getElementById('descLabel').textContent = `Cupom (${desc})`;
         document.getElementById('resumoDesconto').textContent = cupomAplicado.tipo === 'percentual'
             ? `-${BRL(calcularSubtotal() * cupomAplicado.valor / 100)}`
-            : `-${BRL(cupomAplicado.valor)}`;
+            : `-${BRL(Math.min(calcularSubtotal(), Number(cupomAplicado.valor) || 0))}`;
     } else {
         document.getElementById('linhaDesconto').style.display = 'none';
     }
@@ -528,7 +531,7 @@ function calcularTotal() {
         if (cupomAplicado.tipo === 'percentual') {
             total = total - (calcularSubtotal() * cupomAplicado.valor / 100);
         } else {
-            total = Math.max(0, total - cupomAplicado.valor);
+            total = Math.max(0, total - Math.min(calcularSubtotal(), Number(cupomAplicado.valor) || 0));
         }
     }
     return total;
@@ -538,18 +541,25 @@ function calcularTotal() {
 function aplicarCupom() {
     const codigo = document.getElementById('cupomInput').value.trim().toUpperCase();
     const msg = document.getElementById('cupomMsg');
-    const cupom = cardapio.cupons[codigo];
-    if (cupom) {
+    const cadastrados = cardapio.cupons || [];
+    const lista = Array.isArray(cadastrados) ? cadastrados : Object.entries(cadastrados).map(([k, v]) => ({ ...v, codigo: v.codigo || k }));
+    const ativos = Array.isArray(config.cuponsAtivos) ? config.cuponsAtivos.map(String).map(x => x.toUpperCase()) : null;
+    const cupom = lista.find(c => String(c.codigo || '').toUpperCase() === codigo);
+    const subtotal = calcularSubtotal();
+    const temCombo = carrinho.some(i => i.tipo === 'combo');
+    let erro = '';
+    if (!cupom || cupom.ativo === false || (ativos && !ativos.includes(codigo))) erro = 'Cupom inválido ou inativo';
+    else if (cupom.minimo != null && subtotal < Number(cupom.minimo)) erro = `Pedido mínimo de ${BRL(Number(cupom.minimo))}`;
+    else if (cupom.apenasCombos && !temCombo) erro = 'Este cupom vale apenas para combos';
+    else if (cupom.tipo !== 'percentual' && cupom.tipo !== 'fixo') erro = 'Cupom sem regra de desconto válida';
+    if (!erro) {
         cupomAplicado = cupom;
-        msg.className = 'cupom-msg ok';
-        msg.textContent = '✅ ' + cupom.desc;
-        renderCarrinho();
+        msg.className = 'cupom-msg ok'; msg.textContent = '✅ ' + (cupom.desc || 'Cupom aplicado');
     } else {
         cupomAplicado = null;
-        msg.className = 'cupom-msg err';
-        msg.textContent = '❌ Cupom inválido';
-        renderCarrinho();
+        msg.className = 'cupom-msg err'; msg.textContent = '❌ ' + erro;
     }
+    renderCarrinho();
 }
 
 function abrirCupom() {
@@ -813,7 +823,7 @@ async function finalizarPedido() {
         })),
         subtotal: calcularSubtotal(),
         taxa: delivery ? (config.taxaEntrega || 0) : 0,
-        desconto: cupomAplicado ? (cupomAplicado.tipo === 'percentual' ? calcularSubtotal() * cupomAplicado.valor / 100 : cupomAplicado.valor) : 0,
+        desconto: cupomAplicado ? (cupomAplicado.tipo === 'percentual' ? calcularSubtotal() * Number(cupomAplicado.valor || 0) / 100 : Math.min(calcularSubtotal(), Number(cupomAplicado.valor || 0))) : 0,
         cupom: cupomAplicado ? cupomAplicado.codigo || cupomAplicado.desc : null,
         total: calcularTotal(),
         coords: coords,
@@ -934,6 +944,17 @@ function coordsAleatorias() {
     return { lat: -10.911, lng: -37.071 };
 }
 
+// ============ FIDELIDADE (somente pedidos concluídos) ============
+function calcularFidelidade(pedidos) {
+    const regra = config.fidelidade || {};
+    const porReal = Number(regra.pontosPorReal ?? config.pontosPorReal ?? 1);
+    const porPedido = Number(regra.pontosPorPedido ?? config.pontosPorPedido ?? 0);
+    const ativo = regra.ativo !== false && config.fidelidadeAtiva !== false;
+    const concluidos = (pedidos || []).filter(p => String(p.status || '').toLowerCase() === 'entregue');
+    const gasto = concluidos.reduce((s, p) => s + Math.max(0, Number(p.total || 0)), 0);
+    return { ativo, pontos: ativo ? Math.floor(gasto * Math.max(0, porReal) + concluidos.length * Math.max(0, porPedido)) : 0, concluidos };
+}
+
 // ============ HISTÓRICO DO CLIENTE ============
 async function abrirMeusPedidos() {
     if (!clienteLogado) {
@@ -944,6 +965,7 @@ async function abrirMeusPedidos() {
     const pedidos = await DB.getPedidosCliente(clienteLogado.tel);
     const entregues = pedidos.filter(p => p.status === 'entregue');
     const gastoTotal = entregues.reduce((s, p) => s + Number(p.total || 0), 0);
+    const fidelidade = calcularFidelidade(pedidos);
     const stats = { total: pedidos.length, entregues: entregues.length, gastoTotal, ticketMedio: entregues.length ? gastoTotal / entregues.length : 0 };
     const primeiroNome = clienteLogado.nome.split(' ')[0];
 
@@ -982,7 +1004,12 @@ async function abrirMeusPedidos() {
                 <div class="stat-mini-num">${BRL(stats.ticketMedio)}</div>
                 <div class="stat-mini-label">Ticket médio</div>
             </div>
+            <div class="stat-mini stat-fidelidade">
+                <div class="stat-mini-num">${fidelidade.ativo ? fidelidade.pontos : '—'}</div>
+                <div class="stat-mini-label">⭐ Pontos</div>
+            </div>
         </div>
+        <div class="fidelidade-nota">${fidelidade.ativo ? 'Pontos calculados apenas sobre pedidos entregues.' : 'Programa de pontos não configurado.'}</div>
 
         <h3 class="historico-titulo">📦 Seus pedidos</h3>
         ${pedidos.length === 0 ?
