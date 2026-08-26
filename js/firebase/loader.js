@@ -24,6 +24,8 @@
     }
 
     function startApp() {
+        if (window.__NONNA_APP_STARTED) return;
+        window.__NONNA_APP_STARTED = true;
         console.log('🚀 Iniciando app:', appName);
         extras.forEach(src => {
             console.log('  → carregando', src);
