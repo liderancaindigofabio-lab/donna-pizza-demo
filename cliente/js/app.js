@@ -27,13 +27,13 @@ function init() {
     setInterval(verificarStatus, 60000);
     checarPedidoLocal();
 
-    // === DEMO MODE: ?demo=maria ou ?demo=fabio ===
+    // === DEMO MODE: ?demo=maria ou ?demo=maria-pedido ===
     // Abre uma das modais automaticamente para screenshots/apresentação
     const demoMode = new URLSearchParams(location.search).get('demo');
-    if (demoMode === 'maria-pedido' || demoMode === 'maria' || demoMode === 'fabio' || demoMode === 'fabio-pedido') {
+    if (demoMode === 'maria-pedido' || demoMode === 'maria') {
         // Espera o Firebase carregar
         setTimeout(() => {
-            if (demoMode === 'maria-pedido' || demoMode === 'fabio' || demoMode === 'fabio-pedido') {
+            if (demoMode === 'maria-pedido') {
                 abrirAcompanhamento();
             } else {
                 abrirMeusPedidos();
@@ -491,7 +491,8 @@ function renderCarrinho() {
     `).join('');
 
     document.getElementById('resumoSubtotal').textContent = BRL(calcularSubtotal());
-    document.getElementById('resumoTaxa').textContent = BRL(config.taxaEntrega || 0);
+    const taxaAtual = typeof getTipoPedido === 'function' && getTipoPedido() === 'retirada' ? 0 : (config.taxaEntrega || 0);
+    document.getElementById('resumoTaxa').textContent = BRL(taxaAtual);
     document.getElementById('resumoTotal').textContent = BRL(calcularTotal());
 
     if (cupomAplicado) {
@@ -521,7 +522,8 @@ function calcularSubtotal() {
 }
 
 function calcularTotal() {
-    let total = calcularSubtotal() + (config.taxaEntrega || 0);
+    const taxaAtual = typeof getTipoPedido === 'function' && getTipoPedido() === 'retirada' ? 0 : (config.taxaEntrega || 0);
+    let total = calcularSubtotal() + taxaAtual;
     if (cupomAplicado) {
         if (cupomAplicado.tipo === 'percentual') {
             total = total - (calcularSubtotal() * cupomAplicado.valor / 100);
@@ -597,10 +599,20 @@ function abrirCheckout() {
         document.getElementById('cliCidade').value = 'Aracaju';
         document.getElementById('cliRef').value = '';
     }
+    // O tipo de recebimento controla endereço, taxa e instruções do pagamento.
+    const tipoAtual = clienteLogado && clienteLogado.tipoPedido === 'retirada' ? 'retirada' : 'delivery';
+    document.querySelectorAll('input[name="tipoPedido"]').forEach(r => { r.checked = r.value === tipoAtual; });
+    document.querySelectorAll('input[name="tipoPedido"]').forEach(r => {
+        r.removeEventListener('change', atualizarTipoPedido);
+        r.addEventListener('change', atualizarTipoPedido);
+    });
+    document.getElementById('cliTroco').value = '';
+    document.getElementById('cliObs').value = '';
     document.getElementById('modalCheckout').style.display = 'flex';
     const sel = document.getElementById('cliPag');
     sel.removeEventListener('change', atualizarPagInfo);
     sel.addEventListener('change', atualizarPagInfo);
+    atualizarTipoPedido();
     atualizarPagInfo();
     // Listener do CEP pra auto-busca
     const cepInput = document.getElementById('cliCep');
@@ -610,6 +622,21 @@ function abrirCheckout() {
     cepInput.addEventListener('input', onCepInput);
     // Reseta status do CEP
     setCepStatus('', '');
+}
+
+function getTipoPedido() {
+    return document.querySelector('input[name="tipoPedido"]:checked')?.value || 'delivery';
+}
+
+function atualizarTipoPedido() {
+    const retirada = getTipoPedido() === 'retirada';
+    const campos = document.getElementById('enderecoEntregaCampos');
+    if (campos) campos.classList.toggle('retirada', retirada);
+    // Retirada não cobra taxa e não exige endereço; ainda preservamos os dados
+    // digitados para que trocar de opção não apague o formulário.
+    const resumoTaxa = document.getElementById('resumoTaxa');
+    if (resumoTaxa) resumoTaxa.textContent = BRL(retirada ? 0 : (config.taxaEntrega || 0));
+    atualizarPagInfo();
 }
 
 let _cepTimer = null;
@@ -667,15 +694,17 @@ function setCepStatus(tipo, texto) {
 function atualizarPagInfo() {
     const pag = document.getElementById('cliPag').value;
     const info = document.getElementById('pagInfo');
+    const troco = document.getElementById('trocoGrupo');
+    if (troco) troco.style.display = pag === 'Dinheiro' ? 'block' : 'none';
     if (pag === 'Pix') {
         info.className = 'checkout-pagamento-info show';
         info.innerHTML = '💡 <strong>Pix:</strong> após enviar o pedido, você receberá a chave Pix no WhatsApp da pizzaria.';
     } else if (pag.startsWith('Cartão')) {
         info.className = 'checkout-pagamento-info show';
-        info.innerHTML = '💳 <strong>Cartão na entrega:</strong> leve a maquininha. Taxa pode ser repassada.';
+        info.innerHTML = `💳 <strong>Cartão:</strong> ${getTipoPedido() === 'retirada' ? 'pagamento no balcão.' : 'leve a maquininha para o recebimento.'}`;
     } else {
         info.className = 'checkout-pagamento-info show';
-        info.innerHTML = '💵 <strong>Dinheiro:</strong> informe o troco necessário no campo de observações.';
+        info.innerHTML = '💵 <strong>Dinheiro:</strong> informe o valor do troco no campo acima, se precisar.';
     }
 }
 
@@ -710,14 +739,21 @@ async function finalizarPedido() {
     const obs = document.getElementById('cliObs').value.trim();
     const cep = document.getElementById('cliCep').value.trim();
     const ref = document.getElementById('cliRef').value.trim();
+    const troco = Number(document.getElementById('cliTroco').value || 0);
+    const tipoPedido = getTipoPedido();
+    const delivery = tipoPedido === 'delivery';
 
     // Validação
     if (!nome || !tel) {
         toast('⚠️ Preencha nome e telefone', 'error');
         return;
     }
-    if (!rua || !numero || !bairro) {
-        toast('⚠️ Preencha rua, número e bairro', 'error');
+    if (delivery && (!rua || !numero || !bairro)) {
+        toast('⚠️ Para entrega, preencha rua, número e bairro', 'error');
+        return;
+    }
+    if (pag === 'Dinheiro' && troco && troco < calcularTotal()) {
+        toast('⚠️ O troco deve ser maior ou igual ao total', 'error');
         return;
     }
     if (tel.replace(/\D/g, '').length < 10) {
@@ -726,27 +762,29 @@ async function finalizarPedido() {
     }
 
     // Monta endereço em formato único (pra WhatsApp, geocoding, fallback)
-    const end = montarEndereco();
+    const end = delivery ? montarEndereco() : 'Retirada no balcão';
     // Objeto estruturado (pra motoboy, pizzaria, futuras features)
-    const enderecoEstruturado = { cep, rua, numero, complemento: compl, bairro, cidade: cidade || 'Aracaju', referencia: ref };
+    const enderecoEstruturado = delivery
+        ? { tipo: 'delivery', cep, rua, numero, complemento: compl, bairro, cidade: cidade || 'Aracaju', referencia: ref }
+        : { tipo: 'retirada' };
 
-    // Geocoding do endereço pra mostrar no mapa do motoboy + acompanhamento
-    const btnEnviar = document.querySelector('#modalCheckout .btn-primary');
-    const txtOriginal = btnEnviar.innerHTML;
-    btnEnviar.disabled = true;
-    btnEnviar.innerHTML = '📍 Localizando seu endereço...';
-    // Geocoding com objeto estruturado — múltiplas tentativas progressivas
-    const coords = await geocodificar(enderecoEstruturado);
-    if (coords.fallback) {
-        toast('⚠️ Não conseguimos localizar o endereço exato. Confirme no mapa após o pedido.', 'warning', 5000);
+    // Só geocodifica delivery: retirada não deve criar uma coordenada falsa.
+    let coords = null;
+    if (delivery) {
+        const btnEnviar = document.querySelector('#modalCheckout .btn-primary');
+        const txtOriginal = btnEnviar.innerHTML;
+        btnEnviar.disabled = true;
+        btnEnviar.innerHTML = '📍 Localizando seu endereço...';
+        coords = await geocodificar(enderecoEstruturado);
+        if (coords.fallback) toast('⚠️ Não conseguimos localizar o endereço exato. Confirme no mapa após o pedido.', 'warning', 5000);
+        btnEnviar.disabled = false;
+        btnEnviar.innerHTML = txtOriginal;
     }
-    btnEnviar.disabled = false;
-    btnEnviar.innerHTML = txtOriginal;
 
     // Salva o cliente pra próxima vez (formato NOVO: estruturado + string legada)
-    const clienteSalvo = DB.salvarCliente({
+    const clienteSalvo = await DB.salvarCliente({
         nome, tel,
-        end, cep, ref, // legado, mantém compat
+        end, cep, ref, tipoPedido, // legado, mantém compat
         endereco: enderecoEstruturado  // novo formato
     });
     DB.setClienteLogado(tel);
@@ -754,8 +792,16 @@ async function finalizarPedido() {
     renderHeaderCliente();
 
     const pedido = {
-        pagamento: pag,  // Espelha no nível do pedido pra fácil leitura
-        cliente: { nome, tel, end, cep, ref, pag, obs, endereco: enderecoEstruturado },
+        // Metadados explícitos evitam que delivery/retirada sejam confundidos
+        // quando o mesmo banco recebe pedidos de outros canais.
+        origem: 'delivery',
+        canal: 'delivery',
+        tipoPedido,
+        createdBy: 'cliente_web',
+        pagamento: pag,  // compatibilidade com o painel atual
+        formaPagamento: pag,
+        trocoPara: pag === 'Dinheiro' && troco > 0 ? troco : null,
+        cliente: { nome, tel, end, cep, ref, pag, obs, tipoPedido, endereco: enderecoEstruturado },
         itens: carrinho.map(i => ({
             nome: i.nome,
             descricao: i.descricao,
@@ -766,7 +812,7 @@ async function finalizarPedido() {
             preco: i.preco,
         })),
         subtotal: calcularSubtotal(),
-        taxa: config.taxaEntrega,
+        taxa: delivery ? (config.taxaEntrega || 0) : 0,
         desconto: cupomAplicado ? (cupomAplicado.tipo === 'percentual' ? calcularSubtotal() * cupomAplicado.valor / 100 : cupomAplicado.valor) : 0,
         cupom: cupomAplicado ? cupomAplicado.codigo || cupomAplicado.desc : null,
         total: calcularTotal(),
@@ -781,16 +827,17 @@ async function finalizarPedido() {
     let msg = `🍕 *NOVO PEDIDO - NONNA PIZZARIA* #${pedidoSalvo.id.toString().slice(-5)}\n\n`;
     msg += `👤 *Cliente:* ${nome}\n`;
     msg += `📞 *Telefone:* ${tel}\n`;
-    msg += `📍 *Endereço:* ${end}${cep ? ` (CEP ${cep})` : ''}\n`;
-    if (ref) msg += `🏠 *Referência:* ${ref}\n`;
+    msg += delivery ? `📍 *Endereço:* ${end}${cep ? ` (CEP ${cep})` : ''}\n` : '🏪 *Recebimento:* Retirada no balcão\n';
+    if (delivery && ref) msg += `🏠 *Referência:* ${ref}\n`;
     msg += `💳 *Pagamento:* ${pag}\n`;
+    if (pag === 'Dinheiro' && troco > 0) msg += `💵 *Troco para:* ${BRL(troco)}\n`;
     if (obs) msg += `📝 *Obs:* ${obs}\n`;
     msg += `\n*--- ITENS ---*\n`;
     pedido.itens.forEach((it, i) => {
         msg += `${i + 1}. ${it.nome}${it.descricao ? ' — ' + it.descricao : ''} (${BRL(it.preco)})\n`;
     });
     msg += `\n*Subtotal:* ${BRL(pedido.subtotal)}\n`;
-    msg += `*Taxa entrega:* ${BRL(pedido.taxa)}\n`;
+    msg += `*${delivery ? 'Taxa entrega' : 'Taxa retirada'}:* ${BRL(pedido.taxa)}\n`;
     if (pedido.cupom) msg += `*Cupom:* ${pedido.cupom}\n`;
     if (pedido.desconto > 0) msg += `*Desconto:* -${BRL(pedido.desconto)}\n`;
     msg += `*TOTAL: ${BRL(pedido.total)}* 🎯\n`;
@@ -888,13 +935,16 @@ function coordsAleatorias() {
 }
 
 // ============ HISTÓRICO DO CLIENTE ============
-function abrirMeusPedidos() {
+async function abrirMeusPedidos() {
     if (!clienteLogado) {
         toast('Faça um pedido primeiro pra ter histórico', 'warning');
         return;
     }
-    const pedidos = DB.getPedidosCliente(clienteLogado.tel);
-    const stats = DB.getEstatisticasCliente(clienteLogado.tel);
+    // Firebase faz a consulta remota; localStorage continua compatível via await.
+    const pedidos = await DB.getPedidosCliente(clienteLogado.tel);
+    const entregues = pedidos.filter(p => p.status === 'entregue');
+    const gastoTotal = entregues.reduce((s, p) => s + Number(p.total || 0), 0);
+    const stats = { total: pedidos.length, entregues: entregues.length, gastoTotal, ticketMedio: entregues.length ? gastoTotal / entregues.length : 0 };
     const primeiroNome = clienteLogado.nome.split(' ')[0];
 
     const modal = document.getElementById('modalMeusPedidos');
@@ -907,7 +957,7 @@ function abrirMeusPedidos() {
             </div>
             <div class="perfil-linha">
                 <span class="perfil-label">📍 Endereço</span>
-                <span class="perfil-valor">${clienteLogado.endereco || 'Não cadastrado'}</span>
+                <span class="perfil-valor">${typeof clienteLogado.endereco === 'string' ? clienteLogado.endereco : (clienteLogado.end || 'Não cadastrado')}</span>
             </div>
             <div class="perfil-linha">
                 <span class="perfil-label">💜 Cliente desde</span>
@@ -947,7 +997,7 @@ function abrirMeusPedidos() {
                     cancelado:  { txt: 'Cancelado',   cor: 'cancelado' },
                 }[p.status] || { txt: p.status, cor: '' };
                 let motoboy = null;
-                try { const _ms = DB._cacheMotoboys || DB.getMotoboys(); motoboy = p.motoboyId ? _ms.find(x => x.id === p.motoboyId) : null; } catch(e) { motoboy = null; }
+                try { motoboy = p.motoboyId ? DB.getMotoboy(p.motoboyId) : null; } catch(e) { motoboy = null; }
                 return `
                 <div class="mpi-card">
                     <div class="mpi-header">
@@ -959,6 +1009,7 @@ function abrirMeusPedidos() {
                         <span>${BRL(p.total)} • ${new Date(p.criadoEm).toLocaleDateString('pt-BR')}</span>
                         ${motoboy ? `<span class="mpi-motoboy">🛵 ${motoboy.nome}</span>` : ''}
                     </div>
+                    <button class="btn-repeat-order" onclick="repetirPedido('${String(p.id).replace(/'/g, '')}')">🔁 Pedir novamente</button>
                 </div>`;
             }).join('')
         }
@@ -974,12 +1025,29 @@ function fecharMeusPedidos() {
     document.getElementById('modalMeusPedidos').style.display = 'none';
 }
 
+async function repetirPedido(id) {
+    if (!clienteLogado) return;
+    const pedidos = await DB.getPedidosCliente(clienteLogado.tel);
+    const pedido = (pedidos || []).find(p => String(p.id) === String(id));
+    if (!pedido || !Array.isArray(pedido.itens) || !pedido.itens.length) {
+        toast('⚠️ Não foi possível recuperar este pedido', 'error');
+        return;
+    }
+    // Usa somente itens reais do pedido; sem inventar disponibilidade/preços.
+    carrinho = pedido.itens.map(item => ({ ...item, preco: Number(item.preco) || 0 }));
+    cupomAplicado = null;
+    fecharMeusPedidos();
+    atualizarCarrinho();
+    abrirCarrinho();
+    toast('✅ Itens adicionados ao carrinho. Confira antes de enviar.');
+}
+
 // ============ ACOMPANHAMENTO ============
 function checarPedidoLocal() {
     const id = localStorage.getItem('donna_meu_pedido');
     if (id) {
         meuPedidoId = parseInt(id);
-        const pedido = (DB._cachePedidos || DB.getPedidos()).find(p => p.id === meuPedidoId);
+        const pedido = DB.getPedidos().find(p => p.id === meuPedidoId);
         if (pedido && !['entregue', 'cancelado'].includes(pedido.status)) {
             setTimeout(() => {
                 if (confirm('Você tem um pedido em andamento! Quer acompanhar?')) {
@@ -995,8 +1063,7 @@ function abrirAcompanhamento() {
         toast('Você não tem pedido ativo', 'warning');
         return;
     }
-    const pedido = (DB._cachePedidos || DB.getPedidos()).find(p => p.id === meuPedidoId || p.id === parseInt(meuPedidoId) || String(p.id) === String(meuPedidoId));
-    console.log('[cliente] abrirAcompanhamento: meuPedidoId=' + meuPedidoId + ' pedido=' + (pedido ? '#' + String(pedido.id).slice(-5) + ' status=' + pedido.status : 'null'));
+    const pedido = DB.getPedidos().find(p => p.id === meuPedidoId);
     if (!pedido) {
         document.getElementById('pedidoAcompanhamento').innerHTML = `<div class="empty-state"><div class="empty-state-icon">📭</div><p>Pedido não encontrado</p></div>`;
         document.getElementById('modalAcompanhamento').style.display = 'flex';
@@ -1022,7 +1089,7 @@ function abrirAcompanhamento() {
 
     const stepAtual = ['novo', 'preparando', 'pronto', 'em_entrega', 'entregue'].indexOf(pedido.status);
     let motoboy = null;
-    try { const _ms2 = DB._cacheMotoboys || DB.getMotoboys(); motoboy = pedido.motoboyId ? _ms2.find(x => x.id === pedido.motoboyId) : null; } catch (e) { motoboy = null; }
+    try { motoboy = pedido.motoboyId ? DB.getMotoboy(pedido.motoboyId) : null; } catch (e) { motoboy = null; }
     const totalItens = (pedido.itens || []).reduce((acc, i) => acc + (i.qtd || 1), 0);
     const criado = new Date(pedido.criadoEm);
     const horaFormatada = criado.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -1112,7 +1179,6 @@ let pollMapaCliente = null;
 const PIZZARIA_COORDS_CLIENTE = [-10.9893597, -37.0605839];
 
 function iniciarMapaCliente(pedidoInicial) {
-    console.log('[cliente] iniciarMapaCliente chamado para pedido #' + String(pedidoInicial.id).slice(-5));
     // Evita recriar se já existe
     if (mapaCliente) {
         mapaCliente.remove();
@@ -1172,6 +1238,7 @@ function iniciarMapaCliente(pedidoInicial) {
 
     // Polling: a cada 4s busca posição atualizada do motoboy
     pollMapaCliente = setInterval(() => {
+        // Pega do cache (sempre atualizado pelo listener do Firebase)
         const pedido = (DB._cachePedidos || DB.getPedidos()).find(p => p.id === meuPedidoId);
         if (!pedido) return;
         if (['entregue', 'cancelado'].includes(pedido.status)) {
@@ -1186,10 +1253,11 @@ function iniciarMapaCliente(pedidoInicial) {
 function atualizarMapaCliente(pedido) {
     if (!mapaCliente) return;
 
-    // Posição do motoboy
+    // Posição do motoboy (do cache, atualizado pelo listener Firebase)
     let motoboyPos = null;
     if (pedido.motoboyId) {
         try {
+            // Usa cache direto (síncrono) ao invés de DB.getMotoboy
             const motoboys = DB._cacheMotoboys || DB.getMotoboys();
             const m = motoboys.find(x => x.id === pedido.motoboyId);
             if (m && m.lat && m.lng) motoboyPos = [m.lat, m.lng];
@@ -1208,7 +1276,7 @@ function atualizarMapaCliente(pedido) {
             markerMotoboyCliente = L.marker(motoboyPos, { icon: mbIcon, zIndexOffset: 1000 }).addTo(mapaCliente);
             try {
                 const motoboys = DB._cacheMotoboys || DB.getMotoboys();
-            const m = motoboys.find(x => x.id === pedido.motoboyId);
+                const m = motoboys.find(x => x.id === pedido.motoboyId);
                 if (m) markerMotoboyCliente.bindPopup(`<b>🛵 ${m.nome}</b><br>${m.moto || ''}`);
             } catch (e) {}
         } else {
@@ -1289,7 +1357,7 @@ function atualizarCardMotoboyCliente(pedido, motoboyPos) {
     const el = document.getElementById('trackerMotoboyCard');
     if (!el) return;
     let m = null;
-    try { const _ms3 = DB._cacheMotoboys || DB.getMotoboys(); m = _ms3.find(x => x.id === pedido.motoboyId); } catch (e) { m = null; }
+    try { m = DB.getMotoboy(pedido.motoboyId); } catch (e) { m = null; }
     if (!m) return;  // Sem motoboy — mantém o card com texto "Aguardando motoboy"
 
     // Só atualiza o card se já temos os dados do motoboy
