@@ -108,7 +108,7 @@ body {
 /* Grid de cards */
 .hub-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 22px;
     margin-bottom: 40px;
 }
@@ -138,6 +138,7 @@ body {
 .hub-card.cliente:hover      { border-color: var(--red); }
 .hub-card.pizzaria:hover     { border-color: var(--green); }
 .hub-card.motoboy:hover      { border-color: var(--red); }
+.hub-card.cozinha:hover      { border-color: var(--green); }
 
 .card-icon {
     font-size: 2.2rem;
