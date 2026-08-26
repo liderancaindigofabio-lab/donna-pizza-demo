@@ -39,7 +39,7 @@
 
     function bootLocal() {
         console.log('💾 Boot localStorage');
-        loadScript('/donna-pizza-demo/js/firebase/db-adapter.js', () => {
+        loadScript('db-adapter.js', () => {
             console.log('  adapter carregado, init DB...');
             const p = DB.init();
             console.log('  init() retornou:', p);
@@ -57,10 +57,10 @@
                 firebase.initializeApp(FIREBASE_CONFIG);
                 // Auth is prepared in parallel and never blocks the operational database boot.
                 loadScript('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js', () => {
-                    loadScript('/donna-pizza-demo/js/firebase/auth.js', () => {});
+                    loadScript('auth.js', () => {});
                 });
-                loadScript('/donna-pizza-demo/js/firebase/firebase-storage.js', () => {
-                    loadScript('/donna-pizza-demo/js/firebase/db-adapter.js', () => {
+                loadScript('firebase-storage.js', () => {
+                    loadScript('db-adapter.js', () => {
                         const firebaseBoot = DB.init();
                         const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000));
                         Promise.race([firebaseBoot, timeout]).then(startApp).catch(err => {
