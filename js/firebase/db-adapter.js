@@ -431,34 +431,15 @@ const DB = {
             DBRemote.onAllPedidosChange(arr => {
                 const oldArr = this._cachePedidos || [];
                 this._cachePedidos = arr;
-                // Detecta qual pedido mudou
-                const oldById = new Map(oldArr.map(p => [String(p.id), p]));
-                let changed = false;
-                // Pedidos novos
-                for (const p of arr) {
-                    if (!oldById.has(String(p.id))) {
-                        callback({ tipo: 'pedido_novo', data: p });
-                        changed = true;
-                        // NÃO return — deixa o loop continuar
-                    }
-                }
-                // Pedidos que mudaram
-                for (const p of arr) {
-                    const old = oldById.get(String(p.id));
-                    if (old && JSON.stringify(old) !== JSON.stringify(p)) {
-                        callback({ tipo: 'pedido_update', data: p });
-                        changed = true;
-                    }
-                }
-                // Pedidos removidos
-                for (const old of oldArr) {
-                    if (!arr.find(p => String(p.id) === String(old.id))) {
-                        callback({ tipo: 'pedido_remove', data: old });
-                        changed = true;
-                    }
-                }
-                // Se foi o primeiro sync (oldArr estava vazio) e agora tem pedidos, força render
-                if (!changed && oldArr.length === 0 && arr.length > 0) {
+                // Detecta o pedido realmente novo pelo ID. O array é ordenado do
+                // mais recente para o mais antigo; usar o último item aqui fazia
+                // um pedido antigo ser anunciado como novo quando outro canal criava pedido.
+                const idsAnteriores = new Set(oldArr.map(p => String(p && p.id)));
+                const novos = arr.filter(p => p && !idsAnteriores.has(String(p.id)));
+                if (novos.length) {
+                    novos.forEach(novo => callback({ tipo: 'pedido_novo', data: novo }));
+                } else {
+                    // Mesmo conjunto (ou remoção) = atualização de pedido
                     callback({ tipo: 'pedido_update', data: null });
                 }
             });
