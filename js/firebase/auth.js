@@ -11,13 +11,53 @@
     return user && user._claims ? user._claims : {};
   }
 
+  // These are UI/migration metadata only. They do not enforce access and must
+  // never be used as a substitute for Firebase Security Rules or a trusted API.
+  const ROLES = Object.freeze([
+    'owner', 'manager', 'kitchen', 'cashier', 'waiter', 'courier', 'customer'
+  ]);
+  const PAGE_POLICIES = Object.freeze({
+    cliente: Object.freeze({ roles: Object.freeze(['customer']) }),
+    pizzaria: Object.freeze({ roles: Object.freeze(['owner', 'manager']) }),
+    cozinha: Object.freeze({ roles: Object.freeze(['owner', 'manager', 'kitchen']) }),
+    caixa: Object.freeze({ roles: Object.freeze(['owner', 'manager', 'cashier']) }),
+    garcom: Object.freeze({ roles: Object.freeze(['owner', 'manager', 'waiter']) }),
+    motoboy: Object.freeze({ roles: Object.freeze(['owner', 'manager', 'courier']) })
+  });
+  const POLICY = Object.freeze({
+    roles: ROLES,
+    pages: PAGE_POLICIES,
+    enforcement: 'server-rules-only'
+  });
+
+  function diagnostic(page) {
+    const requestedPage = typeof page === 'string' ? page : null;
+    const policy = requestedPage ? PAGE_POLICIES[requestedPage] || null : null;
+    return Object.freeze({
+      requestedPage,
+      knownPage: !!policy,
+      authenticated: !!user,
+      uidPresent: !!(user && user.uid),
+      role: api.role,
+      roleKnown: ROLES.includes(api.role),
+      restaurantIdPresent: !!api.restaurantId,
+      allowedRoles: policy ? policy.roles.slice() : [],
+      // Deliberately null: diagnostics never make an access decision.
+      accessDecision: null,
+      authorizationSource: 'firebase-auth-claims-and-server-rules',
+      storageAuthorization: false
+    });
+  }
+
   const api = {
     mode: 'compatibility',
+    policy: POLICY,
     get currentUser() { return user; },
     get uid() { return user && user.uid || null; },
     get role() { return claims().role || null; },
     get restaurantId() { return claims().restaurantId || null; },
     get claims() { return { ...claims() }; },
+    diagnostics: Object.freeze({ snapshot: diagnostic }),
     onChange(fn) {
       if (typeof fn !== 'function') return () => {};
       listeners.push(fn);
@@ -58,5 +98,9 @@
     } catch (e) { console.warn('NONNA_AUTH indisponível', e); }
   }
 
+  // Explicitly separate policy/diagnostics globals for migration tooling. These
+  // exports are descriptive only; no export below is an authorization gate.
+  root.NONNA_AUTH_POLICY = POLICY;
+  root.NONNA_AUTH_DIAGNOSTICS = api.diagnostics;
   root.NONNA_AUTH = api;
 })(window);
