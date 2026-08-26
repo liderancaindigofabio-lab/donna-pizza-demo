@@ -108,7 +108,7 @@ body {
 /* Grid de cards */
 .hub-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 22px;
     margin-bottom: 40px;
 }
