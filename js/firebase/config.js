@@ -13,5 +13,8 @@ const FIREBASE_CONFIG = {
 };
 
 const FIREBASE_ATIVO = !FIREBASE_CONFIG.apiKey.startsWith('COLE_SUA');
+// Produção não mascara falhas do Firebase com dados locais. Ative somente para demo/desenvolvimento.
+const FIREBASE_ALLOW_LOCAL_FALLBACK = false;
+const NONNA_ENV = 'production';
 
 console.log('🔥 Firebase config carregado. Ativo:', FIREBASE_ATIVO);
