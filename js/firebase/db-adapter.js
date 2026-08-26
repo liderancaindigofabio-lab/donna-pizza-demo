@@ -498,6 +498,10 @@ const DB = {
                 this._cacheMotoboys = Object.values(val);
                 callback({ tipo: 'motoboy_update', data: null });
             });
+            firebase.database().ref('caixa/atual').on('value', snap => {
+                this._cacheCaixa = snap.val() || null;
+                callback({ tipo: 'caixa_update', data: this._cacheCaixa });
+            });
             firebase.database().ref('config').on('value', snap => {
                 this._cacheConfig = snap.val() || {};
             });
@@ -545,6 +549,31 @@ const DB = {
             const interval = setInterval(tick, 4000);
             return () => clearInterval(interval);
         }
+    },
+
+    // ====== CAIXA / PDV ======
+    getCaixaAtual() {
+        if (this.backend === 'firebase') return this._cacheCaixa || null;
+        try { return JSON.parse(localStorage.getItem('donna_caixa_atual') || 'null'); } catch (_) { return null; }
+    },
+    abrirCaixa(dados) {
+        const caixa = { id: Date.now(), status: 'aberto', operador: dados?.operador || 'Caixa', saldoInicial: Number(dados?.saldoInicial || 0), movimentos: [], abertoEm: new Date().toISOString() };
+        if (this.backend === 'firebase') firebase.database().ref('caixa/atual').set(caixa);
+        else localStorage.setItem('donna_caixa_atual', JSON.stringify(caixa));
+        this._cacheCaixa = caixa; this._notify('caixa_update', caixa); return caixa;
+    },
+    registrarMovimentoCaixa(movimento) {
+        const caixa = this.getCaixaAtual(); if (!caixa || caixa.status !== 'aberto') return null;
+        const mov = { id: Date.now(), tipo: movimento.tipo, valor: Number(movimento.valor || 0), forma: movimento.forma || null, observacao: movimento.observacao || '', operador: movimento.operador || caixa.operador, em: new Date().toISOString() };
+        caixa.movimentos = [...(caixa.movimentos || []), mov];
+        if (this.backend === 'firebase') firebase.database().ref('caixa/atual').set(caixa); else localStorage.setItem('donna_caixa_atual', JSON.stringify(caixa));
+        this._cacheCaixa = caixa; this._notify('caixa_update', caixa); return mov;
+    },
+    fecharCaixa(dados) {
+        const caixa = this.getCaixaAtual(); if (!caixa || caixa.status !== 'aberto') return null;
+        const fechado = { ...caixa, status: 'fechado', valorContado: Number(dados?.valorContado || 0), fechadoEm: new Date().toISOString(), fechadoPor: dados?.operador || caixa.operador };
+        if (this.backend === 'firebase') firebase.database().ref('caixa/atual').set(fechado); else localStorage.setItem('donna_caixa_atual', JSON.stringify(fechado));
+        this._cacheCaixa = fechado; this._notify('caixa_update', fechado); return fechado;
     },
 
     _notify(tipo, data) {
