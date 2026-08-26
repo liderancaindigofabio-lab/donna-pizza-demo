@@ -3,13 +3,13 @@
    ============================================ */
 
 const FIREBASE_CONFIG = {
-    apiKey:            "AIzaSyDpASBZl0V_nzZ4mYshshMI_ytvkIKQ0rw",
-    authDomain:        "nonna-pizzaria.firebaseapp.com",
-    databaseURL:       "https://nonna-pizzaria-default-rtdb.firebaseio.com",
-    projectId:         "nonna-pizzaria",
-    storageBucket:     "nonna-pizzaria.firebasestorage.app",
-    messagingSenderId: "253306608475",
-    appId:             "1:253306608475:web:47723afc27a862adf2987e"
+    apiKey:            "AIzaSyBYv6Rmd4uxApSnfZi84j92L15QOImqIJg",
+    authDomain:        "nonna-pizzaria-2a167.firebaseapp.com",
+    databaseURL:       "https://nonna-pizzaria-2a167-default-rtdb.firebaseio.com",
+    projectId:         "nonna-pizzaria-2a167",
+    storageBucket:     "nonna-pizzaria-2a167.firebasestorage.app",
+    messagingSenderId: "885393863287",
+    appId:             "1:885393863287:web:8b4ecba68605e59faa4c72"
 };
 
 const FIREBASE_ATIVO = !FIREBASE_CONFIG.apiKey.startsWith('COLE_SUA');
