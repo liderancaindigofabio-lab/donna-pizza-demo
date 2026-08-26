@@ -10,27 +10,38 @@ let markersClientes = [];
 let markerMotoboy = null;
 let rotaLayer = null;
 let watchId = null;
+let refreshInterval = null;
 
 // Coordenadas da pizzaria (Atalaia - Aracaju/SE)
 // Av. Melício Machado, 1060 - Atalaia, Aracaju - SE, 49037-440
 const PIZZARIA_COORDS = [-10.9893597, -37.0605839];
 const PIZZARIA_ENDERECO = 'Av. Melício Machado, 1060 - Atalaia, Aracaju - SE';
 
-// Gera coordenadas aleatórias próximas à pizzaria (pra pedidos antigos sem coords)
-function gerarCoordsAleatorias() {
-    // ~3km de raio (0.03 graus ~= 3.3km)
-    const lat = PIZZARIA_COORDS[0] + (Math.random() - 0.5) * 0.06;
-    const lng = PIZZARIA_COORDS[1] + (Math.random() - 0.5) * 0.06;
-    return { lat, lng };
+// Coordenadas de cliente só são usadas quando vieram do pedido/Firebase.
+// Nunca gerar ou persistir uma localização estimada.
+function coordenadasValidas(pedido) {
+    const c = pedido && pedido.coords;
+    return !!c && Number.isFinite(Number(c.lat)) && Number.isFinite(Number(c.lng)) &&
+        Number(c.lat) >= -90 && Number(c.lat) <= 90 && Number(c.lng) >= -180 && Number(c.lng) <= 180;
 }
 
-// Garante que pedido tenha coords (pra pedidos antigos)
-function garantirCoords(pedido) {
-    if (!pedido.coords) {
-        pedido.coords = gerarCoordsAleatorias();
-        DB.updatePedido(pedido.id, { coords: pedido.coords });
-    }
-    return pedido;
+function enderecoNavegavel(cliente) {
+    return formatarEndereco(cliente || {}) || '';
+}
+
+function pedidosComCoordenadas(pedidos) {
+    return pedidos.filter(coordenadasValidas);
+}
+
+function atualizarStatusPedido(id, status, dados) {
+    // Mantém uma única escrita no pedido central, independentemente do backend ativo.
+    if (typeof DB.atualizarStatusPedido === 'function') return DB.atualizarStatusPedido(id, status, dados || {});
+    return DB.updatePedido(id, { ...(dados || {}), status });
+}
+
+function pedidosEmOperacao() {
+    return DB.getPedidos().filter(p => p.motoboyId === motoboyAtual &&
+        (p.status === 'pronto' || p.status === 'em_entrega'));
 }
 
 // ===== INIT =====
@@ -91,12 +102,13 @@ function iniciarApp() {
     renderHistorico();
     renderPedidosAtuais();
     initMapa();
+    renderPedidosAtuais();
 
     // Escutar mudanças
     DB.onChange(({ tipo, data }) => {
         if (tipo === 'pedido_novo') {
             if (data && data.motoboyId === motoboyAtual) {
-                const qtd = DB.getPedidosMotoboy(motoboyAtual).length;
+                const qtd = pedidosEmOperacao().length;
                 if (qtd === 1) {
                     toast('🆕 Novo pedido pra você!', 'success');
                     tocarSom('novo');
@@ -116,6 +128,14 @@ function iniciarApp() {
         }
         atualizarStatusVisual();
     });
+    // Revalida o cache local periodicamente para não depender apenas de eventos do navegador.
+    if (refreshInterval) clearInterval(refreshInterval);
+    refreshInterval = setInterval(() => {
+        renderPedidosAtuais();
+        atualizarContadorEntregas();
+        renderHistorico();
+        atualizarStatusVisual();
+    }, 10000);
 }
 
 // ===== STATUS =====
@@ -130,13 +150,16 @@ function toggleStatus() {
 function atualizarStatusVisual() {
     const m = DB.getMotoboy(motoboyAtual);
     const el = document.getElementById('statusToggle');
-    const qtdRota = DB.getPedidosMotoboy(motoboyAtual).length;
+    const qtdRota = pedidosEmOperacao().length;
     if (m.status === 'disponivel') {
         el.className = 'motoboy-status-toggle';
         el.innerHTML = '<span class="status-dot"></span> Disponível';
     } else if (m.status === 'entregando') {
         el.className = 'motoboy-status-toggle';
         el.innerHTML = `<span class="status-dot"></span> Em rota (${qtdRota})`;
+    } else if (m.status === 'problema') {
+        el.className = 'motoboy-status-toggle indisponivel';
+        el.innerHTML = '<span class="status-dot"></span> Atenção necessária';
     } else {
         el.className = 'motoboy-status-toggle indisponivel';
         el.innerHTML = '<span class="status-dot"></span> Em pausa';
@@ -174,37 +197,33 @@ function initMapa() {
         iconSize: [40, 40],
         iconAnchor: [20, 20],
     });
-    // Posição inicial: se já tem lat/lng no storage, usa. Senão, perto da pizzaria.
+    // Sem posição real, o mapa permanece centrado na pizzaria, sem inventar localização.
     const m = DB.getMotoboy(motoboyAtual);
-    let mbPos;
-    if (m && m.lat && m.lng) {
-        mbPos = [m.lat, m.lng];
-    } else {
-        mbPos = [PIZZARIA_COORDS[0] + 0.005, PIZZARIA_COORDS[1] + 0.005];
-    }
-    markerMotoboy = L.marker(mbPos, { icon: mbIcon, draggable: true }).addTo(mapa);
-    markerMotoboy.bindPopup('<b>🛵 Você está aqui</b><br>Arraste pra simular movimento');
-
-    // Garante que o storage tem a posição atual (pra o cliente ver)
-    if (!m || !m.lat || !m.lng) {
-        DB.updateMotoboyPos(motoboyAtual, mbPos[0], mbPos[1]);
-    }
-
-    markerMotoboy.on('dragend', () => {
-        const ll = markerMotoboy.getLatLng();
-        DB.updateMotoboyPos(motoboyAtual, ll.lat, ll.lng);
-        if (DB.getPedidosMotoboy(motoboyAtual).length > 0) {
-            otimizarERenderizarRota();
+    const posicaoValida = m && Number.isFinite(Number(m.lat)) && Number.isFinite(Number(m.lng));
+    function criarMarcadorMotoboy(lat, lng, permitirArrastar = false) {
+        if (markerMotoboy) {
+            markerMotoboy.setLatLng([lat, lng]);
+            return;
         }
-    });
+        markerMotoboy = L.marker([lat, lng], { icon: mbIcon, draggable: permitirArrastar }).addTo(mapa);
+        markerMotoboy.bindPopup('<b>🛵 Você está aqui</b><br>Posição obtida pelo GPS');
+        markerMotoboy.on('dragend', () => {
+            const ll = markerMotoboy.getLatLng();
+            DB.updateMotoboyPos(motoboyAtual, ll.lat, ll.lng);
+            otimizarERenderizarRota();
+        });
+    }
+    if (posicaoValida) criarMarcadorMotoboy(Number(m.lat), Number(m.lng));
 
+    // A posição só é gravada quando fornecida pelo GPS (ou já existente no DB).
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             (pos) => {
                 const { latitude, longitude } = pos.coords;
-                markerMotoboy.setLatLng([latitude, longitude]);
+                criarMarcadorMotoboy(latitude, longitude);
                 DB.updateMotoboyPos(motoboyAtual, latitude, longitude);
                 mapa.setView([latitude, longitude], 14);
+                renderPedidosAtuais();
             },
             (err) => console.log('Geolocalização negada')
         );
@@ -212,10 +231,9 @@ function initMapa() {
         watchId = navigator.geolocation.watchPosition(
             (pos) => {
                 const { latitude, longitude } = pos.coords;
-                if (markerMotoboy) {
-                    markerMotoboy.setLatLng([latitude, longitude]);
-                    DB.updateMotoboyPos(motoboyAtual, latitude, longitude);
-                }
+                criarMarcadorMotoboy(latitude, longitude);
+                DB.updateMotoboyPos(motoboyAtual, latitude, longitude);
+                renderPedidosAtuais();
             },
             (err) => console.log('Watch position erro'),
             { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 }
@@ -228,7 +246,7 @@ function initMapa() {
 function otimizarERenderizarRota() {
     if (!mapa || !markerMotoboy) return;
 
-    const pedidos = DB.getPedidosMotoboy(motoboyAtual);
+    const pedidos = pedidosEmOperacao();
     if (pedidos.length === 0) {
         // Sem entregas: limpa mapa
         markersClientes.forEach(m => mapa.removeLayer(m.marker));
@@ -239,15 +257,18 @@ function otimizarERenderizarRota() {
         return;
     }
 
-    if (pedidos.length === 1) {
-        // 1 entrega: rota direta
-        renderizarRotaSimples(pedidos[0]);
+    const pedidosComCoords = pedidosComCoordenadas(pedidos);
+    if (pedidosComCoords.length === 0 || !markerMotoboy) {
+        mostrarMapaIndisponivel(pedidos.length);
+        return;
+    }
+    if (pedidosComCoords.length === 1) {
+        renderizarRotaSimples(pedidosComCoords[0]);
         return;
     }
 
-    // Várias entregas: OTIMIZAR com vizinho mais próximo
+    // Várias entregas: otimizar apenas destinos com coordenadas reais.
     const pontoAtual = markerMotoboy.getLatLng();
-    const pedidosComCoords = pedidos.map(garantirCoords);
     const ordenados = vizinhoMaisProximo(pontoAtual, pedidosComCoords);
     renderizarRotaMultipla(ordenados, pontoAtual);
 }
@@ -435,10 +456,18 @@ function calcularDistanciaHaversine(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
+function mostrarMapaIndisponivel(qtdPedidos) {
+    markersClientes.forEach(m => mapa.removeLayer(m.marker));
+    markersClientes = [];
+    if (rotaLayer) { mapa.removeLayer(rotaLayer); rotaLayer = null; }
+    document.getElementById('mapaInfo').classList.remove('show');
+    document.getElementById('btnRecalcular').style.display = 'none';
+}
+
 // ===== LISTA DE PEDIDOS ATUAIS (a nova tela principal) =====
 function renderPedidosAtuais() {
     const container = document.getElementById('pedidoAtual');
-    const pedidos = DB.getPedidosMotoboy(motoboyAtual);
+    const pedidos = pedidosEmOperacao();
 
     if (pedidos.length === 0) {
         container.innerHTML = `
@@ -451,14 +480,16 @@ function renderPedidosAtuais() {
         return;
     }
 
-    // Calcula ordem otimizada pra mostrar a UI
-    const pontoAtual = markerMotoboy ? markerMotoboy.getLatLng() : L.latLng(PIZZARIA_COORDS[0], PIZZARIA_COORDS[1]);
-    // Garante que todos têm coords (pedidos antigos podem não ter)
-    const pedidosComCoords = pedidos.map(garantirCoords);
-    const ordenados = vizinhoMaisProximo(pontoAtual, pedidosComCoords);
+    // Só endereços com coordenadas reais entram na rota; os demais continuam visíveis por texto.
+    const pedidosComCoords = pedidosComCoordenadas(pedidos);
+    const pontoAtual = markerMotoboy ? markerMotoboy.getLatLng() : null;
+    const ordenados = pontoAtual && pedidosComCoords.length ? vizinhoMaisProximo(pontoAtual, pedidosComCoords) : [];
+    const semCoordenadas = pedidos.filter(p => !coordenadasValidas(p));
 
     // Header com resumo
     const headerHtml = `
+        ${semCoordenadas.length ? `<div class="localizacao-indisponivel">⚠️ ${semCoordenadas.length} pedido(s) sem localização no mapa. Use o endereço informado; nenhuma posição foi estimada.</div>` : ''}
+        ${!ordenados.length ? `<div class="localizacao-indisponivel">📍 GPS do motoboy indisponível. A rota será exibida quando a posição real for obtida.</div>` : ''}
         <div class="rota-resumo">
             <div class="rota-resumo-titulo">
                 🗺️ <span>Rota otimizada</span>
@@ -468,9 +499,11 @@ function renderPedidosAtuais() {
         </div>
     `;
 
-    // Lista de cards
-    const cardsHtml = ordenados.map((p, i) => {
-        const ehProxima = i === 0;
+    // Lista de cards: pedidos sem coordenadas continuam operacionais por endereço.
+    const idsOrdenados = new Set(ordenados.map(p => String(p.id)));
+    const pedidosExibidos = [...ordenados, ...pedidos.filter(p => !idsOrdenados.has(String(p.id)))];
+    const cardsHtml = pedidosExibidos.map((p, i) => {
+        const ehProxima = i === 0 && coordenadasValidas(p);
         const minutos = Math.floor((Date.now() - new Date(p.criadoEm).getTime()) / 60000);
         const itens = p.itens.map(it => `
             <div class="pac-item">
@@ -490,6 +523,7 @@ function renderPedidosAtuais() {
             <div class="pac-cliente">
                 <div class="pac-cliente-nome">${p.cliente.nome}</div>
                 <div class="pac-cliente-end">📍 ${formatarEndereco(p.cliente)}</div>
+                ${!coordenadasValidas(p) ? '<div class="pac-localizacao-indisponivel">⚠️ Localização no mapa indisponível — confira o endereço</div>' : ''}
                 <a class="pac-cliente-tel" href="https://wa.me/55${p.cliente.tel.replace(/\D/g, '')}" target="_blank">
                     📞 ${p.cliente.tel}
                 </a>
@@ -503,6 +537,7 @@ function renderPedidosAtuais() {
                 <button class="btn-mb primary" onclick="ligarCliente(${p.id})">📞 Ligar</button>
                 ${p.status === 'pronto' ? `<button class="btn-mb warning" onclick="iniciarEntrega(${p.id})">🚀 Iniciar entrega</button>` : ''}
                 ${ehProxima && p.status === 'em_entrega' ? `<button class="btn-mb success" onclick="finalizarEntrega(${p.id})">✅ Entreguei</button>` : ''}
+                ${p.status === 'em_entrega' ? `<button class="btn-mb danger" onclick="registrarProblema(${p.id})">⚠️ Problema</button>` : ''}
             </div>
         </div>
         `;
@@ -522,14 +557,15 @@ function renderPedidosAtuais() {
 }
 
 function irParaProximaEntrega() {
-    const pedidos = DB.getPedidosMotoboy(motoboyAtual);
+    const pedidos = pedidosEmOperacao();
     if (pedidos.length === 0) return;
+    if (!markerMotoboy) { toast('📍 Sua localização real ainda não está disponível.', 'error'); return; }
     const pontoAtual = markerMotoboy.getLatLng();
-    const pedidosComCoords = pedidos.map(garantirCoords);
+    const pedidosComCoords = pedidosComCoordenadas(pedidos);
     const ordenados = vizinhoMaisProximo(pontoAtual, pedidosComCoords);
     const proxima = ordenados[0];
-    if (!proxima || !proxima.coords) {
-        toast('⚠️ Pedido sem coordenadas', 'error');
+    if (!proxima || !coordenadasValidas(proxima)) {
+        toast('⚠️ Localização do cliente indisponível. Use o endereço do pedido.', 'error');
         return;
     }
     const url = `https://www.google.com/maps/dir/?api=1&destination=${proxima.coords.lat},${proxima.coords.lng}&travelmode=driving`;
@@ -540,27 +576,38 @@ function irParaProximaEntrega() {
 function abrirNavegacao(pedidoId) {
     const p = DB.getPedidos().find(x => x.id === pedidoId);
     if (!p) return;
-    const pComCoords = garantirCoords(p);
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${pComCoords.coords.lat},${pComCoords.coords.lng}&travelmode=driving&dir_action=navigate`;
+    const destino = coordenadasValidas(p) ? `${p.coords.lat},${p.coords.lng}` : encodeURIComponent(enderecoNavegavel(p.cliente));
+    if (!destino) { toast('⚠️ Endereço do cliente indisponível.', 'error'); return; }
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${destino}&travelmode=driving&dir_action=navigate`;
     window.open(url, '_blank');
 }
 
 function abrirWaze(pedidoId) {
     const p = DB.getPedidos().find(x => x.id === pedidoId);
     if (!p) return;
-    const pComCoords = garantirCoords(p);
-    // Waze deep link com rota
-    const url = `https://waze.com/ul?ll=${pComCoords.coords.lat},${pComCoords.coords.lng}&navigate=yes`;
+    if (!coordenadasValidas(p)) { toast('⚠️ Waze precisa da localização. Use o endereço no Google Maps.', 'error'); return; }
+    const url = `https://waze.com/ul?ll=${p.coords.lat},${p.coords.lng}&navigate=yes`;
     window.open(url, '_blank');
 }
 
 function iniciarEntrega(id) {
     if (!confirm('Iniciar entrega agora? O cliente vai ver sua posição em tempo real.')) return;
-    DB.updatePedido(id, { status: 'em_entrega', saiuEm: new Date().toISOString() });
+    atualizarStatusPedido(id, 'em_entrega', { saiuEm: new Date().toISOString() });
     DB.updateMotoboy(motoboyAtual, { status: 'entregando' });
     toast('🚀 Entrega iniciada! Cliente notificado.', 'success');
     tocarSom('novo');
     // Re-renderiza a lista
+    renderPedidosAtuais();
+}
+
+function registrarProblema(id) {
+    const motivo = prompt('Descreva o problema da entrega:');
+    if (!motivo || !motivo.trim()) return;
+    atualizarStatusPedido(id, 'problema_entrega', {
+        problemaEntrega: motivo.trim(), problemaEm: new Date().toISOString()
+    });
+    DB.updateMotoboy(motoboyAtual, { status: 'problema' });
+    toast('⚠️ Problema registrado e enviado à pizzaria.', 'error');
     renderPedidosAtuais();
 }
 
@@ -573,10 +620,10 @@ function ligarCliente(pedidoId) {
 
 function finalizarEntrega(id) {
     if (!confirm('Confirmar que essa entrega foi feita?')) return;
-    DB.updatePedido(id, { status: 'entregue', entregueEm: new Date().toISOString() });
+    atualizarStatusPedido(id, 'entregue', { entregueEm: new Date().toISOString() });
 
     // Se não tem mais entregas, libera o motoboy
-    const restantes = DB.getPedidosMotoboy(motoboyAtual);
+    const restantes = pedidosEmOperacao();
     if (restantes.length === 0) {
         DB.updateMotoboy(motoboyAtual, { status: 'disponivel' });
     }
