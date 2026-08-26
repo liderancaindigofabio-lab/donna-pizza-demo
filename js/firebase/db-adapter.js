@@ -83,6 +83,7 @@ const DB = {
 
     // ====== Detecção automática do backend ======
     _backend: null,
+    _connection: { mode: 'demo', state: 'starting' },
     get backend() {
         if (this._backend) return this._backend;
         if (typeof FIREBASE_ATIVO !== 'undefined' && FIREBASE_ATIVO && typeof firebase !== 'undefined') {
@@ -93,7 +94,32 @@ const DB = {
         return this._backend;
     },
 
-    async init() {
+    get backendInfo() {
+        return { backend: this.backend, mode: this._connection.mode, state: this._connection.state };
+    },
+
+    _setConnection(mode, state) {
+        this._connection = { mode, state };
+        const labels = {
+            firebase: state === 'ready' ? '● Firebase sincronizado' : state === 'degraded' ? '⚠ Firebase com falha · verifique a conexão' : '● Firebase conectando…',
+            demo: state === 'fallback' ? '⚠ Firebase indisponível · modo demo' : '● Modo demo · dados locais'
+        };
+        const text = labels[mode] || labels.demo;
+        document.querySelectorAll('[data-donna-connection]').forEach(el => {
+            el.textContent = text;
+            el.dataset.connectionMode = mode;
+            el.dataset.connectionState = state;
+            el.title = mode === 'firebase' ? 'Dados compartilhados pelo Firebase' : 'Este ambiente usa dados locais neste dispositivo';
+        });
+        window.dispatchEvent(new CustomEvent('donna_connection_change', { detail: this.backendInfo }));
+    },
+
+    onConnectionChange(callback) {
+        window.addEventListener('donna_connection_change', e => callback(e.detail));
+        callback(this.backendInfo);
+    },
+
+    async init(options = {}) {
         if (this.backend === 'firebase') {
             console.log('🔥 DB usando Firebase Realtime Database');
             // Carrega dados iniciais em cache
@@ -128,12 +154,14 @@ const DB = {
                 this._cacheCardapio = this.CARDAPIO_DEFAULT;
             }
             this._ready = true;
+            this._setConnection('firebase', 'ready');
             if (this._onReady) this._onReady();
             return true;
         } else {
             console.log('💾 DB usando localStorage (modo demo)');
             this._initLocal();
             this._ready = true;
+            this._setConnection('demo', options.fallback ? 'fallback' : 'ready');
             if (this._onReady) this._onReady();
             return true;
         }
