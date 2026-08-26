@@ -56,6 +56,7 @@
             loadScript('https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js', () => {
                 loadScript('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js', () => {
                 firebase.initializeApp(FIREBASE_CONFIG);
+                loadScript('/donna-pizza-demo/js/firebase/auth.js', () => {
                 loadScript('/donna-pizza-demo/js/firebase/firebase-storage.js', () => {
                     loadScript('/donna-pizza-demo/js/firebase/db-adapter.js', () => {
                         const firebaseBoot = DB.init();
