@@ -4,7 +4,7 @@
   const $=id=>document.getElementById(id);
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const STATUS=['novo','preparando','pronto'];
-  let started=false, sound=false, tick;
+  let started=false, sound=false, tick, staff=null;
   const label={novo:'Recebido',preparando:'Em preparo',pronto:'Pronto'};
   function pedidos(){return (window.DB&&DB.getPedidos?DB.getPedidos():[]).filter(p=>p&&STATUS.includes(String(p.status||'novo')));}
   function dateOf(p){const d=new Date(p.criadoEm||p.createdAt||p.updatedAt);return Number.isNaN(d.getTime())?null:d}
@@ -39,7 +39,7 @@
   }
   function beep(){try{const C=window.AudioContext||window.webkitAudioContext;if(!C)return;const c=new C(),o=c.createOscillator(),g=c.createGain();o.frequency.value=660;g.gain.value=.04;o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.12)}catch(e){/* som é opcional */}}
   function clock(){const d=new Date();$('clock').textContent=d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});document.querySelectorAll('.order-card').forEach(el=>{const p=pedidos().find(x=>String(x.id)===String(el.dataset.id));if(p){const t=el.querySelector('.elapsed');const over=elapsed(p)>deadline()*60000;t.textContent=(over?'⚠ ':'')+duration(elapsed(p));el.classList.toggle('is-overdue',over)}})}
-  function start(){if(started)return;started=true;$('connectionLabel').textContent='Conectado';render();DB.onChange(()=>render());tick=setInterval(clock,1000);$('soundToggle').onclick=()=>{sound=!sound;$('soundToggle').textContent=sound?'🔊':'🔇';$('soundToggle').setAttribute('aria-pressed',String(sound));if(sound)beep()};document.querySelector('.board').addEventListener('click',e=>{const b=e.target.closest('[data-status]');if(!b)return;const c=b.closest('.order-card');if(c)change(c.dataset.id,b.dataset.status,b)});}
+  async function start(){if(started)return;try{staff=await NONNA_STAFF_AUTH?.restore?.()}catch(_){staff=null}if(!staff){const gate=$('staffGate'),form=$('staffLogin'),err=$('staffError');gate.style.display='grid';form.onsubmit=async e=>{e.preventDefault();const f=new FormData(form),btn=form.querySelector('button');err.textContent='';btn.disabled=true;try{staff=await NONNA_STAFF_AUTH.signIn(String(f.get('email')).trim(),String(f.get('password')));gate.style.display='none';start()}catch(ex){err.textContent=ex.message||'Não foi possível entrar.'}finally{btn.disabled=false}};return}started=true;$('staffGate').style.display='none';$('connectionLabel').textContent='Conectado';render();DB.onChange(()=>render());tick=setInterval(clock,1000);$('soundToggle').onclick=()=>{sound=!sound;$('soundToggle').textContent=sound?'🔊':'🔇';$('soundToggle').setAttribute('aria-pressed',String(sound));if(sound)beep()};document.querySelector('.board').addEventListener('click',e=>{const b=e.target.closest('[data-status]');if(!b)return;const c=b.closest('.order-card');if(c)change(c.dataset.id,b.dataset.status,b)});}
   function wait(){if(window.DB&&typeof DB.onReady==='function')DB.onReady(start);else setTimeout(wait,40)}
   wait();
 })();
