@@ -3,73 +3,66 @@
     ".read": false,
     ".write": false,
 
+    ".write": false,
+
+    "cardapio": {
+      ".read": true,
+      ".write": "auth != null && (root.child('userProfiles').child(auth.uid).child('role').val() === 'owner' || root.child('userProfiles').child(auth.uid).child('role').val() === 'manager')"
+    },
+    "config": {
+      ".read": true,
+      ".write": "auth != null && (root.child('userProfiles').child(auth.uid).child('role').val() === 'owner' || root.child('userProfiles').child(auth.uid).child('role').val() === 'manager')"
+    },
     "publicCatalog": {
-      ".read": "auth != null && (auth.token.role === 'customer' || auth.token.role === 'waiter' || auth.token.role === 'courier' || auth.token.role === 'kitchen' || auth.token.role === 'cashier' || auth.token.role === 'owner' || auth.token.role === 'manager')",
-      ".write": "auth != null && (auth.token.role === 'owner' || auth.token.role === 'manager') && newData.child('restaurantId').val() === auth.token.restaurantId",
-      ".validate": "newData.hasChildren(['restaurantId', 'menu']) && newData.child('restaurantId').isString()"
+      ".read": true,
+      ".write": "auth != null && (root.child('userProfiles').child(auth.uid).child('role').val() === 'owner' || root.child('userProfiles').child(auth.uid).child('role').val() === 'manager')"
     },
-
-    "restaurants": {
-      "$restaurantId": {
-        ".read": false,
-        ".write": false,
-        ".validate": "newData.hasChildren(['restaurantId']) && newData.child('restaurantId').val() === $restaurantId",
-
-        "orders": {
-          "$orderId": {
-            ".read": "auth != null && data.exists() && data.child('restaurantId').val() === $restaurantId && (auth.token.role === 'owner' || auth.token.role === 'manager' || auth.token.role === 'kitchen' || auth.token.role === 'cashier' || auth.token.role === 'waiter' || (auth.token.role === 'courier' && data.child('courierUid').val() === auth.uid))",
-            ".write": "auth != null && newData.child('restaurantId').val() === $restaurantId && ((auth.token.role === 'customer' && !data.exists() && newData.child('customerUid').val() === auth.uid && newData.child('status').val() === 'novo') || (auth.token.role === 'owner' || auth.token.role === 'manager') || (auth.token.role === 'kitchen' && data.exists() && (newData.child('status').val() === 'em_preparo' || newData.child('status').val() === 'pronto')) || (auth.token.role === 'courier' && data.exists() && data.child('courierUid').val() === auth.uid && newData.child('courierUid').val() === auth.uid && (newData.child('status').val() === 'em_entrega' || newData.child('status').val() === 'entregue')))",
-            ".validate": "newData.hasChildren(['restaurantId', 'customerUid', 'status', 'createdAt', 'total']) && newData.child('restaurantId').val() === $restaurantId && newData.child('customerUid').isString() && newData.child('status').isString() && newData.child('createdAt').isNumber() && newData.child('total').isNumber() && newData.child('total').val() >= 0"
-          }
-        },
-
-        "couriers": {
-          "$courierUid": {
-            ".read": "auth != null && auth.token.restaurantId === $restaurantId && (auth.uid === $courierUid || auth.token.role === 'owner' || auth.token.role === 'manager' || auth.token.role === 'kitchen')",
-            ".write": "auth != null && auth.token.restaurantId === $restaurantId && (auth.uid === $courierUid || auth.token.role === 'owner' || auth.token.role === 'manager')",
-            ".validate": "newData.hasChildren(['restaurantId']) && newData.child('restaurantId').val() === $restaurantId"
-          }
-        },
-
-        "cash": {
-          ".read": "auth != null && auth.token.restaurantId === $restaurantId && (auth.token.role === 'owner' || auth.token.role === 'manager' || auth.token.role === 'cashier')",
-          ".write": "auth != null && auth.token.restaurantId === $restaurantId && (auth.token.role === 'owner' || auth.token.role === 'manager' || auth.token.role === 'cashier')",
-          ".validate": "newData.hasChildren(['restaurantId']) && newData.child('restaurantId').val() === $restaurantId"
-        }
+    "pedidos": {
+      "$orderId": {
+        ".read": "auth != null && (root.child('userProfiles').child(auth.uid).child('role').val() === 'owner' || root.child('userProfiles').child(auth.uid).child('role').val() === 'manager' || root.child('userProfiles').child(auth.uid).child('role').val() === 'kitchen' || root.child('userProfiles').child(auth.uid).child('role').val() === 'cashier' || root.child('userProfiles').child(auth.uid).child('role').val() === 'waiter' || (root.child('userProfiles').child(auth.uid).child('role').val() === 'courier' && data.child('courierUid').val() === auth.uid) || (root.child('userProfiles').child(auth.uid).child('role').val() === 'customer' && data.child('customerUid').val() === auth.uid))",
+        ".write": "auth != null && ((root.child('userProfiles').child(auth.uid).child('role').val() === 'owner' || root.child('userProfiles').child(auth.uid).child('role').val() === 'manager') || (!data.exists() && root.child('userProfiles').child(auth.uid).child('role').val() === 'customer' && newData.child('customerUid').val() === auth.uid) || (data.exists() && root.child('userProfiles').child(auth.uid).child('role').val() === 'kitchen' && (newData.child('status').val() === 'em_preparo' || newData.child('status').val() === 'preparando' || newData.child('status').val() === 'pronto')) || (data.exists() && root.child('userProfiles').child(auth.uid).child('role').val() === 'waiter' && newData.child('canal').val() === 'salao') || (data.exists() && root.child('userProfiles').child(auth.uid).child('role').val() === 'cashier' && (newData.child('status').val() === 'fechado' || newData.child('status').val() === 'cancelado')) || (data.exists() && root.child('userProfiles').child(auth.uid).child('role').val() === 'courier' && data.child('courierUid').val() === auth.uid && newData.child('courierUid').val() === auth.uid && (newData.child('status').val() === 'em_entrega' || newData.child('status').val() === 'entregue')))"
       }
     },
-
-    "customers": {
+    "motoboys": {
+      "$courierId": {
+        ".read": "auth != null && (root.child('userProfiles').child(auth.uid).child('role').val() === 'owner' || root.child('userProfiles').child(auth.uid).child('role').val() === 'manager' || auth.uid === data.child('uid').val())",
+        ".write": "auth != null && (root.child('userProfiles').child(auth.uid).child('role').val() === 'owner' || root.child('userProfiles').child(auth.uid).child('role').val() === 'manager' || auth.uid === $courierId)"
+      }
+    },
+    "clientes": {
+      "$tel": {
+        ".read": "auth != null && (root.child('userProfiles').child(auth.uid).child('role').val() !== null)",
+        ".write": "auth != null && (root.child('userProfiles').child(auth.uid).child('role').val() === 'owner' || root.child('userProfiles').child(auth.uid).child('role').val() === 'manager' || root.child('userProfiles').child(auth.uid).child('role').val() === 'cashier' || root.child('userProfiles').child(auth.uid).child('role').val() === 'waiter' || root.child('userProfiles').child(auth.uid).child('role').val() === 'customer')"
+      }
+    },
+    "caixa": {
+      ".read": "auth != null && (root.child('userProfiles').child(auth.uid).child('role').val() === 'owner' || root.child('userProfiles').child(auth.uid).child('role').val() === 'manager' || root.child('userProfiles').child(auth.uid).child('role').val() === 'cashier')",
+      ".write": "auth != null && (root.child('userProfiles').child(auth.uid).child('role').val() === 'owner' || root.child('userProfiles').child(auth.uid).child('role').val() === 'manager' || root.child('userProfiles').child(auth.uid).child('role').val() === 'cashier')"
+    },
+    "gestao": {
+      ".read": "auth != null && (root.child('userProfiles').child(auth.uid).child('role').val() === 'owner' || root.child('userProfiles').child(auth.uid).child('role').val() === 'manager')",
+      ".write": "auth != null && (root.child('userProfiles').child(auth.uid).child('role').val() === 'owner' || root.child('userProfiles').child(auth.uid).child('role').val() === 'manager')"
+    },
+    "userProfiles": {
       "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid && (!data.exists() || newData.child('uid').val() === auth.uid)",
-        ".validate": "newData.hasChildren(['uid']) && newData.child('uid').val() === $uid"
+        ".read": "auth != null && (auth.uid === $uid || root.child('userProfiles').child(auth.uid).child('role').val() === 'owner' || root.child('userProfiles').child(auth.uid).child('role').val() === 'manager')",
+        ".write": "auth != null && auth.uid === $uid && ((!data.exists() && newData.child('role').val() === 'customer') || (data.exists() && newData.child('uid').val() === auth.uid && newData.child('restaurantId').val() === data.child('restaurantId').val() && newData.child('role').val() === data.child('role').val()))",
+        ".validate": "newData.hasChildren(['uid','restaurantId','role']) && newData.child('uid').val() === $uid && newData.child('restaurantId').isString() && newData.child('role').isString()"
       }
     },
-
     "customerOrders": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         "$orderId": {
-          ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.child('customerUid').val() === auth.uid",
-          ".validate": "newData.hasChildren(['customerUid', 'restaurantId', 'status', 'createdAt', 'total']) && newData.child('customerUid').val() === $uid && newData.child('status').val() === 'novo' && newData.child('createdAt').isNumber() && newData.child('total').isNumber() && newData.child('total').val() >= 0"
+          ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.child('customerUid').val() === auth.uid"
         }
       }
     },
-
-    "userProfiles": {
-      "$uid": {
-        ".read": "auth != null && (auth.uid === $uid || (auth.token.role === 'owner' || auth.token.role === 'manager') && auth.token.restaurantId === data.child('restaurantId').val())",
-        ".write": "auth != null && auth.uid === $uid && (!data.exists() || newData.child('uid').val() === auth.uid)",
-        ".validate": "newData.hasChildren(['uid', 'restaurantId']) && newData.child('uid').val() === $uid"
+    "restaurants": {
+      "$restaurantId": {
+        ".read": "auth != null && root.child('userProfiles').child(auth.uid).child('restaurantId').val() === $restaurantId",
+        ".write": "auth != null && (root.child('userProfiles').child(auth.uid).child('role').val() === 'owner' || root.child('userProfiles').child(auth.uid).child('role').val() === 'manager') && root.child('userProfiles').child(auth.uid).child('restaurantId').val() === $restaurantId"
       }
-    },
-
-    "config": { ".read": false, ".write": false },
-    "cardapio": { ".read": false, ".write": false },
-    "pedidos": { ".read": false, ".write": false },
-    "motoboys": { ".read": false, ".write": false },
-    "clientes": { ".read": false, ".write": false },
-    "caixa": { ".read": false, ".write": false }
+    }
   }
 }
