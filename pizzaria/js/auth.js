@@ -1,13 +1,14 @@
 /* Access gate for the legacy restaurant panel. Authentication is local to this static site. */
 (() => {
-  const HASH='1b75524238844c22a7e2d90cffb72f288e478eb2c7d87a80d8699168265279f5';
+  const ADMIN_HASH='1b75524238844c22a7e2d90cffb72f288e478eb2c7d87a80d8699168265279f5';
+  const KITCHEN_HASH='cfa8dabd6587192c8807dbcbace372109f89c51c0b4437d219d4934e630a357a';
   const key='donna_pizzaria_auth';
   const digest=async value=>{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')};
   window.addEventListener('DOMContentLoaded',()=>{
     const gate=document.getElementById('accessGate'),form=document.getElementById('accessForm'),error=document.getElementById('accessError');
     if(!gate||!form)return;
-    const close=()=>{gate.hidden=true;document.body.classList.add('authenticated')};
-    if(sessionStorage.getItem(key)==='ok')close();
-    form.addEventListener('submit',async e=>{e.preventDefault();error.textContent='';const btn=form.querySelector('button');btn.disabled=true;btn.textContent='Verificando...';try{const fd=new FormData(form);if(String(fd.get('email')).trim().toLowerCase()!=='fabio08dejesusjunior@gmail.com'||await digest(String(fd.get('password')))!==HASH)throw Error('E-mail ou senha inválidos.');sessionStorage.setItem(key,'ok');close()}catch(err){error.textContent=err.message}finally{btn.disabled=false;btn.textContent='Entrar no painel'}});
+    const close=profile=>{gate.hidden=true;document.body.classList.add('authenticated');document.body.dataset.profile=profile;if(profile==='kitchen'){document.querySelectorAll('[data-aba="cardapio"],#btnConfig,[onclick*="abrirDespacho"],[onclick*="abrirConfig"],[onclick*="limparDados"]').forEach(el=>el.remove());document.querySelectorAll('.cardapio-editor').forEach(el=>el.remove());}};
+    const saved=sessionStorage.getItem(key);if(saved==='admin'||saved==='kitchen'||saved==='ok')close(saved==='kitchen'?'kitchen':'admin');
+    form.addEventListener('submit',async e=>{e.preventDefault();error.textContent='';const btn=form.querySelector('button');btn.disabled=true;btn.textContent='Verificando...';try{const fd=new FormData(form),email=String(fd.get('email')).trim().toLowerCase(),hash=await digest(String(fd.get('password')));let profile=null;if(email==='fabio08dejesusjunior@gmail.com'&&hash===ADMIN_HASH)profile='admin';if(email==='cozinha'&&hash===KITCHEN_HASH)profile='kitchen';if(!profile)throw Error('Usuário ou senha inválidos.');sessionStorage.setItem(key,profile);close(profile)}catch(err){error.textContent=err.message}finally{btn.disabled=false;btn.textContent='Entrar no painel'}});
   });
 })();
