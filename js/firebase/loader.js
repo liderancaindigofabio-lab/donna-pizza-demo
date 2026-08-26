@@ -66,7 +66,7 @@
                         Promise.race([firebaseBoot, timeout]).then(startApp).catch(err => {
                             console.warn('Firebase indisponível; iniciando modo local de contingência.', err);
                             DB._backend = 'local'; DB._ready = false;
-                            Promise.resolve(DB.init()).then(startApp);
+                            Promise.resolve(DB.init({ fallback: true })).then(startApp);
                         });
                     });
                 });
