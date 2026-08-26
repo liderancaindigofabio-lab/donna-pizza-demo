@@ -182,6 +182,39 @@ const DB = {
     },
 
     // ====== PEDIDOS (síncrono, igual antes) ======
+    _normalizarPedido(pedido, agora) {
+        const p = { ...(pedido || {}) };
+        const ts = agora || new Date().toISOString();
+        const origem = p.origem || p.canal || 'cliente';
+        const canal = p.canal || origem;
+        const status = p.status || 'novo';
+        const valores = ['subtotal', 'taxa', 'desconto', 'total'];
+        valores.forEach(chave => {
+            if (p[chave] == null || Number.isNaN(Number(p[chave]))) p[chave] = 0;
+            else p[chave] = Number(p[chave]);
+        });
+        p.origem = origem;
+        p.canal = canal;
+        p.clienteTelIndex = p.clienteTelIndex || (p.cliente && p.cliente.tel ? String(p.cliente.tel).replace(/\D/g, '') : '');
+        p.createdBy = p.createdBy || (origem === 'salao' ? 'garcom' : origem);
+        p.status = status;
+        p.criadoEm = p.criadoEm || p.createdAt || ts;
+        p.createdAt = p.createdAt || p.criadoEm;
+        p.updatedAt = p.updatedAt || p.criadoEm;
+        if (!Array.isArray(p.timeline) || !p.timeline.length) {
+            p.timeline = [{ evento: 'pedido_criado', status, em: p.criadoEm, createdAt: p.criadoEm, createdBy: p.createdBy }];
+        }
+        if (p.motoboyId === undefined) p.motoboyId = null;
+        if (p.rota === undefined) p.rota = null;
+        return p;
+    },
+
+    _novoEventoPedido(status, dados) {
+        const agora = new Date().toISOString();
+        const extra = (dados && typeof dados === 'object') ? dados : {};
+        return { ...extra, evento: extra.evento || 'status_alterado', status: status || extra.status || null, em: extra.em || agora, createdAt: extra.createdAt || agora, createdBy: extra.createdBy || 'sistema' };
+    },
+
     getPedidos() {
         if (this.backend === 'firebase') {
             // Em modo Firebase, getPedidos() precisa ser async.
@@ -192,34 +225,51 @@ const DB = {
     },
 
     addPedido(pedido) {
-        if (this.backend === 'firebase') {
-            return DBRemote.addPedido(pedido);
-        }
+        const normalizado = this._normalizarPedido(pedido);
+        if (this.backend === 'firebase') return DBRemote.addPedido(normalizado);
         const pedidos = this.getPedidos();
-        pedido.id = Date.now();
-        pedido.criadoEm = new Date().toISOString();
-        pedido.status = 'novo';
-        pedido.motoboyId = null;
-        pedido.rota = null;
-        pedidos.unshift(pedido);
+        normalizado.id = Date.now();
+        pedidos.unshift(normalizado);
         localStorage.setItem(this.KEY_PEDIDOS, JSON.stringify(pedidos));
-        this._notify('pedido_novo', pedido);
-        return pedido;
+        this._notify('pedido_novo', normalizado);
+        return normalizado;
     },
 
     updatePedido(id, updates) {
-        if (this.backend === 'firebase') {
-            return DBRemote.updatePedido(id, updates);
-        }
+        if (this.backend === 'firebase') return DBRemote.updatePedido(id, updates);
         const pedidos = this.getPedidos();
-        const idx = pedidos.findIndex(p => p.id === id);
-        if (idx >= 0) {
-            pedidos[idx] = { ...pedidos[idx], ...updates };
-            localStorage.setItem(this.KEY_PEDIDOS, JSON.stringify(pedidos));
-            this._notify('pedido_update', pedidos[idx]);
-            return pedidos[idx];
+        const idx = pedidos.findIndex(p => String(p.id) === String(id));
+        if (idx < 0) return null;
+        const anterior = pedidos[idx];
+        const agora = new Date().toISOString();
+        const atualizado = { ...anterior, ...(updates || {}), updatedAt: agora };
+        if (updates && updates.status && updates.status !== anterior.status) {
+            atualizado.timeline = [...(Array.isArray(anterior.timeline) ? anterior.timeline : []), this._novoEventoPedido(updates.status, { evento: 'status_alterado' })];
         }
-        return null;
+        pedidos[idx] = atualizado;
+        localStorage.setItem(this.KEY_PEDIDOS, JSON.stringify(pedidos));
+        this._notify('pedido_update', atualizado);
+        return atualizado;
+    },
+
+    registrarEventoPedido(id, evento, dados) {
+        if (this.backend === 'firebase') return DBRemote.registrarEventoPedido(id, evento, dados);
+        const pedidos = this.getPedidos();
+        const idx = pedidos.findIndex(p => String(p.id) === String(id));
+        if (idx < 0) return null;
+        const p = pedidos[idx];
+        const nomeEvento = typeof evento === 'string' ? evento : ((evento || {}).evento || 'evento');
+        const extra = typeof evento === 'object' ? evento : (dados || {});
+        const item = this._novoEventoPedido(extra.status || p.status, { ...extra, evento: nomeEvento });
+        p.timeline = [...(Array.isArray(p.timeline) ? p.timeline : []), item];
+        p.updatedAt = item.em;
+        localStorage.setItem(this.KEY_PEDIDOS, JSON.stringify(pedidos));
+        this._notify('pedido_update', p);
+        return item;
+    },
+
+    atualizarStatusPedido(id, status, dados) {
+        return this.updatePedido(id, { ...(dados || {}), status });
     },
 
     getPedidosCliente(telefone) {
