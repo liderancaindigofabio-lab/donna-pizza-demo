@@ -6,6 +6,7 @@
     <title>Nonna Pizzaria — Cardápio</title>
     <link rel="stylesheet" href="css/cliente-final.css?v=3">
     <link rel="stylesheet" href="css/cliente-ux.css?v=1">
+    <link rel="stylesheet" href="css/cliente-growth.css?v=1">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍕</text></svg>">
@@ -18,6 +19,7 @@
         <a href="../" class="back-link">← Voltar</a>
         <div class="header-actions">
             <button class="icon-btn" onclick="abrirMeusPedidos()" title="Meus pedidos">📋</button>
+            <button class="icon-btn" onclick="abrirFavoritos()" title="Favoritos">⭐</button>
             <button class="icon-btn" onclick="abrirAcompanhamento()" title="Acompanhar pedido">📍</button>
             <button class="icon-btn" onclick="toggleTheme()" title="Tema">🌙</button>
         </div>
@@ -220,11 +222,23 @@
     </div>
 </div>
 
+<!-- MODAL FAVORITOS -->
+<div class="modal" id="modalFavoritos">
+    <div class="modal-content">
+        <header class="modal-header">
+            <h2>⭐ Meus favoritos</h2>
+            <button class="modal-close" onclick="fecharFavoritos()">×</button>
+        </header>
+        <div id="favoritosBody"></div>
+    </div>
+</div>
+
 <!-- TOAST -->
 <div id="toastContainer"></div>
 
 <script src="../js/firebase/config.js?v=11"></script>
 <script src="../js/firebase/loader.js?v=11"></script>
+<script src="js/growth.js?v=1"></script>
 <script src="../js/utils-endereco.js?v=1"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </body>
