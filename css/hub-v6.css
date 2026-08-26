@@ -140,6 +140,7 @@ body {
 .hub-card.motoboy:hover      { border-color: var(--red); }
 .hub-card.cozinha:hover      { border-color: var(--green); }
 .hub-card.caixa:hover        { border-color: var(--red); }
+.hub-card.garcom:hover       { border-color: var(--green); }
 
 .card-icon {
     font-size: 2.2rem;
