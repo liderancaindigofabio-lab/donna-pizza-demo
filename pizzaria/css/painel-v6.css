@@ -344,7 +344,7 @@ body {
 
 .pedido-cliente { margin-bottom: 12px; }
 
-.cliente-nome {
+.mesa-badge{display:inline-block;margin-left:6px;padding:3px 7px;border-radius:10px;background:rgba(200,154,59,.18);color:#b8882d;font-size:.72rem;font-weight:700;vertical-align:middle}.cliente-nome {
     font-weight: 600;
     color: var(--text);
     font-size: 1rem;
