@@ -8,7 +8,7 @@
 let filtroStatus = 'novo';
 let pedidoSelecionado = null;
 let motoboySelecionado = null;
-let abaAtiva = 'pedidos';
+let abaAtiva = 'visao';
 
 // Coordenadas da pizzaria (Atalaia - Aracaju/SE)
 // Av. Melício Machado, 1060 - Atalaia, Aracaju - SE, 49037-440
@@ -37,6 +37,8 @@ function init() {
     renderFila();
     renderMetricas();
     renderContadores();
+    atualizarNavegacao();
+    trocarAba(document.body.dataset.profile === 'kitchen' ? 'pedidos' : 'visao');
 
     DB.onChange(({ tipo, data }) => {
         if (tipo === 'pedido_novo') {
@@ -60,12 +62,20 @@ function renderRelogio() {
 
 // ===== ABAS =====
 function trocarAba(aba) {
+    // A visão geral é somente leitura; os fluxos existentes continuam nas abas operacionais.
+    if (aba === 'cardapio' && ['kitchen', 'cashier'].includes(document.body.dataset.profile)) return;
     abaAtiva = aba;
-    document.querySelectorAll('.nav-aba').forEach(b => b.classList.remove('active'));
-    document.querySelector(`[data-aba="${aba}"]`).classList.add('active');
+    document.querySelectorAll('.nav-aba, .sidebar-link').forEach(b => b.classList.toggle('active', b.dataset.aba === aba));
+    const mostrarVisao = aba === 'visao';
+    document.querySelectorAll('.dashboard, .gestao-resumo, .gestao-painel-detalhes').forEach(el => { el.style.display = mostrarVisao ? '' : 'none'; });
     document.getElementById('abaPedidos').style.display = aba === 'pedidos' ? 'block' : 'none';
     document.getElementById('abaCardapio').style.display = aba === 'cardapio' ? 'block' : 'none';
     if (aba === 'cardapio') renderEditorCardapio();
+}
+
+function atualizarNavegacao() {
+    const perfil = document.body.dataset.profile;
+    document.querySelectorAll('.sidebar-link[data-aba="cardapio"]').forEach(el => { if (perfil === 'kitchen' || perfil === 'cashier') el.remove(); });
 }
 
 // ===== FILA DE PEDIDOS =====
@@ -665,6 +675,23 @@ function renderMetricas() {
     document.getElementById('metAndamento').textContent = m.emAndamento;
     document.getElementById('metTicket').textContent = BRL(m.ticketMedio);
     renderResumoGestao();
+    renderDetalhesGestao();
+}
+
+function renderDetalhesGestao() {
+    const pedidos = DB.getPedidos() || [];
+    const hoje = new Date().toDateString();
+    const doDia = pedidos.filter(p => p.criadoEm && new Date(p.criadoEm).toDateString() === hoje);
+    const cardapio = DB.getCardapio() || {};
+    const itens = ['sabores', 'adicionais', 'calzones', 'bebidas', 'combos'].reduce((total, chave) => total + (Array.isArray(cardapio[chave]) ? cardapio[chave].length : 0), 0);
+    const motoboys = DB.getMotoboys() || [];
+    const disponiveis = motoboys.filter(m => m.status === 'disponivel').length;
+    const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+    set('dashFinalizados', doDia.filter(p => p.status === 'entregue').length);
+    set('dashItensCardapio', itens);
+    set('dashMotoboys', disponiveis);
+    set('dashEmEntrega', doDia.filter(p => p.status === 'em_entrega').length);
+    set('sidePedidos', doDia.filter(p => !['entregue', 'cancelado'].includes(p.status)).length);
 }
 
 function renderResumoGestao() {
