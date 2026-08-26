@@ -45,51 +45,28 @@ function pedidosEmOperacao() {
 }
 
 // ===== INIT =====
-function init() {
-    const saved = localStorage.getItem('donna_motoboy_logado');
-    if (saved) {
-        motoboyAtual = parseInt(saved);
-        const m = DB.getMotoboy(motoboyAtual);
-        if (m) {
-            iniciarApp();
-            return;
-        }
-    }
+async function init() {
+    try {
+        const profile = await NONNA_STAFF_AUTH?.restore?.();
+        if (profile) { entrarComPerfil(profile); return; }
+    } catch (_) {}
     renderLogin();
 }
 
-const MOTOBOY_PASSWORD_HASH = 'cfa8dabd6587192c8807dbcbace372109f89c51c0b4437d219d4934e630a357a';
-async function hashSenha(value) {
-    const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-    return [...new Uint8Array(bytes)].map(x => x.toString(16).padStart(2, '0')).join('');
+function entrarComPerfil(profile) {
+    if (!profile || !profile.courierId) { toast('Seu perfil não está vinculado a um motoboy.', 'error'); return; }
+    motoboyAtual = profile.courierId;
+    localStorage.removeItem('donna_motoboy_logado');
+    iniciarApp();
 }
 
 function renderLogin() {
-    const motoboys = DB.getMotoboys();
-    document.getElementById('motoboyLoginList').innerHTML = motoboys.map(m => `
-        <form class="motoboy-login-item" onsubmit="login(event, ${m.id})">
-            <div class="motoboy-avatar-small">${m.foto}</div>
-            <div class="mli-info"><div class="mli-nome">${m.nome}</div><div class="mli-moto">Usuário: ${m.nome}</div></div>
-            <input name="password" type="password" placeholder="Senha" autocomplete="current-password" required aria-label="Senha de ${m.nome}" style="max-width:130px">
-            <button class="mli-arrow" type="submit" aria-label="Entrar como ${m.nome}">→</button>
-        </form>
-    `).join('');
+    const form=document.getElementById('motoboyAuthForm'), error=document.getElementById('motoboyAuthError');
+    if(!form) return;
+    form.onsubmit=async e=>{e.preventDefault();const fd=new FormData(form),btn=form.querySelector('button');error.textContent='';btn.disabled=true;try{const p=await NONNA_STAFF_AUTH.signIn(String(fd.get('email')).trim(),String(fd.get('password')));entrarComPerfil(p)}catch(err){error.textContent=err.message||'Não foi possível entrar.'}finally{btn.disabled=false}};
 }
 
-function sairMotoboy(event) { event.preventDefault(); localStorage.removeItem('donna_motoboy_logado'); location.reload(); }
-
-async function login(event, id) {
-    event.preventDefault();
-    const senha = event.currentTarget.querySelector('input[name="password"]').value;
-    const button = event.currentTarget.querySelector('button');
-    button.disabled = true;
-    try {
-        if (await hashSenha(senha) !== MOTOBOY_PASSWORD_HASH) throw new Error('Senha inválida.');
-        motoboyAtual = id;
-        localStorage.setItem('donna_motoboy_logado', id);
-        iniciarApp();
-    } catch (e) { toast(e.message, 'error'); button.disabled = false; }
-}
+function sairMotoboy(event) { event.preventDefault(); try{firebase.auth().signOut()}catch(_){} location.reload(); }
 
 function iniciarApp() {
     const m = DB.getMotoboy(motoboyAtual);
