@@ -121,6 +121,15 @@
         </button>
     </nav>
 
+    <nav class="canal-filters" aria-label="Filtrar por canal">
+        <span class="canal-filter-label">Canal:</span>
+        <button class="canal-filter active" data-canal="todos" onclick="filtrarCanal('todos')">Todos</button>
+        <button class="canal-filter" data-canal="delivery" onclick="filtrarCanal('delivery')">Delivery</button>
+        <button class="canal-filter" data-canal="salao" onclick="filtrarCanal('salao')">Salão</button>
+        <button class="canal-filter" data-canal="balcao" onclick="filtrarCanal('balcao')">Balcão</button>
+        <button class="canal-filter" data-canal="agendado" onclick="filtrarCanal('agendado')">Agendado</button>
+    </nav>
+
     <!-- FILA DE PEDIDOS -->
     <main class="fila-container" id="filaPedidos">
         <div class="empty-state" id="emptyFila">
