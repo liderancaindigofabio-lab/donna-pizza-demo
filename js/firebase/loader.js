@@ -71,6 +71,7 @@
                 });
             });
         });
+        });
     }
 
     if (typeof FIREBASE_ATIVO === 'undefined' || !FIREBASE_ATIVO) {
