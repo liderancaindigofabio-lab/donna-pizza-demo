@@ -14,7 +14,7 @@ let pizzaBuilder = null;  // { tamanho, sabores: [], adicionais: [] }
 
 const BRL = (v) => 'R$ ' + v.toFixed(2).replace('.', ',');
 let config = DB.getConfig();
-const cardapio = DB.getCardapio();
+let cardapio = DB.getCardapio();
 const horaEmMinutos = value => { const m = String(value || '').match(/^(\d{1,2}):(\d{2})$/); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
 function lojaEstaAberta() {
     const abertura = horaEmMinutos(config.abertura), fechamento = horaEmMinutos(config.fechamento);
@@ -27,6 +27,10 @@ const mediaProduto = p => { const u=String(p?.foto||''); return /^https:\/\//i.t
 
 // ============ INIT ============
 function init() {
+    // O adapter pode terminar a sincronização depois do carregamento inicial do script.
+    // Releia os dados aqui para não renderizar um cardápio vazio permanentemente.
+    config = DB.getConfig() || config;
+    cardapio = DB.getCardapio() || cardapio;
     clienteLogado = DB.getClienteLogado();
 
     renderCategorias();
