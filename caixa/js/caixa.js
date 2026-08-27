@@ -25,7 +25,7 @@
   async function closeSalon(mesa){const ps=(DB.getPedidos()||[]).filter(p=>mesaDo(p)===String(mesa)&&!p.contaFechada&&!['cancelado','cancelada','fechado'].includes(String(p.status||'').toLowerCase()));if(!ps.length)return;const total=ps.reduce((a,p)=>a+Number(p.total||0),0),forma=prompt('Forma de pagamento: Dinheiro, Pix, Débito ou Crédito','Pix');if(!forma)return;if(!confirm(`Fechar a conta da Mesa ${mesa} no valor de ${money(total)}?`))return;try{for(const p of ps)await DB.updatePedido(p.id,{contaFechada:true,formaPagamento:forma.trim().toLowerCase(),fechadaEm:new Date().toISOString(),status:'fechado',operacaoSalao:'fechamento_caixa'});await DB.registrarMovimentoCaixa({tipo:'venda',valor:total,forma:forma.trim().toLowerCase(),operador:staff?.nome||'Caixa'});renderTables();refreshCash()}catch(e){alert(e.message||'Não foi possível fechar a conta.')}}
   async function init(){
     const form=$('loginForm');
-    const restored=await (window.window.NONNA_STAFF_AUTH?.restore?.()||Promise.resolve(null)).catch(()=>null);
+    const restored=await (window.NONNA_STAFF_AUTH?.restore?.()||Promise.resolve(null)).catch(()=>null);
     if(restored){staff=restored;start();return}
     form.onsubmit=async e=>{e.preventDefault();const f=new FormData(form),btn=form.querySelector('button');$('err').textContent='';btn.disabled=true;btn.textContent='Entrando…';try{staff=await NONNA_STAFF_AUTH.signIn(String(f.get('user')).trim(),String(f.get('pass')));start()}catch(err){$('err').textContent=err.message||'Não foi possível entrar.'}finally{btn.disabled=false;btn.textContent='Entrar'}};
   }
