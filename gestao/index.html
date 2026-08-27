@@ -9,7 +9,7 @@
 html,body{margin:0;min-height:100%;background:#f6f5f2;color:#242321;font:14px Inter,Arial,sans-serif}.auth-gate{min-height:100vh;display:grid;place-items:center;background:#171614;padding:24px}.auth-card{width:min(380px,100%);display:grid;gap:12px;padding:30px;background:#fff;border-radius:16px;box-shadow:0 15px 50px #0005}.auth-card>b{font:900 28px 'Playfair Display',serif;color:#b88b3f}.auth-card h1{margin:0;font-size:24px}.auth-card input{font:inherit;border:1px solid #ddd8cf;background:#fff;border-radius:8px;padding:12px;color:#333}.auth-card button{border:0;border-radius:8px;padding:12px;background:#ae8035;color:#fff;font-weight:700;cursor:pointer}.auth-error{min-height:18px;color:#b33f32;margin:0}
 </style>
 </head>
-<body><div id="authGate" class="auth-gate"><form id="gestaoLoginForm" class="auth-card"><b>NONNA</b><h1>Acesso à Gestão</h1><input name="user" type="email" placeholder="E-mail" autocomplete="username" required><input name="pass" type="password" placeholder="Senha" autocomplete="current-password" required><p id="gestaoAuthError" class="auth-error" role="alert"></p><button class="primary">Entrar</button></form></div><div id="gestaoApp" hidden>
+<body><div id="authGate" class="auth-gate"><form id="gestaoLoginForm" class="auth-card"><b>NONNA</b><h1>Acesso à Gestão</h1><input name="user" type="email" placeholder="E-mail" autocomplete="username" required><input name="pass" type="password" placeholder="Senha" autocomplete="current-password" required><p id="gestaoAuthError" class="auth-error" role="alert"></p><button type="submit" class="primary">Entrar</button></form></div><div id="gestaoApp" hidden>
 <header class="topbar"><a class="brand" href="../"><img src="../img/logo.jpg" alt="Nonna"><span>NONNA<small>GESTÃO</small></span></a><div class="top-actions"><span id="dataAtual"></span><span class="connection" id="connection">● conectando</span><button id="refresh" class="icon-btn" title="Atualizar dados">↻</button></div></header>
 <main class="shell">
 <section class="hero"><div><p class="eyebrow">Centro de controle</p><h1>Gestão da Nonna</h1><p class="muted">Estoque, financeiro e desempenho com os dados reais da operação.</p></div><div class="period"><label for="periodo">Período</label><select id="periodo"><option value="today">Hoje</option><option value="7">Últimos 7 dias</option><option value="30" selected>Últimos 30 dias</option><option value="all">Todo o período</option></select></div></section>
@@ -36,10 +36,11 @@ html,body{margin:0;min-height:100%;background:#f6f5f2;color:#242321;font:14px In
   form.dataset.loginBound='1';
   function wait(ms){return new Promise(function(resolve){setTimeout(resolve,ms)});}
   function timeout(p,ms,message){return Promise.race([p,new Promise(function(_,reject){setTimeout(function(){reject(new Error(message))},ms)})]);}
-  form.addEventListener('submit',async function(ev){
-    ev.preventDefault(); ev.stopImmediatePropagation();
-    var btn=form.querySelector('button'), email=String(form.elements.user.value||'').trim().toLowerCase(), password=String(form.elements.pass.value||'');
-    if(btn.disabled)return;
+  async function runLogin(ev){
+    if(ev){ev.preventDefault();ev.stopPropagation();}
+    var btn=form.querySelector('button'), emailEl=form.querySelector('input[name="user"]'), passEl=form.querySelector('input[name="pass"]');
+    var email=String(emailEl&&emailEl.value||'').trim().toLowerCase(), password=String(passEl&&passEl.value||'');
+    if(btn.disabled)return false;
     btn.disabled=true; btn.textContent='Entrando…'; error.textContent='';
     try{
       if(!window.firebase||typeof firebase.auth!=='function')throw new Error('O serviço de autenticação ainda não carregou. Atualize a página.');
@@ -55,7 +56,9 @@ html,body{margin:0;min-height:100%;background:#f6f5f2;color:#242321;font:14px In
       function launch(){if(typeof window.NONNA_GESTAO_START==='function')window.NONNA_GESTAO_START(profile);else setTimeout(launch,100)} launch();
     }catch(e){error.textContent=e&&e.code==='auth/invalid-credential'?'E-mail ou senha inválidos.':(e&&e.message||'Não foi possível entrar.');}
     finally{btn.disabled=false;btn.textContent='Entrar';}
-  },true);
+    return false;
+  }
+  form.onsubmit=runLogin;
 })();
 </script>
 <script src="../js/firebase/loader.js?v=38"></script><script src="js/gestao.js?v=14"></script>
