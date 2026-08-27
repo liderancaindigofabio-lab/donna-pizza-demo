@@ -5,11 +5,9 @@
  */
 (function () {
   const scriptTag = document.currentScript;
-  // loader.js lives in js/firebase; resolve the site root (works on GitHub Pages
-  // subpaths as well as local previews).
-  const BASE = new URL('../../', scriptTag && scriptTag.src ? scriptTag.src : location.href).href;
+  const BASE = new URL('../', scriptTag && scriptTag.src ? scriptTag.src : location.href).href;
   const APPS = {
-    cliente: new URL('cliente/js/app.js?v=3', BASE).href,
+    cliente: new URL('cliente/js/app.js?v=5', BASE).href,
     motoboy: new URL('motoboy/js/motoboy.js?v=3', BASE).href,
     pizzaria: new URL('pizzaria/js/painel.js?v=3', BASE).href,
     garcom: new URL('garcom/js/garcom.js?v=4', BASE).href,
@@ -27,7 +25,7 @@
     window.dispatchEvent(new CustomEvent(name, { detail: detail || {} }));
   }
 
-  function loadScript(src, timeoutMs = 15000) {
+  function loadScript(src) {
     return new Promise((resolve, reject) => {
       const target = new URL(src, location.href);
       const existing = [...document.scripts].find(s => {
@@ -39,14 +37,8 @@
       const s = document.createElement('script');
       s.src = src;
       s.async = false;
-      let settled = false;
-      const finish = (fn, value) => { if (settled) return; settled = true; clearTimeout(timer); fn(value); };
-      const timer = setTimeout(() => {
-        s.remove();
-        finish(reject, new Error('Tempo limite ao carregar recurso Nonna'));
-      }, timeoutMs);
-      s.onload = () => finish(resolve);
-      s.onerror = () => finish(reject, new Error('Falha ao carregar recurso Nonna'));
+      s.onload = resolve;
+      s.onerror = () => reject(new Error('Falha ao carregar ' + src));
       document.head.appendChild(s);
     });
   }
@@ -58,9 +50,9 @@
 
       const firebaseActive = typeof FIREBASE_ATIVO !== 'undefined' && FIREBASE_ATIVO;
       if (!firebaseActive) {
-        await loadScript(BASE + 'js/nonna-api-client.js?v=2');
-        await loadScript(BASE + 'js/firebase/operational-guards.js?v=2');
-        await loadScript(BASE + 'js/firebase/db-adapter.js?v=36');
+        await loadScript(BASE + 'js/nonna-api-client.js?v=1');
+        await loadScript(BASE + 'js/firebase/operational-guards.js?v=1');
+        await loadScript(BASE + 'js/firebase/db-adapter.js?v=35');
         await loadScript(BASE + 'js/branding.js?v=1');
         window.DB = DB;
         await DB.init();
@@ -76,9 +68,9 @@
         await loadScript(BASE + 'js/firebase/auth.js');
         await loadScript(BASE + 'js/firebase/staff-auth.js?v=6');
         await loadScript(BASE + 'js/firebase/firebase-storage.js');
-        await loadScript(BASE + 'js/nonna-api-client.js?v=2');
-        await loadScript(BASE + 'js/firebase/operational-guards.js?v=2');
-        await loadScript(BASE + 'js/firebase/db-adapter.js?v=36');
+        await loadScript(BASE + 'js/nonna-api-client.js?v=1');
+        await loadScript(BASE + 'js/firebase/operational-guards.js?v=1');
+        await loadScript(BASE + 'js/firebase/db-adapter.js?v=35');
         await loadScript(BASE + 'js/branding.js?v=1');
         window.DB = DB;
         window.DBRemote = DBRemote;
