@@ -48,7 +48,8 @@
       state.status = 'loading-firebase';
       emit('nonna_boot_status', state);
 
-      const firebaseActive = typeof FIREBASE_ATIVO !== 'undefined' && FIREBASE_ATIVO;
+      // O Cliente público usa exclusivamente a API; não deve depender do SDK Firebase.
+      const firebaseActive = typeof FIREBASE_ATIVO !== 'undefined' && FIREBASE_ATIVO && appName !== 'cliente';
       if (!firebaseActive) {
         await loadScript(BASE + 'js/nonna-api-client.js?v=1');
         await loadScript(BASE + 'js/firebase/operational-guards.js?v=1');
