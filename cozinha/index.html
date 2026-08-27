@@ -7,8 +7,7 @@
 </head>
 <body>
   <div id="staffGate" style="position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:#11100e;color:#fff;padding:24px"><form id="staffLogin" style="width:min(380px,100%);background:#1c1a17;border:1px solid #444;border-radius:18px;padding:28px;display:grid;gap:12px"><strong style="font-size:28px">NONNA</strong><h2 style="margin:0">Acesso da cozinha</h2><input name="email" type="email" placeholder="E-mail" autocomplete="username" required style="padding:13px;border-radius:10px;border:1px solid #555;background:#111;color:#fff"><input name="password" type="password" placeholder="Senha" autocomplete="current-password" required style="padding:13px;border-radius:10px;border:1px solid #555;background:#111;color:#fff"><p id="staffError" style="min-height:20px;color:#ff8b8b"></p><button style="padding:13px;border:0;border-radius:10px;font-weight:800">Entrar</button></form></div>
-  <div id="bootError" class="boot-error" role="alert" hidden><strong>Conexão pendente</strong><span id="bootErrorText">Entre com o acesso da cozinha para carregar os pedidos.</span><button type="button" onclick="location.reload()">Tentar novamente</button></div>
-  <div class="kds-shell"><header class="kds-header"><div class="brand"><span class="brand-mark">N</span><div><h1><span data-donna-brand-name>NONNA</span> <em>Cozinha</em></h1><small data-donna-brand-cnpj hidden></small><p>KITCHEN DISPLAY SYSTEM</p></div></div><div class="header-meta"><span class="live-dot"></span><span id="connectionLabel" data-donna-connection>Conectando…</span><time id="clock"></time><button id="soundToggle" class="icon-button" type="button" aria-pressed="false" title="Ativar som">🔇</button></div></header>
+   <div class="kds-shell"><header class="kds-header"><div class="brand"><span class="brand-mark">N</span><div><h1><span data-donna-brand-name>NONNA</span> <em>Cozinha</em></h1><small data-donna-brand-cnpj hidden></small><p>KITCHEN DISPLAY SYSTEM</p></div></div><div class="header-meta"><span class="live-dot"></span><span id="connectionLabel" data-donna-connection>Conectando…</span><time id="clock"></time><button id="soundToggle" class="icon-button" type="button" aria-pressed="false" title="Ativar som">🔇</button></div></header>
     <main class="board" aria-live="polite">
       <section class="service-block service-delivery"><header class="service-header"><span>🛵</span><div><h2>Delivery</h2><p>Pedidos para entrega</p></div></header><div class="service-lanes"><div class="lane lane-new"><header class="lane-header"><h3>Novos</h3><span class="lane-count" id="count-delivery-novo">0</span></header><div class="orders" id="orders-delivery-novo"></div></div><div class="lane lane-preparing"><header class="lane-header"><h3>Preparando</h3><span class="lane-count" id="count-delivery-preparando">0</span></header><div class="orders" id="orders-delivery-preparando"></div></div><div class="lane lane-ready"><header class="lane-header"><h3>Prontos</h3><span class="lane-count" id="count-delivery-pronto">0</span></header><div class="orders" id="orders-delivery-pronto"></div></div></div></section>
       <section class="service-block service-balcao"><header class="service-header"><span>🏪</span><div><h2>Retirada no balcão</h2><p>Pedidos para retirada</p></div></header><div class="service-lanes"><div class="lane lane-new"><header class="lane-header"><h3>Novos</h3><span class="lane-count" id="count-balcao-novo">0</span></header><div class="orders" id="orders-balcao-novo"></div></div><div class="lane lane-preparing"><header class="lane-header"><h3>Preparando</h3><span class="lane-count" id="count-balcao-preparando">0</span></header><div class="orders" id="orders-balcao-preparando"></div></div><div class="lane lane-ready"><header class="lane-header"><h3>Prontos</h3><span class="lane-count" id="count-balcao-pronto">0</span></header><div class="orders" id="orders-balcao-pronto"></div></div></div></section>
@@ -16,12 +15,6 @@
     </main><footer class="kds-footer"><span><b id="totalActive">0</b> pedidos ativos</span><span class="legend"><i class="legend-dot normal"></i> no prazo <i class="legend-dot overdue"></i> atrasado</span><span>Atualização em tempo real</span></footer>
   </div><div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script>
-window.addEventListener('nonna_boot_status',function(e){
-  if(e.detail&&e.detail.status==='error'){
-    document.getElementById('bootError').hidden=true;
-    document.getElementById('staffGate').style.display='grid';
-  }
-});
 (function(){
   var form=document.getElementById('staffLogin');
   var bound=false;
@@ -45,5 +38,5 @@ window.addEventListener('nonna_boot_status',function(e){
   setTimeout(function(){clearInterval(timer);bindFallback();},15000);
 })();
 </script>
-  <script src="../js/firebase/config.js?v=6"></script><script src="../js/firebase/loader.js?v=38"></script>
+  <script src="../js/firebase/config.js?v=6"></script><script src="../js/firebase/loader.js?v=39"></script>
 </body></html>
