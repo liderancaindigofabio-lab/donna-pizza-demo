@@ -23,6 +23,8 @@
     if(!p || p.ativo===false || !p.restaurantId || !p.role) { await firebase.auth().signOut(); throw new Error('Usuário sem perfil operacional configurado.'); }
     const allowed=PAGE_ROLES[page()]||[];
     if(allowed.length && !allowed.includes(p.role)) { await firebase.auth().signOut(); throw new Error('Seu perfil não possui acesso a este ambiente.'); }
+    // Operational metadata only; credentials never enter the profile.
+    try { const last=new Date().toISOString(); await firebase.database().ref('userProfiles/'+credential.user.uid).update({lastAccessAt:last}); p.lastAccessAt=last; } catch (_) {}
     sessionStorage.removeItem('donna_pizzaria_auth');
     sessionStorage.removeItem('nonna_caixa');
     sessionStorage.removeItem('donna_garcom_auth');
@@ -34,6 +36,7 @@
     if(!u) return null;
     const p=await profile(u.uid);
     if(!p || p.ativo===false || !p.restaurantId || !(PAGE_ROLES[page()]||[]).includes(p.role)) { await firebase.auth().signOut(); return null; }
+    try { const last=new Date().toISOString(); await firebase.database().ref('userProfiles/'+u.uid).update({lastAccessAt:last}); p.lastAccessAt=last; } catch (_) {}
     return {...p,uid:u.uid,email:u.email};
   }
 

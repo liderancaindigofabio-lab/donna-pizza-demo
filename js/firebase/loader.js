@@ -58,7 +58,7 @@
         // no primeiro ciclo sem corrida entre scripts.
         await loadScript('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js');
         await loadScript(BASE + 'js/firebase/auth.js');
-        await loadScript(BASE + 'js/firebase/staff-auth.js?v=3');
+        await loadScript(BASE + 'js/firebase/staff-auth.js?v=4');
         await loadScript(BASE + 'js/firebase/firebase-storage.js');
         await loadScript(BASE + 'js/firebase/db-adapter.js?v=33');
         await loadScript(BASE + 'js/branding.js?v=1');
