@@ -4,13 +4,14 @@
  * operacionais depois que o adapter estiver pronto.
  */
 (function () {
-  const BASE = '/donna-pizza-demo/';
+  const scriptTag = document.currentScript;
+  const BASE = new URL('../', scriptTag && scriptTag.src ? scriptTag.src : location.href).href;
   const APPS = {
-    cliente: BASE + 'cliente/js/app.js?v=2',
-    motoboy: BASE + 'motoboy/js/motoboy.js',
-    pizzaria: BASE + 'pizzaria/js/painel.js?v=2',
-    garcom: BASE + 'garcom/js/garcom.js?v=3',
-    cozinha: BASE + 'cozinha/js/cozinha.js?v=4'
+    cliente: new URL('cliente/js/app.js?v=3', BASE).href,
+    motoboy: new URL('motoboy/js/motoboy.js?v=3', BASE).href,
+    pizzaria: new URL('pizzaria/js/painel.js?v=3', BASE).href,
+    garcom: new URL('garcom/js/garcom.js?v=4', BASE).href,
+    cozinha: new URL('cozinha/js/cozinha.js?v=5', BASE).href
   };
   const appName = (location.pathname.match(/\/(cliente|motoboy|pizzaria|garcom|caixa|cozinha)(\/|$)/) || [])[1] || null;
   const state = window.NONNA_BOOT = window.NONNA_BOOT || {
@@ -26,7 +27,12 @@
 
   function loadScript(src) {
     return new Promise((resolve, reject) => {
-      const existing = [...document.scripts].find(s => s.src === new URL(src, location.href).href);
+      const target = new URL(src, location.href);
+      const existing = [...document.scripts].find(s => {
+        if(!s.src)return false;
+        const u=new URL(s.src, location.href);
+        return u.origin===target.origin && u.pathname===target.pathname;
+      });
       if (existing) return resolve();
       const s = document.createElement('script');
       s.src = src;
