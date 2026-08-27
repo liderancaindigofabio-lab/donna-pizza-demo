@@ -567,25 +567,25 @@ function abrirWaze(pedidoId) {
     window.open(url, '_blank');
 }
 
-function iniciarEntrega(id) {
+async function iniciarEntrega(id) {
+    const pedido = DB.getPedidos().find(x => String(x.id) === String(id));
+    if (!pedido || String(pedido.motoboyId) !== String(motoboyAtual) || pedido.status !== 'pronto') { toast('Este pedido não pertence à sua rota ou não está pronto.', 'error'); return; }
     if (!confirm('Iniciar entrega agora? O cliente vai ver sua posição em tempo real.')) return;
-    atualizarStatusPedido(id, 'em_entrega', { saiuEm: new Date().toISOString() });
-    DB.updateMotoboy(motoboyAtual, { status: 'entregando' });
-    toast('🚀 Entrega iniciada! Cliente notificado.', 'success');
-    tocarSom('novo');
-    // Re-renderiza a lista
-    renderPedidosAtuais();
+    try {
+        const salvo = await atualizarStatusPedido(id, 'em_entrega', { saiuEm: new Date().toISOString(), actor: `courier:${motoboyAtual}` });
+        if (!salvo) throw new Error('Pedido não encontrado');
+        await DB.updateMotoboy(motoboyAtual, { status: 'entregando' });
+        toast('🚀 Entrega iniciada! Cliente notificado.', 'success'); tocarSom('novo'); renderPedidosAtuais();
+    } catch (e) { toast(e.message || 'Não foi possível iniciar a entrega.', 'error'); }
 }
 
-function registrarProblema(id) {
+async function registrarProblema(id) {
+    const pedido = DB.getPedidos().find(x => String(x.id) === String(id));
+    if (!pedido || String(pedido.motoboyId) !== String(motoboyAtual) || pedido.status !== 'em_entrega') { toast('Este pedido não pertence à sua rota.', 'error'); return; }
     const motivo = prompt('Descreva o problema da entrega:');
     if (!motivo || !motivo.trim()) return;
-    atualizarStatusPedido(id, 'problema_entrega', {
-        problemaEntrega: motivo.trim(), problemaEm: new Date().toISOString()
-    });
-    DB.updateMotoboy(motoboyAtual, { status: 'problema' });
-    toast('⚠️ Problema registrado e enviado à pizzaria.', 'error');
-    renderPedidosAtuais();
+    try { await atualizarStatusPedido(id, 'problema_entrega', { problemaEntrega: motivo.trim(), problemaEm: new Date().toISOString(), actor: `courier:${motoboyAtual}` }); await DB.updateMotoboy(motoboyAtual, { status: 'problema' }); toast('⚠️ Problema registrado e enviado à pizzaria.', 'error'); renderPedidosAtuais(); }
+    catch (e) { toast(e.message || 'Não foi possível registrar o problema.', 'error'); }
 }
 
 function ligarCliente(pedidoId) {
@@ -595,18 +595,15 @@ function ligarCliente(pedidoId) {
     window.location.href = `tel:+55${tel}`;
 }
 
-function finalizarEntrega(id) {
+async function finalizarEntrega(id) {
+    const pedido = DB.getPedidos().find(x => String(x.id) === String(id));
+    if (!pedido || String(pedido.motoboyId) !== String(motoboyAtual) || pedido.status !== 'em_entrega') { toast('Este pedido não pertence à sua rota.', 'error'); return; }
     if (!confirm('Confirmar que essa entrega foi feita?')) return;
-    atualizarStatusPedido(id, 'entregue', { entregueEm: new Date().toISOString() });
-
-    // Se não tem mais entregas, libera o motoboy
-    const restantes = pedidosEmOperacao();
-    if (restantes.length === 0) {
-        DB.updateMotoboy(motoboyAtual, { status: 'disponivel' });
-    }
-
-    toast('🎉 Entrega finalizada!', 'success');
-    tocarSom('ok');
+    try {
+        await atualizarStatusPedido(id, 'entregue', { entregueEm: new Date().toISOString(), actor: `courier:${motoboyAtual}` });
+        if (pedidosEmOperacao().filter(p => String(p.id) !== String(id)).length === 0) await DB.updateMotoboy(motoboyAtual, { status: 'disponivel' });
+        toast('🎉 Entrega finalizada!', 'success'); tocarSom('ok'); renderPedidosAtuais();
+    } catch (e) { toast(e.message || 'Não foi possível finalizar a entrega.', 'error'); }
 }
 
 // ===== HISTÓRICO =====

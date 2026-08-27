@@ -312,6 +312,17 @@ const DB = {
     },
 
     updatePedido(id, updates) {
+        const patchInput = { ...(updates || {}) };
+        // UI-level transition/idempotency guard. Rules must enforce this again server-side.
+        if (patchInput.status && typeof NONNA_OPERATIONAL_GUARDS !== 'undefined') {
+            const current = this.getPedidos().find(p => String(p.id) === String(id));
+            if (current) {
+                if (patchInput.status === current.status) return current;
+                if (!NONNA_OPERATIONAL_GUARDS.canTransition(current.status, patchInput.status)) {
+                    return Promise.reject(new Error(`Transição inválida: ${current.status} → ${patchInput.status}`));
+                }
+            }
+        }
         if (this.backend === 'firebase') {
             return DBRemote.updatePedido(id, updates).then(async pedido => {
                 if (!pedido) return null;
@@ -692,7 +703,10 @@ const DB = {
     },
     async registrarMovimentoCaixa(movimento) {
         const caixa = this.getCaixaAtual(); if (!caixa || caixa.status !== 'aberto') return null;
-        const mov = { id: Date.now(), tipo: movimento.tipo, valor: Number(movimento.valor || 0), forma: movimento.forma || null, observacao: movimento.observacao || '', operador: movimento.operador || caixa.operador, em: new Date().toISOString() };
+        const tipo = String(movimento?.tipo || '').trim().toLowerCase();
+        const valor = Number(movimento?.valor);
+        if (!['venda', 'sangria', 'suprimento'].includes(tipo) || !Number.isFinite(valor) || valor <= 0) throw new Error('Movimentação inválida: informe tipo e valor positivo.');
+        const mov = { id: Date.now(), tipo, valor, forma: movimento.forma || null, observacao: String(movimento.observacao || '').slice(0,240), operador: movimento.operador || caixa.operador, em: new Date().toISOString() };
         if (this.backend === 'firebase') {
             return firebase.database().ref('caixa/atual').transaction(atual => {
                 if (!atual || atual.status !== 'aberto') return;

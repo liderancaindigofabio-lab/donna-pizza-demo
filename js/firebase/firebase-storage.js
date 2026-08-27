@@ -274,6 +274,13 @@ const DBRemote = {
     },
     async baixarEstoquePorPedido(pedido) {
         if (!pedido || pedido.estoqueBaixadoEm || !Array.isArray(pedido.itens)) return { aplicado: false };
+        // Claim once before decrementing stock: concurrent status updates cannot
+        // consume the same order twice. This is a safeguard, not authorization.
+        const pedidoRef = await this._resolvePedidoRef(pedido.id);
+        if (!pedidoRef) return { aplicado: false };
+        const claim = await pedidoRef.child('estoqueBaixaEmAndamento').transaction(v => v ? undefined : new Date().toISOString());
+        if (!claim.committed) return { aplicado: false, duplicada: true };
+        try {
         const fichas = await this.getFichasTecnicasAsync();
         const movimentos = [];
         for (const item of pedido.itens) {
@@ -288,10 +295,16 @@ const DBRemote = {
             }
         }
         if (movimentos.length) {
-            const ref = await this._resolvePedidoRef(pedido.id);
-            if (ref) await ref.update({ estoqueBaixadoEm: new Date().toISOString(), estoqueMovimentos: movimentos });
+            await pedidoRef.update({ estoqueBaixadoEm: new Date().toISOString(), estoqueMovimentos: movimentos, estoqueBaixaEmAndamento: null });
+        } else {
+            // No technical sheet was found; allow a later configured retry.
+            await pedidoRef.child('estoqueBaixaEmAndamento').remove();
         }
         return { aplicado: movimentos.length > 0, movimentos };
+        } catch (error) {
+            try { await pedidoRef.child('estoqueBaixaEmAndamento').remove(); } catch (_) {}
+            throw error;
+        }
     },
     async registrarFinanceiro(transacao) {
         const ref = this._ref('gestao/financeiro').push();

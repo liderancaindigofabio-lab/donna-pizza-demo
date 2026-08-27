@@ -32,7 +32,7 @@
   restore();
   form.addEventListener('submit',async e=>{
     e.preventDefault(); error.textContent=''; const btn=form.querySelector('button'); btn.disabled=true; btn.textContent='Entrando…';
-    try{const fd=new FormData(form);const p=await NONNA_STAFF_AUTH.signIn(String(fd.get('email')).trim(),String(fd.get('password')));apply(p)}
+    try{const fd=new FormData(form);const p=await NONNA_STAFF_AUTH.signIn(String(fd.get('email')).trim(),String(fd.get('password')));if(window.DB?.refreshAuthenticatedCaches)await DB.refreshAuthenticatedCaches();apply(p)}
     catch(err){error.textContent=err.message||'Não foi possível entrar.'}
     finally{btn.disabled=false;btn.textContent='Entrar no painel'}
   });

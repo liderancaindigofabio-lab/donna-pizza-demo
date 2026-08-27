@@ -614,14 +614,16 @@ function selecionarMotoboy(id) {
     document.getElementById('btnConfirmarDespacho').disabled = false;
 }
 
-function confirmarDespacho() {
+async function confirmarDespacho() {
     if (!pedidoSelecionado || !motoboySelecionado) return;
-    DB.updatePedido(pedidoSelecionado, {
-        status: 'em_entrega',
-        motoboyId: motoboySelecionado,
-    });
-    DB.updateMotoboy(motoboySelecionado, { status: 'entregando' });
+    const pedido = DB.getPedidos().find(p => String(p.id) === String(pedidoSelecionado));
     const motoboy = DB.getMotoboy(motoboySelecionado);
+    if (!pedido || pedido.status !== 'pronto' || !motoboy) { notificar('O pedido precisa estar pronto e o motoboy ser válido.', 'error'); return; }
+    try {
+      const salvo = await DB.atualizarStatusPedido(pedidoSelecionado, 'em_entrega', { motoboyId: motoboySelecionado, actor: `pizzaria:${motoboySelecionado}` });
+      if (!salvo) throw new Error('Pedido não encontrado');
+      await DB.updateMotoboy(motoboySelecionado, { status: 'entregando' });
+    } catch (e) { notificar(e.message || 'Não foi possível despachar o pedido.', 'error'); return; }
     const qtdRota = DB.getPedidosMotoboy(motoboySelecionado).length;
     const msg = qtdRota > 1
         ? `🛵 ${qtdRota} entregas em rota com ${motoboy.nome}!`
