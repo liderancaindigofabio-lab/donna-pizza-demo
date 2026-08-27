@@ -25,7 +25,11 @@
           setTimeout(done, 8000);
         });
       }
-      const p=await window.NONNA_STAFF_AUTH?.restore?.();
+      let p=await window.NONNA_STAFF_AUTH?.restore?.();
+      if(!p && window.NONNA_API){
+        const token=sessionStorage.getItem('nonna_api_token')||localStorage.getItem('nonna_api_token');
+        if(token){ const me=await window.NONNA_API.me(); p={...me,uid:me.id,restaurantId:me.restaurant_id,nome:me.name}; await window.DB?.refreshAuthenticatedCaches?.(); }
+      }
       if(p) apply(p);
     }catch(_){}
   }
