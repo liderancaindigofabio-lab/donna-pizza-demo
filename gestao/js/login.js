@@ -30,6 +30,23 @@
       error.textContent = '';
       try {
         if (!email || !password) throw new Error('Informe e-mail e senha.');
+        // Prefer the authenticated tenant API; Firebase remains a rollback path.
+        if (window.NONNA_API) {
+          try {
+            var apiSession = await withTimeout(window.NONNA_API.login(email, password), 12000, 'A API não respondeu.');
+            if (apiSession && apiSession.token) {
+              localStorage.setItem('nonna_api_token', apiSession.token);
+              window.NONNA_API_TOKEN = apiSession.token;
+              window.NONNA_REST_UID = apiSession.user && apiSession.user.id;
+              document.getElementById('authGate').hidden = true;
+              document.getElementById('gestaoApp').hidden = false;
+              var apiProfile = apiSession.user || {};
+              apiProfile.uid = apiProfile.id; apiProfile.restaurantId = apiProfile.restaurant_id || 'nonna-pizzaria';
+              window.NONNA_GESTAO_START && window.NONNA_GESTAO_START(apiProfile);
+              return false;
+            }
+          } catch (_) { /* fallback to the existing Firebase login below */ }
+        }
         var cfg = window.FIREBASE_CONFIG || {};
         if (!cfg.apiKey || !cfg.databaseURL) throw new Error('A configuração do Firebase não carregou. Atualize a página.');
         // Use the official Identity Toolkit REST endpoint for the first sign-in.
