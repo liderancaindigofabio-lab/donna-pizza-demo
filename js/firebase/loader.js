@@ -58,9 +58,9 @@
 
       const firebaseActive = typeof FIREBASE_ATIVO !== 'undefined' && FIREBASE_ATIVO;
       if (!firebaseActive) {
-        await loadScript(BASE + 'js/nonna-api-client.js?v=1');
-        await loadScript(BASE + 'js/firebase/operational-guards.js?v=1');
-        await loadScript(BASE + 'js/firebase/db-adapter.js?v=35');
+        await loadScript(BASE + 'js/nonna-api-client.js?v=2');
+        await loadScript(BASE + 'js/firebase/operational-guards.js?v=2');
+        await loadScript(BASE + 'js/firebase/db-adapter.js?v=36');
         await loadScript(BASE + 'js/branding.js?v=1');
         window.DB = DB;
         await DB.init();
@@ -76,9 +76,9 @@
         await loadScript(BASE + 'js/firebase/auth.js');
         await loadScript(BASE + 'js/firebase/staff-auth.js?v=6');
         await loadScript(BASE + 'js/firebase/firebase-storage.js');
-        await loadScript(BASE + 'js/nonna-api-client.js?v=1');
-        await loadScript(BASE + 'js/firebase/operational-guards.js?v=1');
-        await loadScript(BASE + 'js/firebase/db-adapter.js?v=35');
+        await loadScript(BASE + 'js/nonna-api-client.js?v=2');
+        await loadScript(BASE + 'js/firebase/operational-guards.js?v=2');
+        await loadScript(BASE + 'js/firebase/db-adapter.js?v=36');
         await loadScript(BASE + 'js/branding.js?v=1');
         window.DB = DB;
         window.DBRemote = DBRemote;

@@ -26,6 +26,9 @@
     login: (email, password) => request('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
     me: () => request('/api/me'),
     products: restaurantId => request('/api/products/public/' + encodeURIComponent(restaurantId)),
+    createProduct: data => request('/api/products', { method: 'POST', body: JSON.stringify(data) }),
+    updateProduct: (id, data) => request('/api/products/' + encodeURIComponent(id), { method: 'PATCH', body: JSON.stringify(data) }),
+    deleteProduct: id => request('/api/products/' + encodeURIComponent(id), { method: 'DELETE' }),
     orders: () => request('/api/orders'),
     createOrder: order => request('/api/orders', { method: 'POST', body: JSON.stringify(order) }),
     // Public checkout uses the authenticated API order endpoint when available;

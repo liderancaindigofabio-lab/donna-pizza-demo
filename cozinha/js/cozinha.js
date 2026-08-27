@@ -11,7 +11,7 @@
   ];
   let started=false,sound=false,tick,staff=null;
   const label={novo:'Recebido',preparando:'Em preparo',pronto:'Pronto'};
-  function pedidos(){return (window.DB&&DB.getPedidos?DB.getPedidos():[]).filter(p=>p&&STATUS.includes(String(p.status||'novo')));}
+  function pedidos(){return (window.DB&&DB.getPedidos?DB.getPedidos():[]).filter(p=>{if(!p)return false; p.status=window.DB?DB._normalizarStatusPedido(p.status):String(p.status||'novo'); return STATUS.includes(p.status);});}
   function dateOf(p){const d=new Date(p.criadoEm||p.createdAt||p.updatedAt);return Number.isNaN(d.getTime())?null:d}
   function elapsed(p){const d=dateOf(p);return d?Math.max(0,Date.now()-d.getTime()):0}
   function duration(ms){const min=Math.floor(ms/60000),sec=Math.floor(ms/1000)%60;return min+'min '+String(sec).padStart(2,'0')+'s'}

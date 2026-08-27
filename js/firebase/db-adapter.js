@@ -125,6 +125,18 @@ const DB = {
         callback(this.backendInfo);
     },
 
+    _normalizarStatusPedido(status) {
+        const key = String(status || 'novo').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-\s]/g, '_');
+        return ({ pending:'novo', new:'novo', novo:'novo', received:'novo', preparing:'preparando', preparo:'preparando', preparando:'preparando', ready:'pronto', pronto:'pronto', delivering:'em_entrega', in_delivery:'em_entrega', em_entrega:'em_entrega', delivered:'entregue', entregue:'entregue', completed:'entregue', concluido:'entregue', cancelled:'cancelado', canceled:'cancelado', cancelado:'cancelado' })[key] || key;
+    },
+    _normalizarPedidoApi(order) {
+        if (!order || typeof order !== 'object') return order;
+        const status = this._normalizarStatusPedido(order.status);
+        const customer = order.customer || order.cliente || {};
+        const items = order.items || order.itens || [];
+        return { ...order, status, cliente: order.cliente || customer, itens: order.itens || items, criadoEm: order.criadoEm || order.created_at || order.createdAt, total: order.total ?? order.total_amount ?? order.totalAmount };
+    },
+
     _cardapioFromApiProducts(products) {
         const current = this.CARDAPIO_DEFAULT;
         if (!Array.isArray(products) || !products.length) return current;
@@ -140,7 +152,7 @@ const DB = {
                 this._cacheApiProducts = products || [];
                 this._cacheCardapio = this._cardapioFromApiProducts(this._cacheApiProducts);
                 this._cacheConfig = {};
-                if (this.backend === 'api') { this._cachePedidos = await NONNA_API.orders(); this._cacheConfig = (await NONNA_API.config()).data || {}; }
+                if (this.backend === 'api') { this._cachePedidos = (await NONNA_API.orders()).map(p => this._normalizarPedidoApi(p)); this._cacheConfig = (await NONNA_API.config()).data || {}; }
                 else this._cachePedidos = [];
                 this._ready = true; this._setConnection(this.backend === 'api' ? 'api' : 'public-api', 'ready');
                 if (this._onReady) this._onReady();
@@ -296,10 +308,10 @@ const DB = {
         if (this.backend === 'public-api') {
             const items = (normalizado.itens || normalizado.items || []).map(x => ({ productId: x.productId || x.id, quantity: x.quantidade || x.qtd || 1, notes: x.obs || x.observacao || '' }));
             const key = 'donna-' + (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random());
-            return NONNA_API.publicOrder({ restaurantId: window.NONNA_RESTAURANT_ID || 'nonna-pizzaria', channel: normalizado.canal || 'delivery', customer: normalizado.cliente || {}, items, delivery_fee: normalizado.taxa || 0, payment: normalizado.pagamento || {} }, key).then(order => { this._cachePedidos.unshift(order); this._notify('pedido_novo', order); return order; });
+            return NONNA_API.publicOrder({ restaurantId: window.NONNA_RESTAURANT_ID || 'nonna-pizzaria', channel: normalizado.canal || 'delivery', customer: normalizado.cliente || {}, items, delivery_fee: normalizado.taxa || 0, payment: normalizado.pagamento || {} }, key).then(order => { this._cachePedidos.unshift(this._normalizarPedidoApi(order)); this._notify('pedido_novo', order); return order; });
         }
         if (this.backend === 'api') {
-            return NONNA_API.createOrder('orders', { status: 'pending', channel: normalizado.canal || 'counter', customer: normalizado.cliente || {}, items: normalizado.itens || normalizado.items || [], subtotal: normalizado.subtotal || 0, delivery_fee: normalizado.taxa || 0, total: normalizado.total || 0, payment: normalizado.pagamento || {} }).then(order => { this._cachePedidos.unshift(order); this._notify('pedido_novo', order); return order; });
+            return NONNA_API.createOrder('orders', { status: 'pending', channel: normalizado.canal || 'counter', customer: normalizado.cliente || {}, items: normalizado.itens || normalizado.items || [], subtotal: normalizado.subtotal || 0, delivery_fee: normalizado.taxa || 0, total: normalizado.total || 0, payment: normalizado.pagamento || {} }).then(order => { this._cachePedidos.unshift(this._normalizarPedidoApi(order)); this._notify('pedido_novo', order); return order; });
         }
         if (this.backend === 'firebase') return DBRemote.addPedido(normalizado);
         const pedidos = this.getPedidos();
@@ -313,7 +325,7 @@ const DB = {
     updatePedido(id, updates) {
         if (this.backend === 'api') {
             if (!updates || !updates.status) return this.getPedidos().find(p => String(p.id) === String(id)) || null;
-            return NONNA_API.updateOrderStatus(id, updates.status).then(order => { const i = this._cachePedidos.findIndex(p => String(p.id) === String(id)); if (i >= 0) this._cachePedidos[i] = order; this._notify('pedido_update', order); return order; });
+            return NONNA_API.updateOrderStatus(id, updates.status).then(order => { const i = this._cachePedidos.findIndex(p => String(p.id) === String(id)); if (i >= 0) this._cachePedidos[i] = this._normalizarPedidoApi(order); this._notify('pedido_update', order); return order; });
         }
         if (this.backend === 'firebase') {
             const ref = firebase.database().ref('pedidos/' + id);
