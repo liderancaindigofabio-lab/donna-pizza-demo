@@ -56,19 +56,16 @@
         profile.uid = uid;
         profile.email = authData.email || email;
         try { await fetch(cfg.databaseURL.replace(/\/$/, '') + '/userProfiles/' + encodeURIComponent(uid) + '.json?auth=' + encodeURIComponent(authData.idToken), {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({lastAccessAt:new Date().toISOString()})}); } catch (_) {}
+        // The credential and the Gestão profile are already validated. Do not
+        // keep the login gate visible while the independent panel boot finishes.
+        document.getElementById('authGate').hidden = true;
+        document.getElementById('gestaoApp').hidden = false;
         var tries = 0;
-        while (typeof window.NONNA_GESTAO_START !== 'function' && tries++ < 100) await wait(100);
-        if (typeof window.NONNA_GESTAO_START === 'function') {
-          window.NONNA_GESTAO_START(profile);
-        } else {
-          // Authentication must not be hidden behind the panel boot. The profile
-          // was already validated; expose the authenticated shell and report the
-          // independent panel-loading failure instead of leaving a dead login.
-          document.getElementById('authGate').hidden = true;
-          document.getElementById('gestaoApp').hidden = false;
+        while (typeof window.NONNA_GESTAO_START !== 'function' && tries++ < 30) await wait(100);
+        if (typeof window.NONNA_GESTAO_START === 'function') window.NONNA_GESTAO_START(profile);
+        else {
           var connection = document.getElementById('connection');
-          if (connection) { connection.textContent = '● painel carregado'; connection.title = 'Login validado; sincronização do painel ainda não iniciou.'; }
-          throw new Error('Login validado. O painel abriu, mas alguns dados ainda estão carregando.');
+          if (connection) { connection.textContent = '● painel carregado'; connection.title = 'Login validado; o painel ainda está inicializando.'; }
         }
       } catch (e) {
         var code = e && e.code ? String(e.code) : '';
