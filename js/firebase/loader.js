@@ -7,7 +7,7 @@
   const scriptTag = document.currentScript;
   const BASE = new URL('../', scriptTag && scriptTag.src ? scriptTag.src : location.href).href;
   const APPS = {
-    cliente: new URL('cliente/js/app.js?v=5', BASE).href,
+    cliente: new URL('cliente/js/app.js?v=6', BASE).href,
     motoboy: new URL('motoboy/js/motoboy.js?v=3', BASE).href,
     pizzaria: new URL('pizzaria/js/painel.js?v=3', BASE).href,
     garcom: new URL('garcom/js/garcom.js?v=4', BASE).href,
