@@ -13,8 +13,22 @@
   };
   function page(){return (location.pathname.match(/\/(caixa|pizzaria|cozinha|garcom|motoboy|gestao)(\/|$)/)||[])[1]||null}
   async function profile(uid){
-    const snap=await firebase.database().ref('userProfiles/'+uid).once('value');
-    return snap.val()||null;
+    const path='userProfiles/'+uid;
+    try{
+      const snap=await Promise.race([
+        firebase.database().ref(path).once('value'),
+        new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),8000))
+      ]);
+      return snap.val()||null;
+    }catch(_){
+      const u=root.firebase?.auth?.().currentUser;
+      const token=u?await u.getIdToken(true):'';
+      const base=(root.FIREBASE_CONFIG||{}).databaseURL;
+      if(!base||!token)return null;
+      const res=await fetch(base+'/'+path+'.json?auth='+encodeURIComponent(token));
+      if(!res.ok)throw new Error('Não foi possível validar o perfil no Firebase.');
+      return await res.json()||null;
+    }
   }
   async function signIn(email,password){
     if(!root.firebase?.auth) throw new Error('Autenticação Firebase indisponível.');
