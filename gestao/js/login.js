@@ -58,8 +58,18 @@
         try { await fetch(cfg.databaseURL.replace(/\/$/, '') + '/userProfiles/' + encodeURIComponent(uid) + '.json?auth=' + encodeURIComponent(authData.idToken), {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({lastAccessAt:new Date().toISOString()})}); } catch (_) {}
         var tries = 0;
         while (typeof window.NONNA_GESTAO_START !== 'function' && tries++ < 100) await wait(100);
-        if (typeof window.NONNA_GESTAO_START !== 'function') throw new Error('O painel da Gestão não terminou de carregar. Atualize a página.');
-        window.NONNA_GESTAO_START(profile);
+        if (typeof window.NONNA_GESTAO_START === 'function') {
+          window.NONNA_GESTAO_START(profile);
+        } else {
+          // Authentication must not be hidden behind the panel boot. The profile
+          // was already validated; expose the authenticated shell and report the
+          // independent panel-loading failure instead of leaving a dead login.
+          document.getElementById('authGate').hidden = true;
+          document.getElementById('gestaoApp').hidden = false;
+          var connection = document.getElementById('connection');
+          if (connection) { connection.textContent = '● painel carregado'; connection.title = 'Login validado; sincronização do painel ainda não iniciou.'; }
+          throw new Error('Login validado. O painel abriu, mas alguns dados ainda estão carregando.');
+        }
       } catch (e) {
         var code = e && e.code ? String(e.code) : '';
         if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') error.textContent = 'E-mail ou senha inválidos.';
