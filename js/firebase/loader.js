@@ -93,8 +93,8 @@
         await loadScript(APPS[appName]);
         // Alguns módulos registram DOMContentLoaded; como são carregados depois
         // desse evento, inicializamos explicitamente quando a função global existir.
-        if (typeof init === 'function') {
-          try { init(); } catch (appError) { console.error('[NONNA APP]', appName, appError); }
+        if (typeof window.init === 'function') {
+          try { window.init(); } catch (appError) { console.error('[NONNA APP]', appName, appError); }
         }
         emit('nonna_app_ready', { app: appName, db: DB });
       }
