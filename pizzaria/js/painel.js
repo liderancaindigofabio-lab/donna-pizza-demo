@@ -82,10 +82,10 @@ function atualizarNavegacao() {
 // ===== FILA DE PEDIDOS =====
 function renderFila() {
     const container = document.getElementById('filaPedidos');
-    let pedidos = DB.getPedidos().map(p => { p.status = DB._normalizarStatusPedido(p.status); return p; });
+    let pedidos = DB.getPedidos();
 
     if (filtroStatus !== 'todos') {
-        pedidos = pedidos.map(p => { p.status = window.DB?DB._normalizarStatusPedido(p.status):p.status; return p; }).filter(p => p.status === filtroStatus);
+        pedidos = pedidos.filter(p => p.status === filtroStatus);
     }
     if (filtroCanal !== 'todos') {
         pedidos = pedidos.filter(p => normalizarCanal(p) === filtroCanal);
