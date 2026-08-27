@@ -159,33 +159,13 @@ const DB = {
             this._cachePedidos = await DBRemote.getPedidosAsync();
             this._cacheMotoboys = await DBRemote.getMotoboysAsync();
             this._cacheConfig = await DBRemote.getConfigAsync();
-            this._cacheCardapio = await DBRemote.getCardapioAsync() || this.CARDAPIO_DEFAULT;
+            this._cacheCardapio = await DBRemote.getCardapioAsync() || {
+                tamanhos: [], sabores: [], adicionais: [], precos_base: {},
+                calzones: [], bebidas: [], combos: [], cupons: []
+            };
 
-            // Seed inicial no Firebase (só se a config não tiver)
-            if (!this._cacheConfig.nome) {
-                await firebase.database().ref('config').set({
-                    nome: 'Nonna Pizzaria',
-                    endereco: 'Av. Melício Machado, 1060 - Atalaia, Aracaju - SE, 49037-440',
-                    whatsapp: '5500900000000',
-                    taxaEntrega: 7.00,
-                    tempoPreparo: 25,
-                    cuponsAtivos: ['NONNA10', 'BEMVINDO', 'FOME10', 'FAMILIA']
-                });
-            }
-            if (this._cacheMotoboys.length === 0) {
-                const seed = [
-                    { id: 1, nome: 'Carlos Silva', moto: 'Honda CB 500 - Placa ABC-1234', status: 'disponivel', telefone: '16991234567', foto: '👨🏾', lat: -10.9893597, lng: -37.0605839 },
-                    { id: 2, nome: 'João Santos',  moto: 'Yamaha Fazer 250 - Placa XYZ-9876', status: 'disponivel', telefone: '16997654321', foto: '👨🏼', lat: -10.9893597, lng: -37.0605839 },
-                    { id: 3, nome: 'Pedro Costa',  moto: 'Honda CG 160 - Placa DEF-5555', status: 'disponivel', telefone: '16996543210', foto: '🧔🏽', lat: -10.9893597, lng: -37.0605839 },
-                    { id: 4, nome: 'Lucas Mendes', moto: 'Honda Titan 150 - Placa GHI-7777', status: 'disponivel', telefone: '16995432109', foto: '🧑🏾‍🦱', lat: -10.9893597, lng: -37.0605839 },
-                ];
-                seed.forEach(m => firebase.database().ref('motoboys/mb_' + m.id).set(m));
-                this._cacheMotoboys = seed;
-            }
-            if (!this._cacheCardapio || !this._cacheCardapio.sabores) {
-                await firebase.database().ref('cardapio').set(this.CARDAPIO_DEFAULT);
-                this._cacheCardapio = this.CARDAPIO_DEFAULT;
-            }
+            // Never seed production with sample staff, menu, or configuration.
+            // Empty resources are valid and are rendered by each module as an empty state.
             this._ready = true;
             this._setConnection('firebase', 'ready');
             if (this._onReady) this._onReady();
