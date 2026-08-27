@@ -78,7 +78,8 @@ window.NONNA_GESTAO_START=startGestao;
 async function init(){
   const form=$('gestaoLoginForm'), restored=await (window.window.NONNA_STAFF_AUTH?.restore?.()||Promise.resolve(null)).catch(()=>null);
   if(restored){currentStaff=restored;startGestao();return}
-  form.onsubmit=async e=>{e.preventDefault();const f=new FormData(form),btn=form.querySelector('button');$('gestaoAuthError').textContent='';btn.disabled=true;try{currentStaff=await window.NONNA_STAFF_AUTH.signIn(String(f.get('user')).trim(),String(f.get('pass')));startGestao()}catch(err){$('gestaoAuthError').textContent=err.message||'Não foi possível entrar.'}finally{btn.disabled=false}};
+  // O formulário é controlado pelo handler do index.html, que autentica
+  // antes do boot do banco e evita dois sign-ins concorrentes.
 }
 
 function wait(){
