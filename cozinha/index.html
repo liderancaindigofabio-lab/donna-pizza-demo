@@ -7,7 +7,7 @@
 </head>
 <body>
   <div id="staffGate" style="position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:#11100e;color:#fff;padding:24px"><form id="staffLogin" style="width:min(380px,100%);background:#1c1a17;border:1px solid #444;border-radius:18px;padding:28px;display:grid;gap:12px"><strong style="font-size:28px">NONNA</strong><h2 style="margin:0">Acesso da cozinha</h2><input name="email" type="email" placeholder="E-mail" autocomplete="username" required style="padding:13px;border-radius:10px;border:1px solid #555;background:#111;color:#fff"><input name="password" type="password" placeholder="Senha" autocomplete="current-password" required style="padding:13px;border-radius:10px;border:1px solid #555;background:#111;color:#fff"><p id="staffError" style="min-height:20px;color:#ff8b8b"></p><button style="padding:13px;border:0;border-radius:10px;font-weight:800">Entrar</button></form></div>
-  <div id="bootError" class="boot-error" role="alert" hidden><strong>Não foi possível carregar a cozinha.</strong><span id="bootErrorText">Verifique a conexão e tente novamente.</span><button type="button" onclick="location.reload()">Tentar novamente</button></div>
+  <div id="bootError" class="boot-error" role="alert" hidden><strong>Conexão pendente</strong><span id="bootErrorText">Entre com o acesso da cozinha para carregar os pedidos.</span><button type="button" onclick="location.reload()">Tentar novamente</button></div>
   <div class="kds-shell"><header class="kds-header"><div class="brand"><span class="brand-mark">N</span><div><h1><span data-donna-brand-name>NONNA</span> <em>Cozinha</em></h1><small data-donna-brand-cnpj hidden></small><p>KITCHEN DISPLAY SYSTEM</p></div></div><div class="header-meta"><span class="live-dot"></span><span id="connectionLabel" data-donna-connection>Conectando…</span><time id="clock"></time><button id="soundToggle" class="icon-button" type="button" aria-pressed="false" title="Ativar som">🔇</button></div></header>
     <main class="board" aria-live="polite">
       <section class="service-block service-delivery"><header class="service-header"><span>🛵</span><div><h2>Delivery</h2><p>Pedidos para entrega</p></div></header><div class="service-lanes"><div class="lane lane-new"><header class="lane-header"><h3>Novos</h3><span class="lane-count" id="count-delivery-novo">0</span></header><div class="orders" id="orders-delivery-novo"></div></div><div class="lane lane-preparing"><header class="lane-header"><h3>Preparando</h3><span class="lane-count" id="count-delivery-preparando">0</span></header><div class="orders" id="orders-delivery-preparando"></div></div><div class="lane lane-ready"><header class="lane-header"><h3>Prontos</h3><span class="lane-count" id="count-delivery-pronto">0</span></header><div class="orders" id="orders-delivery-pronto"></div></div></div></section>
@@ -15,6 +15,35 @@
       <section class="service-block service-salao"><header class="service-header"><span>🍽️</span><div><h2>Mesa / salão</h2><p>Pedidos feitos no salão</p></div></header><div class="service-lanes"><div class="lane lane-new"><header class="lane-header"><h3>Novos</h3><span class="lane-count" id="count-salao-novo">0</span></header><div class="orders" id="orders-salao-novo"></div></div><div class="lane lane-preparing"><header class="lane-header"><h3>Preparando</h3><span class="lane-count" id="count-salao-preparando">0</span></header><div class="orders" id="orders-salao-preparando"></div></div><div class="lane lane-ready"><header class="lane-header"><h3>Prontos</h3><span class="lane-count" id="count-salao-pronto">0</span></header><div class="orders" id="orders-salao-pronto"></div></div></div></section>
     </main><footer class="kds-footer"><span><b id="totalActive">0</b> pedidos ativos</span><span class="legend"><i class="legend-dot normal"></i> no prazo <i class="legend-dot overdue"></i> atrasado</span><span>Atualização em tempo real</span></footer>
   </div><div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script>window.addEventListener('nonna_boot_status',function(e){if(e.detail&&e.detail.status==='error'){var b=document.getElementById('bootError');b.hidden=false;document.getElementById('bootErrorText').textContent='A conexão será concluída após o login da cozinha.';document.getElementById('staffGate').style.display='grid';}});</script>
-  <script src="../js/firebase/config.js?v=6"></script><script src="../js/firebase/loader.js?v=37"></script>
+  <script>
+window.addEventListener('nonna_boot_status',function(e){
+  if(e.detail&&e.detail.status==='error'){
+    document.getElementById('bootError').hidden=true;
+    document.getElementById('staffGate').style.display='grid';
+  }
+});
+(function(){
+  var form=document.getElementById('staffLogin');
+  var bound=false;
+  function bindFallback(){
+    if(bound||!form||!window.NONNA_STAFF_AUTH||form.dataset.handlerBound==='1')return;
+    bound=true;
+    form.dataset.handlerBound='1';
+    form.addEventListener('submit',async function(ev){
+      if(form.dataset.nonnoHandler==='1')return;
+      ev.preventDefault();
+      var btn=form.querySelector('button'),err=document.getElementById('staffError'),fd=new FormData(form);
+      btn.disabled=true;err.textContent='';
+      try{
+        await NONNA_STAFF_AUTH.signIn(String(fd.get('email')).trim(),String(fd.get('password')));
+        location.reload();
+      }catch(ex){err.textContent=ex.message||'Não foi possível entrar.';}
+      finally{btn.disabled=false;}
+    });
+  }
+  var timer=setInterval(bindFallback,100);
+  setTimeout(function(){clearInterval(timer);bindFallback();},15000);
+})();
+</script>
+  <script src="../js/firebase/config.js?v=6"></script><script src="../js/firebase/loader.js?v=38"></script>
 </body></html>

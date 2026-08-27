@@ -10,7 +10,7 @@
     motoboy: BASE + 'motoboy/js/motoboy.js',
     pizzaria: BASE + 'pizzaria/js/painel.js?v=2',
     garcom: BASE + 'garcom/js/garcom.js?v=3',
-    cozinha: BASE + 'cozinha/js/cozinha.js?v=3'
+    cozinha: BASE + 'cozinha/js/cozinha.js?v=4'
   };
   const appName = (location.pathname.match(/\/(cliente|motoboy|pizzaria|garcom|caixa|cozinha)(\/|$)/) || [])[1] || null;
   const state = window.NONNA_BOOT = window.NONNA_BOOT || {
