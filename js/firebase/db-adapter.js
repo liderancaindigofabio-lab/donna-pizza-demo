@@ -529,7 +529,7 @@ const DB = {
 
     // ====== CARDÁPIO ======
     getCardapio() {
-        if (this.backend === 'firebase') return this._cacheCardapio || this.CARDAPIO_DEFAULT;
+        if (this.backend === 'firebase' || this.backend === 'api') return this._cacheCardapio || this.CARDAPIO_DEFAULT;
         const c = localStorage.getItem(this.KEY_CARDAPIO);
         if (!c) {
             localStorage.setItem(this.KEY_CARDAPIO, JSON.stringify(this.CARDAPIO_DEFAULT));
