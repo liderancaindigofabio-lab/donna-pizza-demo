@@ -66,11 +66,15 @@ async function endDay(){
   }catch(e){toast(e.message||'Não foi possível encerrar o dia.')}
 }
 function exportCSV(){const rows=[['Data','Status','Canal','Total'],...validOrders().filter(o=>(reportStatus==='all'||String(o.status||'')===reportStatus)&&(reportChannel==='all'||String(o.canal||o.origem||'outro')===reportChannel)).map(o=>[dateOf(o).toISOString(),o.status,o.canal||o.origem||'',Number(o.total||0).toFixed(2)])];const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.map(r=>r.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(';')).join('\n')],{type:'text/csv'}));a.download='relatorio-nonna.csv';a.click();URL.revokeObjectURL(a.href)}
-async function startGestao(){
+async function startGestao(staff){
+  if(startGestao._started)return;
+  startGestao._started=true;
+  if(staff)currentStaff=staff;
   $('authGate').hidden=true;$('gestaoApp').hidden=false;
   $('dataAtual').textContent=new Date().toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short'});
   document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab,.tab-panel').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.tab).classList.add('active')});$('periodo').onchange=e=>{period=e.target.value;renderAll()};$('reportChannel').onchange=e=>{reportChannel=e.target.value;renderAll()};$('reportStatus').onchange=e=>{reportStatus=e.target.value;renderAll()};$('refresh').onclick=sync;$('newMenuItem').onclick=()=>menuForm();$('newStock').onclick=()=>stockForm();$('newExpense').onclick=expenseForm;$('newReservation').onclick=()=>reservationForm();$('exportReport').onclick=exportCSV;$('refreshUsers').onclick=sync;$('newUser').onclick=newUserForm;$('saveSettings').onclick=saveSettings;$('endDay').onclick=endDay;sync();if(window.DB){DB.onChange(()=>sync())}
 }
+window.NONNA_GESTAO_START=startGestao;
 async function init(){
   const form=$('gestaoLoginForm'), restored=await (window.window.NONNA_STAFF_AUTH?.restore?.()||Promise.resolve(null)).catch(()=>null);
   if(restored){currentStaff=restored;startGestao();return}
