@@ -147,7 +147,7 @@ const DB = {
     },
     async init(options = {}) {
         const hasApiToken = !!(sessionStorage.getItem('nonna_api_token') || localStorage.getItem('nonna_api_token'));
-        if (window.NONNA_API && hasApiToken) { try { await this.refreshAuthenticatedCaches(); return true; } catch (e) { console.warn('[NONNA] API indisponível.', e); this._backend=null; } }
+        if (window.NONNA_API && hasApiToken) { try { await this.refreshAuthenticatedCaches(); return true; } catch (e) { console.warn('[NONNA] Sessão API expirada; usando catálogo público.', e); this._backend=null; try { const products = await NONNA_API.products(window.NONNA_RESTAURANT_ID || 'nonna-pizzaria'); this._backend='api'; this._cacheApiProducts=products||[]; this._cacheCardapio=this._cardapioFromApiProducts(this._cacheApiProducts); this._ready=true; this._setConnection('api','ready'); this._notify('cardapio_update',this._cacheCardapio); return true; } catch (_) {} } }
         // O cliente público não tem token, mas o cardápio público deve vir da API.
         if (window.NONNA_API && !hasApiToken) { try { const products = await NONNA_API.products(window.NONNA_RESTAURANT_ID || 'nonna-pizzaria'); this._backend='api'; this._cacheApiProducts=products||[]; this._cacheCardapio=this._cardapioFromApiProducts(this._cacheApiProducts); this._ready=true; this._setConnection('api','ready'); this._notify('cardapio_update',this._cacheCardapio); return true; } catch (_) {} }
         if (this.backend === 'firebase') {
