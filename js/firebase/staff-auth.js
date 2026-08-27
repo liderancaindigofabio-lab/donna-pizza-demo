@@ -37,6 +37,11 @@
     if(!p || p.ativo===false || !p.restaurantId || !p.role) { await firebase.auth().signOut(); throw new Error('Usuário sem perfil operacional configurado.'); }
     const allowed=PAGE_ROLES[page()]||[];
     if(allowed.length && !allowed.includes(p.role)) { await firebase.auth().signOut(); throw new Error('Seu perfil não possui acesso a este ambiente.'); }
+    // Mirror the operator session to Nonna API when available. Firebase remains the
+    // rollback/auth fallback if the API is unavailable.
+    try {
+      if (root.NONNA_API) { const apiSession=await root.NONNA_API.login(email,password); sessionStorage.setItem('nonna_api_token',apiSession.token); }
+    } catch (_) { sessionStorage.removeItem('nonna_api_token'); }
     // Operational metadata only; credentials never enter the profile.
     try { const last=new Date().toISOString(); await firebase.database().ref('userProfiles/'+credential.user.uid).update({lastAccessAt:last}); p.lastAccessAt=last; } catch (_) {}
     sessionStorage.removeItem('donna_pizzaria_auth');
