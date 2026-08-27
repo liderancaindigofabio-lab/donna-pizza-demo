@@ -113,7 +113,7 @@ const DB = {
             el.textContent = text;
             el.dataset.connectionMode = mode;
             el.dataset.connectionState = state;
-            el.title = mode === 'firebase' ? 'Dados compartilhados pelo Firebase' : 'Este ambiente usa dados locais neste dispositivo';
+            el.title = mode === 'api' ? 'Dados compartilhados pela API da Nonna' : mode === 'firebase' ? 'Dados compartilhados pelo Firebase' : 'Este ambiente usa dados locais neste dispositivo';
         });
         window.dispatchEvent(new CustomEvent('donna_connection_change', { detail: this.backendInfo }));
     },
