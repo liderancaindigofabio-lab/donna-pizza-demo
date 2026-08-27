@@ -40,7 +40,10 @@ html,body{margin:0;min-height:100%;background:#f6f5f2;color:#242321;font:14px In
     try{
       if(!window.firebase||!firebase.auth) throw new Error('O acesso ainda está carregando. Tente novamente em alguns segundos.');
       // Autentica primeiro; a validação do perfil acontece na abertura do painel.
-      await firebase.auth().signInWithEmailAndPassword(String(f.get('user')).trim(),String(f.get('pass')));
+      await Promise.race([
+        firebase.auth().signInWithEmailAndPassword(String(f.get('user')).trim(),String(f.get('pass'))),
+        new Promise(function(_,reject){setTimeout(function(){reject(new Error('O Firebase não respondeu. Verifique a conexão e tente novamente.'));},15000);})
+      ]);
       history.replaceState({},'',location.pathname);
       location.reload();
     }catch(e){error.textContent=e&&e.message?e.message:'E-mail ou senha inválidos.';}
