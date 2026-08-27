@@ -125,7 +125,7 @@ const DB = {
 
     _cardapioFromApiProducts(products) {
         if (!Array.isArray(products) || !products.length) return this.CARDAPIO_DEFAULT;
-        const out={...this.CARDAPIO_DEFAULT,sabores:[],bebidas:[],calzones:[],combos:[],adicionais:[],tamanhos:[],precos_base:{}};
+        const out={...this.CARDAPIO_DEFAULT,sabores:[],bebidas:[],calzones:[],combos:[],adicionais:[],tamanhos:this.CARDAPIO_DEFAULT.tamanhos||[],precos_base:{}};
         products.forEach(p=>{const id=String(p.id),cat=String(p.category||'sabores').toLowerCase(),item={id,nome:p.name||p.nome,desc:p.description||p.descricao||'',emoji:p.emoji||'🍕',preco:Number(p.price)||0,price:Number(p.price)||0}; const key=['sabores','bebidas','calzones','combos','adicionais','tamanhos'].includes(cat)?cat:'sabores'; out[key].push(item); out.precos_base[id]={P:item.preco,M:item.preco,G:item.preco};});
         return out;
     },
