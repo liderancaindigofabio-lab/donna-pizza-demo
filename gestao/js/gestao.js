@@ -77,5 +77,10 @@ async function init(){
   form.onsubmit=async e=>{e.preventDefault();const f=new FormData(form),btn=form.querySelector('button');$('gestaoAuthError').textContent='';btn.disabled=true;try{currentStaff=await window.NONNA_STAFF_AUTH.signIn(String(f.get('user')).trim(),String(f.get('pass')));startGestao()}catch(err){$('gestaoAuthError').textContent=err.message||'Não foi possível entrar.'}finally{btn.disabled=false}};
 }
 
-function wait(){if(window.DB&&DB.getPedidos&&DB._ready){init()}else setTimeout(wait,80)} wait();
+function wait(){
+  // A falha de leitura inicial do Firebase não pode impedir o login.
+  // O usuário autentica primeiro; os dados entram quando o DB ficar pronto.
+  if(window.NONNA_STAFF_AUTH && window.firebase?.auth){init()}
+  else setTimeout(wait,80)
+} wait();
 })();
