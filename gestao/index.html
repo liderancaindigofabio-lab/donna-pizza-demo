@@ -25,5 +25,24 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script>if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);</script>
 <script src="../js/firebase/auth.js?v=2"></script><script src="../js/firebase/staff-auth.js?v=5"></script>
-<script src="../js/firebase/loader.js?v=36"></script><script src="js/gestao.js?v=7"></script>
+<script>
+(function(){
+  var form=document.getElementById('gestaoLoginForm'), error=document.getElementById('gestaoAuthError');
+  if(!form)return;
+  form.addEventListener('submit',async function(ev){
+    ev.preventDefault();
+    var btn=form.querySelector('button'), f=new FormData(form);
+    if(btn.disabled)return;
+    btn.disabled=true; error.textContent='';
+    try{
+      if(!window.NONNA_STAFF_AUTH||typeof NONNA_STAFF_AUTH.signIn!=='function') throw new Error('O acesso ainda está carregando. Tente novamente em alguns segundos.');
+      await NONNA_STAFF_AUTH.signIn(String(f.get('user')).trim(),String(f.get('pass')));
+      history.replaceState({},'',location.pathname);
+      location.reload();
+    }catch(e){error.textContent=e&&e.message?e.message:'E-mail ou senha inválidos.';}
+    finally{btn.disabled=false;}
+  });
+})();
+</script>
+<script src="../js/firebase/loader.js?v=37"></script><script src="js/gestao.js?v=8"></script>
 </body></html>
