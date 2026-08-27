@@ -1460,4 +1460,8 @@ function toggleTheme() {
     toast('☀️ Nonna Pizzaria');
 }
 
-document.addEventListener('DOMContentLoaded', init);
+// O bootloader carrega este módulo depois do DOMContentLoaded.
+// Inicialize imediatamente quando o adapter já estiver pronto.
+if (window.DB && window.NONNA_BOOT?.status === 'ready') init();
+else if (window.DB) window.addEventListener('nonna_db_ready', init, { once: true });
+else document.addEventListener('DOMContentLoaded', init, { once: true });
