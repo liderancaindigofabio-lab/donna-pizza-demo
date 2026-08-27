@@ -27,38 +27,36 @@ html,body{margin:0;min-height:100%;background:#f6f5f2;color:#242321;font:14px In
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script>if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);</script>
-<script src="../js/firebase/auth.js?v=2"></script><script src="../js/firebase/staff-auth.js?v=6"></script>
+<script src="../js/firebase/staff-auth.js?v=7"></script>
 <script>
 (function(){
+  'use strict';
   var form=document.getElementById('gestaoLoginForm'), error=document.getElementById('gestaoAuthError');
-  if(!form)return;
+  if(!form||form.dataset.loginBound==='1')return;
+  form.dataset.loginBound='1';
+  function wait(ms){return new Promise(function(resolve){setTimeout(resolve,ms)});}
+  function timeout(p,ms,message){return Promise.race([p,new Promise(function(_,reject){setTimeout(function(){reject(new Error(message))},ms)})]);}
   form.addEventListener('submit',async function(ev){
-    ev.preventDefault();
-    var btn=form.querySelector('button'), f=new FormData(form);
+    ev.preventDefault(); ev.stopImmediatePropagation();
+    var btn=form.querySelector('button'), email=String(form.elements.user.value||'').trim().toLowerCase(), password=String(form.elements.pass.value||'');
     if(btn.disabled)return;
-    btn.disabled=true; error.textContent='';
+    btn.disabled=true; btn.textContent='Entrando…'; error.textContent='';
     try{
-      if(!window.firebase||!firebase.auth) throw new Error('O acesso ainda está carregando. Tente novamente em alguns segundos.');
-      // Autentica primeiro; a validação do perfil acontece na abertura do painel.
-      await Promise.race([
-        firebase.auth().signInWithEmailAndPassword(String(f.get('user')).trim(),String(f.get('pass'))),
-        new Promise(function(_,reject){setTimeout(function(){reject(new Error('O Firebase não respondeu. Verifique a conexão e tente novamente.'));},15000);})
-      ]);
-      var profile=await Promise.race([
-        (async function(){for(var i=0;i<30&&!firebase.auth().currentUser;i++)await new Promise(function(r){setTimeout(r,100)});return NONNA_STAFF_AUTH.restore()})(),
-        new Promise(function(_,reject){setTimeout(function(){reject(new Error('O Firebase autenticou, mas demorou para validar o perfil. Tente novamente.'));},10000);})
-      ]);
-      if(!profile) throw new Error('O usuário autenticou, mas não possui um perfil de Gestão ativo.');
-      history.replaceState({},'',location.pathname);
-      function launch(){
-        if(typeof window.NONNA_GESTAO_START==='function') window.NONNA_GESTAO_START(profile);
-        else setTimeout(launch,100);
+      if(!window.firebase||typeof firebase.auth!=='function')throw new Error('O serviço de autenticação ainda não carregou. Atualize a página.');
+      if(!email||!password)throw new Error('Informe e-mail e senha.');
+      var result=await timeout(firebase.auth().signInWithEmailAndPassword(email,password),15000,'O Firebase não respondeu. Verifique a conexão.');
+      var uid=result.user.uid, snap=await timeout(firebase.database().ref('userProfiles/'+uid).once('value'),12000,'Login feito, mas o perfil demorou para ser validado.');
+      var profile=snap.val();
+      if(!profile||profile.ativo===false||!profile.restaurantId||!['owner','manager'].includes(profile.role)){
+        await firebase.auth().signOut(); throw new Error('Este usuário não possui acesso à Gestão.');
       }
-      launch();
-    }catch(e){error.textContent=e&&e.message?e.message:'E-mail ou senha inválidos.';}
-    finally{btn.disabled=false;}
-  });
+      profile.uid=uid; profile.email=result.user.email||email;
+      try{await firebase.database().ref('userProfiles/'+uid).update({lastAccessAt:new Date().toISOString()})}catch(_){/* metadado não bloqueia o acesso */}
+      function launch(){if(typeof window.NONNA_GESTAO_START==='function')window.NONNA_GESTAO_START(profile);else setTimeout(launch,100)} launch();
+    }catch(e){error.textContent=e&&e.code==='auth/invalid-credential'?'E-mail ou senha inválidos.':(e&&e.message||'Não foi possível entrar.');}
+    finally{btn.disabled=false;btn.textContent='Entrar';}
+  },true);
 })();
 </script>
-<script src="../js/firebase/loader.js?v=37"></script><script src="js/gestao.js?v=13"></script>
+<script src="../js/firebase/loader.js?v=38"></script><script src="js/gestao.js?v=14"></script>
 </body></html>
