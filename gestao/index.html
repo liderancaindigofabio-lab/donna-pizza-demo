@@ -44,7 +44,10 @@ html,body{margin:0;min-height:100%;background:#f6f5f2;color:#242321;font:14px In
         firebase.auth().signInWithEmailAndPassword(String(f.get('user')).trim(),String(f.get('pass'))),
         new Promise(function(_,reject){setTimeout(function(){reject(new Error('O Firebase não respondeu. Verifique a conexão e tente novamente.'));},15000);})
       ]);
-      var profile=await NONNA_STAFF_AUTH.restore();
+      var profile=await Promise.race([
+        NONNA_STAFF_AUTH.restore(),
+        new Promise(function(_,reject){setTimeout(function(){reject(new Error('O Firebase autenticou, mas demorou para validar o perfil. Tente novamente.'));},10000);})
+      ]);
       if(!profile) throw new Error('O usuário autenticou, mas não possui um perfil de Gestão ativo.');
       history.replaceState({},'',location.pathname);
       if(typeof window.NONNA_GESTAO_START==='function') window.NONNA_GESTAO_START(profile);
