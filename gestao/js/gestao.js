@@ -77,10 +77,10 @@ async function startGestao(staff){
 }
 window.NONNA_GESTAO_START=startGestao;
 async function init(){
-  const form=$('gestaoLoginForm'), restored=await (window.window.NONNA_STAFF_AUTH?.restore?.()||Promise.resolve(null)).catch(()=>null);
-  if(restored){currentStaff=restored;startGestao();return}
-  // O formulário é controlado pelo handler do index.html, que autentica
-  // antes do boot do banco e evita dois sign-ins concorrentes.
+  // Uma única rotina controla o submit. Aqui só restauramos uma sessão já existente.
+  if(!window.NONNA_STAFF_AUTH||!window.firebase?.auth)return;
+  const restored=await (window.NONNA_STAFF_AUTH.restore?.()||Promise.resolve(null)).catch(()=>null);
+  if(restored){currentStaff=restored;startGestao(restored)}
 }
 
 function wait(){
