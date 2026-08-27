@@ -71,7 +71,7 @@ async function startGestao(staff){
   startGestao._started=true;
   if(staff)currentStaff=staff;
   $('authGate').hidden=true;$('gestaoApp').hidden=false;
-  $('dataAtual').textContent=new Date().toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short'});
+  if($('dataAtual'))$('dataAtual').textContent=new Date().toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short'});
   document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab,.tab-panel').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.tab).classList.add('active')});$('periodo').onchange=e=>{period=e.target.value;renderAll()};$('reportChannel').onchange=e=>{reportChannel=e.target.value;renderAll()};$('reportStatus').onchange=e=>{reportStatus=e.target.value;renderAll()};$('refresh').onclick=sync;$('newMenuItem').onclick=()=>menuForm();$('newStock').onclick=()=>stockForm();$('newExpense').onclick=expenseForm;$('newReservation').onclick=()=>reservationForm();$('exportReport').onclick=exportCSV;$('refreshUsers').onclick=sync;$('newUser').onclick=newUserForm;$('saveSettings').onclick=saveSettings;$('endDay').onclick=endDay;sync();if(window.DB){DB.onChange(()=>sync())}
 }
 window.NONNA_GESTAO_START=startGestao;
