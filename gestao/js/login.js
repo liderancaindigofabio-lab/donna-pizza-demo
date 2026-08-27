@@ -29,19 +29,33 @@
       button.textContent = 'Entrando…';
       error.textContent = '';
       try {
-        if (!window.firebase || typeof firebase.auth !== 'function') throw new Error('O serviço de autenticação ainda não carregou. Atualize a página.');
         if (!email || !password) throw new Error('Informe e-mail e senha.');
-        var result = await withTimeout(firebase.auth().signInWithEmailAndPassword(email, password), 15000, 'O Firebase não respondeu. Verifique a conexão.');
-        var uid = result.user.uid;
-        var snap = await withTimeout(firebase.database().ref('userProfiles/' + uid).once('value'), 12000, 'O login foi feito, mas o perfil demorou para ser validado.');
-        var profile = snap.val();
+        var cfg = window.FIREBASE_CONFIG || {};
+        if (!cfg.apiKey || !cfg.databaseURL) throw new Error('A configuração do Firebase não carregou. Atualize a página.');
+        // Use the official Identity Toolkit REST endpoint for the first sign-in.
+        // This isolates the login from SDK boot/listener races on the Gestão page.
+        var authResponse = await withTimeout(fetch('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=' + encodeURIComponent(cfg.apiKey), {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({email: email, password: password, returnSecureToken: true})
+        }), 15000, 'O Firebase não respondeu. Verifique a conexão.');
+        var authData = await authResponse.json();
+        if (!authResponse.ok || !authData.localId || !authData.idToken) {
+          var authError = authData && authData.error && authData.error.message;
+          var bad = new Error(authError || 'E-mail ou senha inválidos.');
+          bad.code = authError === 'INVALID_PASSWORD' || authError === 'EMAIL_NOT_FOUND' ? 'auth/invalid-credential' : '';
+          throw bad;
+        }
+        window.NONNA_REST_TOKEN = authData.idToken;
+        window.NONNA_REST_UID = authData.localId;
+        var profileResponse = await withTimeout(fetch(cfg.databaseURL.replace(/\/$/, '') + '/userProfiles/' + encodeURIComponent(authData.localId) + '.json?auth=' + encodeURIComponent(authData.idToken)), 12000, 'O login foi feito, mas o perfil demorou para ser validado.');
+        var profile = await profileResponse.json();
         if (!profile || profile.ativo === false || !profile.restaurantId || (profile.role !== 'owner' && profile.role !== 'manager')) {
-          await firebase.auth().signOut();
           throw new Error('Este usuário não possui acesso à Gestão.');
         }
+        var uid = authData.localId;
         profile.uid = uid;
-        profile.email = result.user.email || email;
-        try { await firebase.database().ref('userProfiles/' + uid).update({ lastAccessAt: new Date().toISOString() }); } catch (_) {}
+        profile.email = authData.email || email;
+        try { await fetch(cfg.databaseURL.replace(/\/$/, '') + '/userProfiles/' + encodeURIComponent(uid) + '.json?auth=' + encodeURIComponent(authData.idToken), {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({lastAccessAt:new Date().toISOString()})}); } catch (_) {}
         var tries = 0;
         while (typeof window.NONNA_GESTAO_START !== 'function' && tries++ < 100) await wait(100);
         if (typeof window.NONNA_GESTAO_START !== 'function') throw new Error('O painel da Gestão não terminou de carregar. Atualize a página.');
