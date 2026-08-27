@@ -125,9 +125,9 @@ const DB = {
 
     _cardapioFromApiProducts(products) {
         if (!Array.isArray(products) || !products.length) return this.CARDAPIO_DEFAULT;
-        const sabores=products.map(p=>({id:String(p.id),nome:p.name,desc:p.description||'',emoji:p.emoji||'🍕',cat:String(p.category||'salgada').toLowerCase()}));
-        const precos_base={}; products.forEach(p=>{precos_base[String(p.id)]={P:Number(p.price)||0,M:Number(p.price)||0,G:Number(p.price)||0};});
-        return {...this.CARDAPIO_DEFAULT,sabores,precos_base};
+        const out={...this.CARDAPIO_DEFAULT,sabores:[],bebidas:[],calzones:[],combos:[],adicionais:[],tamanhos:[],precos_base:{}};
+        products.forEach(p=>{const id=String(p.id),cat=String(p.category||'sabores').toLowerCase(),item={id,nome:p.name||p.nome,desc:p.description||p.descricao||'',emoji:p.emoji||'🍕',preco:Number(p.price)||0,price:Number(p.price)||0}; const key=['sabores','bebidas','calzones','combos','adicionais','tamanhos'].includes(cat)?cat:'sabores'; out[key].push(item); out.precos_base[id]={P:item.preco,M:item.preco,G:item.preco};});
+        return out;
     },
     _normalizeApiOrder(o) {
         if (!o) return o;
