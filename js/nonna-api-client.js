@@ -37,6 +37,7 @@
     if (c.valorEsperado == null && c.expected != null) c.valorEsperado = Number(c.expected);
     if (c.abertoEm == null && c.opened_at != null) c.abertoEm = c.opened_at;
     if (c.fechadoEm == null && c.closed_at != null) c.fechadoEm = c.closed_at;
+    if (Array.isArray(c.movimentos)) c.movimentos = c.movimentos.map(m => ({ ...m, tipo: m.tipo || (m.type === 'sale' ? 'venda' : m.type === 'in' ? 'suprimento' : m.type === 'out' ? 'sangria' : m.type), valor: m.valor ?? Number(m.amount), forma: m.forma || m.payment_method || null, pagamentos: m.pagamentos || m.payment_breakdown || null, observacao: m.observacao ?? m.description ?? '', em: m.em || m.created_at }));
     return c;
   }
   root.NONNA_API = Object.freeze({
@@ -67,7 +68,7 @@
     update: (resource, id, data) => request('/api/' + encodeURIComponent(resource) + '/' + encodeURIComponent(id), { method: resource === 'users' ? 'PATCH' : 'PUT', body: JSON.stringify(data) }),
     cash: () => request('/api/cash/register').then(legacyCash),
     openCash: data => request('/api/cash/registers/open', { method: 'POST', body: JSON.stringify({ opening: Number(data?.opening ?? data?.saldoInicial ?? 0) }) }).then(legacyCash),
-    movement: (id, data) => request('/api/cash/registers/' + encodeURIComponent(id) + '/movements', { method: 'POST', body: JSON.stringify({ type: data?.type, amount: Number(data?.amount ?? data?.valor ?? 0), description: data?.description ?? data?.observacao ?? '' }) }),
+    movement: (id, data) => request('/api/cash/registers/' + encodeURIComponent(id) + '/movements', { method: 'POST', body: JSON.stringify({ type: data?.type, amount: Number(data?.amount ?? data?.valor ?? 0), description: data?.description ?? data?.observacao ?? '', payment_method: data?.payment_method ?? data?.forma ?? null, payment_breakdown: data?.payment_breakdown ?? data?.pagamentos ?? undefined }) }),
     closeCash: (id, data) => request('/api/cash/registers/' + encodeURIComponent(id) + '/close', { method: 'POST', body: JSON.stringify({ counted: Number(data?.counted ?? data?.valorContado ?? 0) }) }).then(legacyCash)
   });
 })(window);
