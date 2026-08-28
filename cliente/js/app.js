@@ -13,27 +13,11 @@ let clienteLogado = null; // cliente salvo (autopreenchimento)
 let pizzaBuilder = null;  // { tamanho, sabores: [], adicionais: [] }
 
 const BRL = (v) => 'R$ ' + v.toFixed(2).replace('.', ',');
-let config = DB.getConfig();
-let cardapio = DB.getCardapio();
-const horaEmMinutos = value => { const m = String(value || '').match(/^(\d{1,2}):(\d{2})$/); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
-function lojaEstaAberta() {
-    const abertura = horaEmMinutos(config.abertura), fechamento = horaEmMinutos(config.fechamento);
-    if (abertura === null || fechamento === null || abertura === fechamento) return true; // preserve default when unset
-    const agora = new Date(), atual = agora.getHours() * 60 + agora.getMinutes();
-    return abertura < fechamento ? atual >= abertura && atual < fechamento : atual >= abertura || atual < fechamento;
-}
-// Mídia opcional do cardápio: somente URLs http(s), evitando HTML arbitrário.
-const mediaProduto = p => { const u=String(p?.foto||''); return /^https:\/\//i.test(u) ? `<img src="${u.replace(/"/g,'&quot;')}" alt="" loading="lazy">` : (p?.emoji||'🍕'); };
+const config = DB.getConfig();
+const cardapio = DB.getCardapio();
 
 // ============ INIT ============
-let clienteInitStarted = false;
 function init() {
-    if (clienteInitStarted) return;
-    clienteInitStarted = true;
-    // O adapter pode terminar a sincronização depois do carregamento inicial do script.
-    // Releia os dados aqui para não renderizar um cardápio vazio permanentemente.
-    config = DB.getConfig() || config;
-    cardapio = DB.getCardapio() || cardapio;
     clienteLogado = DB.getClienteLogado();
 
     renderCategorias();
@@ -62,12 +46,6 @@ function init() {
             // recarrega cardápio se pizzaria editou
             location.reload();
         }
-        if (tipo === 'config_update') {
-            config = data || DB.getConfig();
-            if (window.NONNA_BRANDING) NONNA_BRANDING.apply(config);
-            verificarStatus();
-            atualizarResumoCarrinho?.();
-        }
         if (tipo === 'pedido_update' && meuPedidoId) {
             abrirAcompanhamento();
         }
@@ -86,12 +64,15 @@ function init() {
 }
 
 function verificarStatus() {
+    const hora = new Date().getHours();
     const el = document.getElementById('statusLoja');
-    if (!el) return;
-    const aberto = lojaEstaAberta();
-    el.className = 'status-badge' + (aberto ? '' : ' fechado');
-    el.textContent = aberto ? '● Aberto' : '● Fechado';
-    el.title = config.abertura && config.fechamento ? `Funcionamento: ${config.abertura}–${config.fechamento}` : '';
+    if (hora >= 18 && hora < 23) {
+        el.className = 'status-badge';
+        el.textContent = '● Aberto';
+    } else {
+        el.className = 'status-badge fechado';
+        el.textContent = '● Fechado';
+    }
 }
 
 // ============ HEADER DO CLIENTE (se logado) ============
@@ -213,7 +194,7 @@ function renderProdutos(filtro = '') {
                 return `
                 <div class="produto produto-tamanho" onclick="abrirBuilderPizza('${p.tamanho.id}')">
                     <button class="produto-favorito ${isFavorito('tam_' + p.tamanho.id) ? 'ativo' : ''}" onclick="toggleFavorito('tam_${p.tamanho.id}', event)" aria-label="Favoritar ${p.nome}">${isFavorito('tam_' + p.tamanho.id) ? '★' : '☆'}</button>
-                    <div class="produto-img">${mediaProduto(p.tamanho||p)}</div>
+                    <div class="produto-img">${p.emoji}</div>
                     <div class="produto-info">
                         <div>
                             <div class="produto-nome">${p.nome}</div>
@@ -229,7 +210,7 @@ function renderProdutos(filtro = '') {
                 return `
                 <div class="produto produto-combo" onclick='adicionarCombo(${JSON.stringify(p).replace(/'/g, "&apos;")})'>
                     <button class="produto-favorito ${isFavorito(String(p.id)) ? 'ativo' : ''}" onclick="toggleFavorito('${String(p.id)}', event)" aria-label="Favoritar ${p.nome}">${isFavorito(String(p.id)) ? '★' : '☆'}</button>
-                    <div class="produto-img combo">${mediaProduto(p)}</div>
+                    <div class="produto-img combo">${p.emoji}</div>
                     <div class="produto-info">
                         <div>
                             <div class="produto-nome">${p.nome}</div>
@@ -246,7 +227,7 @@ function renderProdutos(filtro = '') {
                 return `
                 <div class="produto" onclick='adicionarItemSimples(${JSON.stringify(p).replace(/'/g, "&apos;")})'>
                     <button class="produto-favorito ${isFavorito(String(p.id)) ? 'ativo' : ''}" onclick="toggleFavorito('${String(p.id)}', event)" aria-label="Favoritar ${p.nome}">${isFavorito(String(p.id)) ? '★' : '☆'}</button>
-                    <div class="produto-img">${mediaProduto(p)}</div>
+                    <div class="produto-img">${p.emoji || '🥟'}</div>
                     <div class="produto-info">
                         <div>
                             <div class="produto-nome">${p.nome}</div>
@@ -424,12 +405,16 @@ function confirmarBuilder() {
 
     carrinho.push({
         uid: Date.now() + Math.random(),
+        productId: pizzaBuilder.tamanho.id,
         tipo: 'pizza',
         nome: `Pizza ${pizzaBuilder.tamanho.nome} (${saboresTexto}${adicionaisTexto ? ', ' + pizzaBuilder.adicionais.map(a => a.nome).join(', ') : ''})`,
         descricao: `${pizzaBuilder.tamanho.fatias} fatias • ${pizzaBuilder.tamanho.qtdSabores} ${pizzaBuilder.tamanho.qtdSabores === 1 ? 'sabor' : 'sabores'}`,
         sabores: pizzaBuilder.sabores.map(s => s.nome),
         tamanho: pizzaBuilder.tamanho.nome,
         adicionais: pizzaBuilder.adicionais.map(a => a.nome),
+        quantidade: 1,
+        obs: '',
+        customPizza: { category: 'pizza', sizeId: pizzaBuilder.tamanho.id, sizeName: pizzaBuilder.tamanho.nome, flavours: pizzaBuilder.sabores.map(s => ({ id: s.id, name: s.nome })), addons: pizzaBuilder.adicionais.map(a => ({ id: a.id, name: a.nome })), observations: '' },
         preco: precoTotal,
     });
     atualizarCarrinho();
@@ -446,8 +431,8 @@ function fecharOpcoes() {
 function adicionarItemSimples(p) {
     carrinho.push({
         uid: Date.now() + Math.random(),
+        productId: p.id,
         tipo: 'item',
-        productId: p.id || null,
         nome: p.nome,
         descricao: p.desc || '',
         preco: p.preco,
@@ -459,8 +444,8 @@ function adicionarItemSimples(p) {
 function adicionarCombo(p) {
     carrinho.push({
         uid: Date.now() + Math.random(),
+        productId: p.id,
         tipo: 'combo',
-        productId: p.id || null,
         nome: p.nome,
         descricao: p.desc,
         preco: p.preco,
@@ -774,11 +759,6 @@ async function finalizarPedido() {
     const tipoPedido = getTipoPedido();
     const delivery = tipoPedido === 'delivery';
 
-    // Horário configurado bloqueia novo pedido, mas mantém o catálogo consultável.
-    if (!lojaEstaAberta()) {
-        toast(`A pizzaria está fechada${config.abertura && config.fechamento ? ` (funciona das ${config.abertura} às ${config.fechamento})` : ''}.`, 'warning', 6000);
-        return;
-    }
     // Validação
     if (!nome || !tel) {
         toast('⚠️ Preencha nome e telefone', 'error');
@@ -812,10 +792,7 @@ async function finalizarPedido() {
         btnEnviar.disabled = true;
         btnEnviar.innerHTML = '📍 Localizando seu endereço...';
         coords = await geocodificar(enderecoEstruturado);
-        if (coords?.fallback) {
-            coords = null;
-            toast('⚠️ Não conseguimos confirmar a localização. O pedido será enviado sem rota automática.', 'warning', 5000);
-        }
+        if (coords.fallback) toast('⚠️ Não conseguimos localizar o endereço exato. Confirme no mapa após o pedido.', 'warning', 5000);
         btnEnviar.disabled = false;
         btnEnviar.innerHTML = txtOriginal;
     }
@@ -858,14 +835,7 @@ async function finalizarPedido() {
         coords: coords,
     };
 
-    let pedidoSalvo;
-    try {
-        pedidoSalvo = await DB.addPedido(pedido);
-    } catch (error) {
-        console.error('[NONNA CHECKOUT]', error);
-        toast('Não foi possível enviar o pedido. Verifique a conexão e tente novamente.', 'error', 6000);
-        return;
-    }
+    const pedidoSalvo = await DB.addPedido(pedido);
     meuPedidoId = pedidoSalvo.id;
     localStorage.setItem('donna_meu_pedido', meuPedidoId);
 
@@ -1465,8 +1435,4 @@ function toggleTheme() {
     toast('☀️ Nonna Pizzaria');
 }
 
-// O bootloader carrega este módulo depois do DOMContentLoaded.
-// Inicialize imediatamente quando o adapter já estiver pronto.
-if (window.DB && window.NONNA_BOOT?.status === 'ready') init();
-else if (window.DB) window.addEventListener('nonna_db_ready', init, { once: true });
-else document.addEventListener('DOMContentLoaded', init, { once: true });
+document.addEventListener('DOMContentLoaded', init);
