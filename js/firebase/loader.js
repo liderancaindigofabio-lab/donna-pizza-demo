@@ -57,13 +57,10 @@
       emit('nonna_boot_status', state);
 
       const firebaseActive = typeof FIREBASE_ATIVO !== 'undefined' && FIREBASE_ATIVO;
-      // The public client must never perform protected Firebase reads. Staff and
-      // operational pages retain the Firebase boot below.
-      const clientUsesPublicApi = appName === 'cliente';
-      if (!firebaseActive || clientUsesPublicApi) {
-        await loadScript(BASE + 'js/nonna-api-client.js?v=2');
+      if (!firebaseActive) {
+        await loadScript(BASE + 'js/nonna-api-client.js?v=3');
         await loadScript(BASE + 'js/firebase/operational-guards.js?v=2');
-        await loadScript(BASE + 'js/firebase/db-adapter.js?v=40');
+        await loadScript(BASE + 'js/firebase/db-adapter.js?v=37');
         await loadScript(BASE + 'js/branding.js?v=1');
         window.DB = DB;
         await DB.init();
@@ -79,9 +76,9 @@
         await loadScript(BASE + 'js/firebase/auth.js');
         await loadScript(BASE + 'js/firebase/staff-auth.js?v=6');
         await loadScript(BASE + 'js/firebase/firebase-storage.js');
-        await loadScript(BASE + 'js/nonna-api-client.js?v=2');
+        await loadScript(BASE + 'js/nonna-api-client.js?v=3');
         await loadScript(BASE + 'js/firebase/operational-guards.js?v=2');
-        await loadScript(BASE + 'js/firebase/db-adapter.js?v=40');
+        await loadScript(BASE + 'js/firebase/db-adapter.js?v=37');
         await loadScript(BASE + 'js/branding.js?v=1');
         window.DB = DB;
         window.DBRemote = DBRemote;
