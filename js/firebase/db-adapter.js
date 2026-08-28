@@ -341,7 +341,7 @@ const DB = {
             return NONNA_API.publicOrder({ restaurantId: window.NONNA_RESTAURANT_ID || 'nonna-pizzaria', channel: normalizado.canal || 'delivery', customer: normalizado.cliente || {}, items, delivery_fee: normalizado.taxa || 0, payment: normalizado.pagamento || {} }, key).then(order => { this._cachePedidos.unshift(this._normalizarPedidoApi(order)); this._notify('pedido_novo', order); return order; });
         }
         if (this.backend === 'api') {
-            return NONNA_API.createOrder({ status: 'pending', channel: normalizado.canal || 'counter', customer: normalizado.cliente || {}, items: normalizado.itens || normalizado.items || [], subtotal: normalizado.subtotal || 0, delivery_fee: normalizado.taxa || 0, total: normalizado.total || 0, payment: normalizado.pagamento || {} }).then(order => { this._cachePedidos.unshift(this._normalizarPedidoApi(order)); this._notify('pedido_novo', order); return order; });
+            return NONNA_API.createOrder({ status: 'pending', channel: normalizado.canal || 'counter', customer: normalizado.cliente || {}, items: normalizado.itens || normalizado.items || [], subtotal: normalizado.subtotal || 0, delivery_fee: normalizado.taxa || 0, discount: normalizado.desconto || 0, total: normalizado.total || 0, payment: normalizado.pagamento || {} }).then(order => { this._cachePedidos.unshift(this._normalizarPedidoApi(order)); this._notify('pedido_novo', order); return order; });
         }
         if (this.backend === 'firebase') return DBRemote.addPedido(normalizado);
         const pedidos = this.getPedidos();
