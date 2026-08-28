@@ -26,7 +26,10 @@ function lojaEstaAberta() {
 const mediaProduto = p => { const u=String(p?.foto||''); return /^https:\/\//i.test(u) ? `<img src="${u.replace(/"/g,'&quot;')}" alt="" loading="lazy">` : (p?.emoji||'🍕'); };
 
 // ============ INIT ============
+let clienteInitStarted = false;
 function init() {
+    if (clienteInitStarted) return;
+    clienteInitStarted = true;
     // O adapter pode terminar a sincronização depois do carregamento inicial do script.
     // Releia os dados aqui para não renderizar um cardápio vazio permanentemente.
     config = DB.getConfig() || config;
