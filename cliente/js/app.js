@@ -447,6 +447,7 @@ function adicionarItemSimples(p) {
     carrinho.push({
         uid: Date.now() + Math.random(),
         tipo: 'item',
+        productId: p.id || null,
         nome: p.nome,
         descricao: p.desc || '',
         preco: p.preco,
@@ -459,6 +460,7 @@ function adicionarCombo(p) {
     carrinho.push({
         uid: Date.now() + Math.random(),
         tipo: 'combo',
+        productId: p.id || null,
         nome: p.nome,
         descricao: p.desc,
         preco: p.preco,
