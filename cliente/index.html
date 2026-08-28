@@ -236,15 +236,7 @@
 <div id="toastContainer"></div>
 
 <script src="../js/firebase/config.js?v=11"></script>
-<script src="../js/firebase/loader.js?v=40"></script>
-<script>
-// Garantia de inicialização: o loader é assíncrono e pode terminar após o DOM.
-(function () {
-  function iniciar() { if (typeof window.init === 'function' && !document.querySelector('.cat-btn')) window.init(); }
-  window.addEventListener('nonna_db_ready', iniciar);
-  setTimeout(iniciar, 2500);
-})();
-</script>
+<script src="../js/firebase/loader.js?v=42"></script>
 <script src="js/growth.js?v=1"></script>
 <script src="../js/utils-endereco.js?v=1"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
