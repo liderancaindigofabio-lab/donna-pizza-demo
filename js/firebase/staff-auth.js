@@ -3,7 +3,6 @@
  * O frontend nunca contém senhas, hashes ou perfis privilegiados hardcoded.
  */
 (function(root){
-  try { root.NONNA_REST_TOKEN = sessionStorage.getItem('nonna_api_token') || localStorage.getItem('nonna_api_token') || ''; } catch (_) { root.NONNA_REST_TOKEN = ''; }
   const PAGE_ROLES={
     caixa:['cashier','owner','manager'],
     pizzaria:['owner','manager'],
@@ -41,7 +40,7 @@
     // Mirror the operator session to Nonna API when available. Firebase remains the
     // rollback/auth fallback if the API is unavailable.
     try {
-      if (root.NONNA_API) { const apiSession=await root.NONNA_API.login(email,password); sessionStorage.setItem('nonna_api_token',apiSession.token); root.NONNA_REST_TOKEN=apiSession.token; }
+      if (root.NONNA_API) { const apiSession=await root.NONNA_API.login(email,password); sessionStorage.setItem('nonna_api_token',apiSession.token); }
     } catch (_) { sessionStorage.removeItem('nonna_api_token'); }
     // Operational metadata only; credentials never enter the profile.
     try { const last=new Date().toISOString(); await firebase.database().ref('userProfiles/'+credential.user.uid).update({lastAccessAt:last}); p.lastAccessAt=last; } catch (_) {}
@@ -145,7 +144,7 @@
       throw error instanceof Error?error:new Error('Não foi possível autorizar o fechamento.');
     }finally{if(secondary){try{await secondary.auth().signOut()}catch(_){} try{await secondary.delete()}catch(_){}}}
   }
-  root.NONNA_STAFF_AUTH={signIn,restore,authorizeDiscount,authorizeCashClosure,roles:PAGE_ROLES};
+  root.NONNA_STAFF_AUTH={signIn,restore,authorizeDiscount,authorizeCashClosure,signOut:()=>root.NONNA_AUTH?.signOut?.(),roles:PAGE_ROLES};
   const STAFF_ROLES=['manager','cashier','kitchen','waiter','courier'];
   function cleanEmail(value){const email=String(value||'').trim().toLowerCase();return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)?email:null;}
   async function createStaffAccount({email,password,nome,role,restaurantId}={}){
