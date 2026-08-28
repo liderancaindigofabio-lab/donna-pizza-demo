@@ -334,7 +334,7 @@ const DB = {
             return NONNA_API.publicOrder({ restaurantId: window.NONNA_RESTAURANT_ID || 'nonna-pizzaria', channel: normalizado.canal || 'delivery', customer: normalizado.cliente || {}, items, delivery_fee: normalizado.taxa || 0, payment: normalizado.pagamento || {} }, key).then(order => { this._cachePedidos.unshift(this._normalizarPedidoApi(order)); this._notify('pedido_novo', order); return order; });
         }
         if (this.backend === 'api') {
-            return NONNA_API.createOrder('orders', { status: 'pending', channel: normalizado.canal || 'counter', customer: normalizado.cliente || {}, items: normalizado.itens || normalizado.items || [], subtotal: normalizado.subtotal || 0, delivery_fee: normalizado.taxa || 0, total: normalizado.total || 0, payment: normalizado.pagamento || {} }).then(order => { this._cachePedidos.unshift(this._normalizarPedidoApi(order)); this._notify('pedido_novo', order); return order; });
+            return NONNA_API.createOrder({ status: 'pending', channel: normalizado.canal || 'counter', customer: normalizado.cliente || {}, items: normalizado.itens || normalizado.items || [], subtotal: normalizado.subtotal || 0, delivery_fee: normalizado.taxa || 0, total: normalizado.total || 0, payment: normalizado.pagamento || {} }).then(order => { this._cachePedidos.unshift(this._normalizarPedidoApi(order)); this._notify('pedido_novo', order); return order; });
         }
         if (this.backend === 'firebase') return DBRemote.addPedido(normalizado);
         const pedidos = this.getPedidos();
@@ -483,7 +483,7 @@ const DB = {
     },
 
     updateMotoboy(id, updates) {
-        if (this.backend === 'api') return NONNA_API.update('motoboys', id, { name: updates.nome || updates.name, phone: updates.telefone || updates.phone, active: updates.active !== false }).then(m => { this._cacheMotoboys=(this._cacheMotoboys||[]).map(x=>String(x.id)===String(id)?m:x); this._notify('motoboy_update',m); return m; });
+        if (this.backend === 'api') return NONNA_API.request('/api/motoboys/'+encodeURIComponent(id), { method: 'PUT', body: JSON.stringify({ name: updates.nome || updates.name, phone: updates.telefone || updates.phone, active: updates.active !== undefined ? updates.active : !['indisponivel','offline'].includes(String(updates.status||'').toLowerCase()) }) }).then(m => { this._cacheMotoboys=(this._cacheMotoboys||[]).map(x=>String(x.id)===String(id)?m:x); this._notify('motoboy_update',m); return m; });
         if (this.backend === 'firebase') {
             firebase.database().ref('motoboys/mb_' + id).update(updates);
             return;
