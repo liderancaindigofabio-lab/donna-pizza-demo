@@ -57,7 +57,10 @@
       emit('nonna_boot_status', state);
 
       const firebaseActive = typeof FIREBASE_ATIVO !== 'undefined' && FIREBASE_ATIVO;
-      if (!firebaseActive) {
+      // The public client must never perform protected Firebase reads. Staff and
+      // operational pages retain the Firebase boot below.
+      const clientUsesPublicApi = appName === 'cliente';
+      if (!firebaseActive || clientUsesPublicApi) {
         await loadScript(BASE + 'js/nonna-api-client.js?v=2');
         await loadScript(BASE + 'js/firebase/operational-guards.js?v=2');
         await loadScript(BASE + 'js/firebase/db-adapter.js?v=37');
