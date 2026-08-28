@@ -114,7 +114,7 @@
           if (typeof DB._setConnection === 'function') DB._setConnection('firebase', 'degraded');
           window.NONNA_DB_READY = Promise.resolve(DB);
           if (APPS[appName]) await loadScript(APPS[appName]);
-          if (typeof init === 'function') { try { init(); } catch (appError) { console.error('[NONNA APP]', appName, appError); } }
+          if (typeof window.init === 'function') { try { window.init(); } catch (appError) { console.error('[NONNA APP]', appName, appError); } }
           emit('nonna_app_ready', { app: appName, db: DB, degraded: true });
           return DB;
         } catch (degradedError) { console.error('[NONNA DEGRADED]', degradedError); }
