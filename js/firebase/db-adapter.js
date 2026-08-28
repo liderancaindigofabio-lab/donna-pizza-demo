@@ -215,6 +215,39 @@ const DB = {
         }
     },
 
+    // Re-read protected Firebase resources after staff authentication. The boot
+    // probe may have been anonymous (401 is expected); never promote the UI to
+    // ready until every protected cache read succeeds with the staff session.
+    async refreshAuthenticatedCaches() {
+        if (this.backend !== 'firebase') return true;
+        const auth = typeof firebase !== 'undefined' && firebase.auth ? firebase.auth() : null;
+        if (!auth || !auth.currentUser) throw new Error('Sessão Firebase não autenticada; os dados operacionais não foram carregados.');
+        const reads = await Promise.allSettled([
+            DBRemote.getPedidosAsync(),
+            DBRemote.getMotoboysAsync(),
+            DBRemote.getConfigAsync(),
+            DBRemote.getCardapioAsync()
+        ]);
+        const labels = ['pedidos', 'motoboys', 'configuração', 'cardápio'];
+        const failures = reads.map((r, i) => r.status === 'rejected' ? { recurso: labels[i], erro: r.reason } : null).filter(Boolean);
+        if (failures.length) {
+            this._ready = false;
+            this._setConnection('firebase', 'degraded');
+            console.error('[NONNA AUTH CACHE] falha parcial:', failures);
+            const detail = failures.map(f => `${f.recurso}: ${f.erro?.message || f.erro || 'erro desconhecido'}`).join('; ');
+            throw new Error(`Não foi possível sincronizar ${failures.length} recurso(s) protegidos: ${detail}`);
+        }
+        this._cachePedidos = reads[0].value || [];
+        this._cacheMotoboys = reads[1].value || [];
+        this._cacheConfig = reads[2].value || {};
+        this._cacheCardapio = reads[3].value || { tamanhos: [], sabores: [], adicionais: [], precos_base: {}, calzones: [], bebidas: [], combos: [], cupons: [] };
+        this._ready = true;
+        this._setConnection('firebase', 'ready');
+        this._onReady && this._onReady();
+        this._notify('authenticated_cache_refresh', this.backendInfo);
+        return true;
+    },
+
     onReady(cb) {
         if (this._ready) cb();
         else this._onReady = cb;
@@ -760,3 +793,4 @@ const DB = {
         window.dispatchEvent(new CustomEvent('donna_db_change', { detail: { tipo, data } }));
     }
 };
+
