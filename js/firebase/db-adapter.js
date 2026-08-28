@@ -129,13 +129,6 @@ const DB = {
         const key = String(status || 'novo').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-\s]/g, '_');
         return ({ pending:'novo', new:'novo', novo:'novo', received:'novo', preparing:'preparando', preparo:'preparando', preparando:'preparando', ready:'pronto', pronto:'pronto', delivering:'em_entrega', in_delivery:'em_entrega', em_entrega:'em_entrega', delivered:'entregue', entregue:'entregue', completed:'entregue', concluido:'entregue', cancelled:'cancelado', canceled:'cancelado', cancelado:'cancelado' })[key] || key;
     },
-    _normalizarMotoboyApi(m) {
-        if (!m || typeof m !== 'object') return m;
-        return { ...m, nome: m.nome || m.name || '', telefone: m.telefone || m.phone || '', status: m.status || (m.active === false ? 'pausa' : 'disponivel') };
-    },
-    _apiStatus(status) {
-        return ({ novo:'pending', preparando:'preparing', pronto:'ready', em_entrega:'out_for_delivery', entregue:'delivered', cancelado:'cancelled' })[this._normalizarStatusPedido(status)] || String(status || 'pending');
-    },
     _normalizarPedidoApi(order) {
         if (!order || typeof order !== 'object') return order;
         const status = this._normalizarStatusPedido(order.status);
@@ -336,12 +329,28 @@ const DB = {
     addPedido(pedido) {
         const normalizado = this._normalizarPedido(pedido);
         if (this.backend === 'public-api') {
-            const items = (normalizado.itens || normalizado.items || []).map(x => ({ productId: x.productId || x.id, quantity: x.quantidade || x.qtd || 1, notes: x.obs || x.observacao || '' }));
+            const sourceItems = normalizado.itens || normalizado.items || [];
+            const apiProducts = Array.isArray(this._cacheApiProducts) ? this._cacheApiProducts : [];
+            const catalog = this.getCardapio() || {};
+            const legacyById = new Map();
+            ['sabores', 'calzones', 'bebidas', 'combos', 'adicionais'].forEach(group => (catalog[group] || []).forEach(item => legacyById.set(String(item.id), item)));
+            const norm = value => String(value || '').trim().toLocaleLowerCase();
+            const items = sourceItems.map(x => {
+                const legacy = legacyById.get(String(x.productId || x.product_id || x.id || ''));
+                const wantedId = String(x.productId || x.product_id || '');
+                const wantedName = norm(x.name || x.nome || legacy?.name || legacy?.nome);
+                const product = apiProducts.find(p => String(p.id) === wantedId) ||
+                    (wantedName && apiProducts.find(p => norm(p.name) === wantedName));
+                // Custom pizzas have no server product identity yet; reject them rather
+                // than sending a client-controlled price/name to the trusted endpoint.
+                if (!product) return { productId: '', quantity: x.quantidade || x.qtd || x.quantity || 1, notes: x.obs || x.observacao || x.notes || '' };
+                return { productId: String(product.id), quantity: x.quantidade || x.qtd || x.quantity || 1, notes: x.obs || x.observacao || x.notes || '' };
+            });
             const key = 'donna-' + (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random());
-            return NONNA_API.publicOrder({ restaurantId: window.NONNA_RESTAURANT_ID || 'nonna-pizzaria', channel: normalizado.canal || 'delivery', customer: normalizado.cliente || {}, items, delivery_fee: normalizado.taxa || 0, payment: normalizado.pagamento || {} }, key).then(order => { this._cachePedidos.unshift(this._normalizarPedidoApi(order)); this._notify('pedido_novo', order); return order; });
+            return NONNA_API.publicOrder({ restaurantId: window.NONNA_RESTAURANT_ID || 'nonna-pizzaria', channel: normalizado.canal || 'delivery', customer: normalizado.cliente || {}, items, delivery_fee: normalizado.taxa || 0, payment: normalizado.pagamento || {} }, { idempotencyKey: key }).then(order => { this._cachePedidos.unshift(this._normalizarPedidoApi(order)); this._notify('pedido_novo', order); return order; });
         }
         if (this.backend === 'api') {
-            return NONNA_API.createOrder({ status: 'pending', channel: normalizado.canal || 'counter', customer: normalizado.cliente || {}, items: normalizado.itens || normalizado.items || [], subtotal: normalizado.subtotal || 0, delivery_fee: normalizado.taxa || 0, discount: normalizado.desconto || 0, total: normalizado.total || 0, payment: normalizado.pagamento || {} }).then(order => { this._cachePedidos.unshift(this._normalizarPedidoApi(order)); this._notify('pedido_novo', order); return order; });
+            return NONNA_API.createOrder('orders', { status: 'pending', channel: normalizado.canal || 'counter', customer: normalizado.cliente || {}, items: normalizado.itens || normalizado.items || [], subtotal: normalizado.subtotal || 0, delivery_fee: normalizado.taxa || 0, total: normalizado.total || 0, payment: normalizado.pagamento || {} }).then(order => { this._cachePedidos.unshift(this._normalizarPedidoApi(order)); this._notify('pedido_novo', order); return order; });
         }
         if (this.backend === 'firebase') return DBRemote.addPedido(normalizado);
         const pedidos = this.getPedidos();
@@ -355,7 +364,7 @@ const DB = {
     updatePedido(id, updates) {
         if (this.backend === 'api') {
             if (!updates || !updates.status) return this.getPedidos().find(p => String(p.id) === String(id)) || null;
-            return NONNA_API.updateOrderStatus(id, this._apiStatus(updates.status)).then(order => { const i = this._cachePedidos.findIndex(p => String(p.id) === String(id)); if (i >= 0) this._cachePedidos[i] = this._normalizarPedidoApi(order); this._notify('pedido_update', order); return order; });
+            return NONNA_API.updateOrderStatus(id, updates.status).then(order => { const i = this._cachePedidos.findIndex(p => String(p.id) === String(id)); if (i >= 0) this._cachePedidos[i] = this._normalizarPedidoApi(order); this._notify('pedido_update', order); return order; });
         }
         if (this.backend === 'firebase') {
             const ref = firebase.database().ref('pedidos/' + id);
@@ -490,7 +499,7 @@ const DB = {
     },
 
     updateMotoboy(id, updates) {
-        if (this.backend === 'api') { const current=(this._cacheMotoboys||[]).find(x=>String(x.id)===String(id))||{}; return NONNA_API.request('/api/motoboys/'+encodeURIComponent(id), { method: 'PUT', body: JSON.stringify({ name: updates.nome || updates.name || current.nome || current.name, phone: updates.telefone || updates.phone || current.telefone || current.phone || null, active: updates.active !== undefined ? updates.active : !['indisponivel','offline'].includes(String(updates.status||'').toLowerCase()) }) }).then(m => { const normalized=this._normalizarMotoboyApi({ ...m, status: updates.status || m.status }); this._cacheMotoboys=(this._cacheMotoboys||[]).map(x=>String(x.id)===String(id)?normalized:x); this._notify('motoboy_update',normalized); return normalized; }); }
+        if (this.backend === 'api') return NONNA_API.update('motoboys', id, { name: updates.nome || updates.name, phone: updates.telefone || updates.phone, active: updates.active !== false }).then(m => { this._cacheMotoboys=(this._cacheMotoboys||[]).map(x=>String(x.id)===String(id)?m:x); this._notify('motoboy_update',m); return m; });
         if (this.backend === 'firebase') {
             firebase.database().ref('motoboys/mb_' + id).update(updates);
             return;
@@ -586,7 +595,7 @@ const DB = {
     },
 
     // ====== API management resources ======
-    async _apiRefresh(){ this._cachePedidos=(await NONNA_API.orders()).map(p=>this._normalizarPedidoApi(p)); this._cacheMotoboys=(await NONNA_API.list('motoboys')).map(m=>this._normalizarMotoboyApi(m)); this._cacheConfig=(await NONNA_API.config()).data||{}; return true; },
+    async _apiRefresh(){ this._cachePedidos=await NONNA_API.orders(); this._cacheMotoboys=await NONNA_API.list('motoboys'); this._cacheConfig=(await NONNA_API.config()).data||{}; return true; },
     _apiResource(path){ return this.backend==='api' || this.backend==='public-api'; },
     // ====== CLIENTES ======
     getClientes() {
