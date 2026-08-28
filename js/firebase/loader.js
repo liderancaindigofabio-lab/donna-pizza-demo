@@ -74,7 +74,7 @@
         // no primeiro ciclo sem corrida entre scripts.
         await loadScript('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js');
         await loadScript(BASE + 'js/firebase/auth.js');
-        await loadScript(BASE + 'js/firebase/staff-auth.js?v=6');
+        await loadScript(BASE + 'js/firebase/staff-auth.js?v=7');
         await loadScript(BASE + 'js/firebase/firebase-storage.js');
         await loadScript(BASE + 'js/nonna-api-client.js?v=3');
         await loadScript(BASE + 'js/firebase/operational-guards.js?v=2');
