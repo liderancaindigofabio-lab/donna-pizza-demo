@@ -136,6 +136,9 @@ const DB = {
         const items = order.items || order.itens || [];
         return { ...order, status, cliente: order.cliente || customer, itens: order.itens || items, criadoEm: order.criadoEm || order.created_at || order.createdAt, total: order.total ?? order.total_amount ?? order.totalAmount };
     },
+    _normalizarCaixaApi(cash) {
+        return window.NONNA_API?.normalizeCash ? window.NONNA_API.normalizeCash(cash) : cash;
+    },
 
     _cardapioFromApiProducts(products) {
         const current = this.CARDAPIO_DEFAULT;
@@ -364,7 +367,7 @@ const DB = {
     updatePedido(id, updates) {
         if (this.backend === 'api') {
             if (!updates || !updates.status) return this.getPedidos().find(p => String(p.id) === String(id)) || null;
-            return NONNA_API.updateOrderStatus(id, updates.status).then(order => { const i = this._cachePedidos.findIndex(p => String(p.id) === String(id)); if (i >= 0) this._cachePedidos[i] = this._normalizarPedidoApi(order); this._notify('pedido_update', order); return order; });
+            return NONNA_API.updateOrderStatus(id, updates.status).then(order => { order=this._normalizarPedidoApi(order); const i = this._cachePedidos.findIndex(p => String(p.id) === String(id)); if (i >= 0) this._cachePedidos[i] = order; this._notify('pedido_update', order); return order; });
         }
         if (this.backend === 'firebase') {
             const ref = firebase.database().ref('pedidos/' + id);
@@ -595,7 +598,7 @@ const DB = {
     },
 
     // ====== API management resources ======
-    async _apiRefresh(){ this._cachePedidos=await NONNA_API.orders(); this._cacheMotoboys=await NONNA_API.list('motoboys'); this._cacheConfig=(await NONNA_API.config()).data||{}; return true; },
+    async _apiRefresh(){ this._cachePedidos=(await NONNA_API.orders()).map(p=>this._normalizarPedidoApi(p)); this._cacheMotoboys=await NONNA_API.list('motoboys'); this._cacheConfig=(await NONNA_API.config()).data||{}; this._cacheCaixa=this._normalizarCaixaApi(await NONNA_API.cash()); return true; },
     _apiResource(path){ return this.backend==='api' || this.backend==='public-api'; },
     // ====== CLIENTES ======
     getClientes() {
@@ -745,19 +748,19 @@ const DB = {
 
     // ====== CAIXA / PDV ======
     getCaixaAtual() {
-        if (this.backend === 'api') return this._cacheCaixa || null;
+        if (this.backend === 'api') return this._normalizarCaixaApi(this._cacheCaixa) || null;
         if (this.backend === 'firebase') return this._cacheCaixa || null;
         try { return JSON.parse(localStorage.getItem('donna_caixa_atual') || 'null'); } catch (_) { return null; }
     },
     abrirCaixa(dados) {
-        if (this.backend === 'api') return NONNA_API.openCash({opening:Number(dados?.saldoInicial||0)}).then(c=>{this._cacheCaixa=c;this._notify('caixa_update',c);return c});
+        if (this.backend === 'api') return NONNA_API.openCash({opening:Number(dados?.saldoInicial||0)}).then(c=>{c=this._normalizarCaixaApi(c);this._cacheCaixa=c;this._notify('caixa_update',c);return c});
         const caixa = { id: Date.now(), status: 'aberto', operador: dados?.operador || 'Caixa', saldoInicial: Number(dados?.saldoInicial || 0), movimentos: [], abertoEm: new Date().toISOString() };
         if (this.backend === 'firebase') firebase.database().ref('caixa/atual').set(caixa);
         else localStorage.setItem('donna_caixa_atual', JSON.stringify(caixa));
         this._cacheCaixa = caixa; this._notify('caixa_update', caixa); return caixa;
     },
     registrarMovimentoCaixa(movimento) {
-        if (this.backend === 'api') { const c=this.getCaixaAtual(); if(!c)return null; const type=movimento.tipo==='venda'?'sale':(movimento.tipo==='suprimento'?'in':'out'); return NONNA_API.movement(c.id,{type,amount:Number(movimento.valor||0),description:movimento.observacao||''}).then(m=>{this._notify('caixa_update',m);return m}); }
+        if (this.backend === 'api') { const c=this.getCaixaAtual(); if(!c || c.status !== 'aberto')return null; const type=movimento.tipo==='venda'?'sale':(movimento.tipo==='suprimento'?'in':'out'); return NONNA_API.movement(c.id,{type,amount:Number(movimento.valor||0),description:movimento.observacao||''}).then(async m=>{this._cacheCaixa=this._normalizarCaixaApi(await NONNA_API.cash()); this._notify('caixa_update',this._cacheCaixa); return {...m, tipo:movimento.tipo, valor:Number(movimento.valor||0), observacao:movimento.observacao||'', em:m.created_at||new Date().toISOString()}; }); }
         const caixa = this.getCaixaAtual(); if (!caixa || caixa.status !== 'aberto') return null;
         const mov = { id: Date.now(), tipo: movimento.tipo, valor: Number(movimento.valor || 0), forma: movimento.forma || null, observacao: movimento.observacao || '', operador: movimento.operador || caixa.operador, em: new Date().toISOString() };
         caixa.movimentos = [...(caixa.movimentos || []), mov];
@@ -765,7 +768,7 @@ const DB = {
         this._cacheCaixa = caixa; this._notify('caixa_update', caixa); return mov;
     },
     fecharCaixa(dados) {
-        if (this.backend === 'api') { const c=this.getCaixaAtual(); if(!c)return null; return NONNA_API.closeCash(c.id,{counted:Number(dados?.valorContado||0)}).then(x=>{this._cacheCaixa=x;this._notify('caixa_update',x);return x}); }
+        if (this.backend === 'api') { const c=this.getCaixaAtual(); if(!c || c.status !== 'aberto')return null; return NONNA_API.closeCash(c.id,{counted:Number(dados?.valorContado||0)}).then(x=>{x=this._normalizarCaixaApi(x);this._cacheCaixa=x;this._notify('caixa_update',x);return x}); }
         const caixa = this.getCaixaAtual(); if (!caixa || caixa.status !== 'aberto') return null;
         const fechado = { ...caixa, status: 'fechado', valorContado: Number(dados?.valorContado || 0), fechadoEm: new Date().toISOString(), fechadoPor: dados?.operador || caixa.operador };
         if (this.backend === 'firebase') firebase.database().ref('caixa/atual').set(fechado); else localStorage.setItem('donna_caixa_atual', JSON.stringify(fechado));

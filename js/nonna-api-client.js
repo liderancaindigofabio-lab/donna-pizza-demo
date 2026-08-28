@@ -20,9 +20,30 @@
     if (!response.ok) { const error = new Error(body?.error || `API ${response.status}`); error.status = response.status; throw error; }
     return body;
   }
+  const STATUS_TO_API = Object.freeze({ novo: 'pending', preparando: 'preparing', pronto: 'ready', em_entrega: 'out_for_delivery', entregue: 'delivered', cancelado: 'cancelled' });
+  const STATUS_FROM_API = Object.freeze({ pending: 'novo', preparing: 'preparando', ready: 'pronto', out_for_delivery: 'em_entrega', delivered: 'entregue', cancelled: 'cancelado' });
+  function apiOrderStatus(status) {
+    const key = String(status || '').trim().toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').replace(/[-\\s]/g, '_');
+    return STATUS_TO_API[key] || key;
+  }
+  function legacyCash(value) {
+    if (!value || typeof value !== 'object') return value == null ? null : value;
+    const c = { ...value };
+    const status = String(c.status || '').toLowerCase();
+    if (status === 'open') c.status = 'aberto';
+    else if (status === 'closed') c.status = 'fechado';
+    if (c.saldoInicial == null && c.opening != null) c.saldoInicial = Number(c.opening);
+    if (c.valorContado == null && c.counted != null) c.valorContado = Number(c.counted);
+    if (c.valorEsperado == null && c.expected != null) c.valorEsperado = Number(c.expected);
+    if (c.abertoEm == null && c.opened_at != null) c.abertoEm = c.opened_at;
+    if (c.fechadoEm == null && c.closed_at != null) c.fechadoEm = c.closed_at;
+    return c;
+  }
   root.NONNA_API = Object.freeze({
     base: API, tokenKey: TOKEN_KEY,
     request,
+    normalizeOrderStatus: status => STATUS_FROM_API[String(status || '').toLowerCase()] || status,
+    normalizeCash: legacyCash,
     login: (email, password) => request('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
     me: () => request('/api/me'),
     products: restaurantId => request('/api/products/public/' + encodeURIComponent(restaurantId)),
@@ -38,14 +59,15 @@
       const headers = idempotencyKey ? { 'Idempotency-Key': String(idempotencyKey) } : {};
       return request('/api/public/orders', { method: 'POST', headers, body: JSON.stringify(order) });
     },
-    updateOrderStatus: (id, status) => request('/api/orders/' + encodeURIComponent(id) + '/status', { method: 'PATCH', body: JSON.stringify({ status }) }),
+    // UI keeps the legacy Portuguese state names; the API contract is English.
+    updateOrderStatus: (id, status) => request('/api/orders/' + encodeURIComponent(id) + '/status', { method: 'PATCH', body: JSON.stringify({ status: apiOrderStatus(status) }) }),
     config: () => request('/api/config/restaurant'),
     updateConfig: data => request('/api/config', { method: 'PUT', body: JSON.stringify({ data }) }),
     list: resource => request('/api/' + encodeURIComponent(resource)),
     update: (resource, id, data) => request('/api/' + encodeURIComponent(resource) + '/' + encodeURIComponent(id), { method: resource === 'users' ? 'PATCH' : 'PUT', body: JSON.stringify(data) }),
-    cash: () => request('/api/cash/register'),
-    openCash: data => request('/api/cash/registers/open', { method: 'POST', body: JSON.stringify(data) }),
-    movement: (id, data) => request('/api/cash/registers/' + encodeURIComponent(id) + '/movements', { method: 'POST', body: JSON.stringify(data) }),
-    closeCash: (id, data) => request('/api/cash/registers/' + encodeURIComponent(id) + '/close', { method: 'POST', body: JSON.stringify(data) })
+    cash: () => request('/api/cash/register').then(legacyCash),
+    openCash: data => request('/api/cash/registers/open', { method: 'POST', body: JSON.stringify({ opening: Number(data?.opening ?? data?.saldoInicial ?? 0) }) }).then(legacyCash),
+    movement: (id, data) => request('/api/cash/registers/' + encodeURIComponent(id) + '/movements', { method: 'POST', body: JSON.stringify({ type: data?.type, amount: Number(data?.amount ?? data?.valor ?? 0), description: data?.description ?? data?.observacao ?? '' }) }),
+    closeCash: (id, data) => request('/api/cash/registers/' + encodeURIComponent(id) + '/close', { method: 'POST', body: JSON.stringify({ counted: Number(data?.counted ?? data?.valorContado ?? 0) }) }).then(legacyCash)
   });
 })(window);
