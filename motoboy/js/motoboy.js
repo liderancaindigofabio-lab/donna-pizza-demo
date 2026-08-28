@@ -63,7 +63,7 @@ function entrarComPerfil(profile) {
 function renderLogin() {
     const form=document.getElementById('motoboyAuthForm'), error=document.getElementById('motoboyAuthError');
     if(!form) return;
-    form.onsubmit=async e=>{e.preventDefault();const fd=new FormData(form),btn=form.querySelector('button');error.textContent='';btn.disabled=true;try{const p=await NONNA_STAFF_AUTH.signIn(String(fd.get('email')).trim(),String(fd.get('password')));entrarComPerfil(p)}catch(err){error.textContent=err.message||'Não foi possível entrar.'}finally{btn.disabled=false}};
+    form.onsubmit=async e=>{e.preventDefault();const fd=new FormData(form),btn=form.querySelector('button');error.textContent='';btn.disabled=true;try{const p=await NONNA_STAFF_AUTH.signIn(String(fd.get('email')).trim(),String(fd.get('password')));await DB.refreshAuthenticatedCaches();entrarComPerfil(p)}catch(err){error.textContent=err.message||'Não foi possível entrar.'}finally{btn.disabled=false}};
 }
 
 function sairMotoboy(event) { event.preventDefault(); try{firebase.auth().signOut()}catch(_){} location.reload(); }
