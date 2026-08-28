@@ -222,6 +222,9 @@ const DB = {
         if (this.backend !== 'firebase') return true;
         const auth = typeof firebase !== 'undefined' && firebase.auth ? firebase.auth() : null;
         if (!auth || !auth.currentUser) throw new Error('Sessão Firebase não autenticada; os dados operacionais não foram carregados.');
+        // Force a fresh Firebase ID token before reading protected RTDB paths.
+        // Persisted sessions may otherwise issue one stale/empty token on boot.
+        await auth.currentUser.getIdToken(true);
         const reads = await Promise.allSettled([
             DBRemote.getPedidosAsync(),
             DBRemote.getMotoboysAsync(),
