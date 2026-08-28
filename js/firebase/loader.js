@@ -9,7 +9,7 @@
   // subpaths as well as local previews).
   const BASE = new URL('../../', scriptTag && scriptTag.src ? scriptTag.src : location.href).href;
   const APPS = {
-    cliente: new URL('cliente/js/app.js?v=3', BASE).href,
+    cliente: new URL('cliente/js/app.js?v=4', BASE).href,
     motoboy: new URL('motoboy/js/motoboy.js?v=3', BASE).href,
     pizzaria: new URL('pizzaria/js/painel.js?v=3', BASE).href,
     garcom: new URL('garcom/js/garcom.js?v=4', BASE).href,
@@ -121,7 +121,7 @@
           if (typeof DB._setConnection === 'function') DB._setConnection('firebase', 'degraded');
           window.NONNA_DB_READY = Promise.resolve(DB);
           if (APPS[appName]) await loadScript(APPS[appName]);
-          if (typeof init === 'function') { try { init(); } catch (appError) { console.error('[NONNA APP]', appName, appError); } }
+          if (typeof window.init === 'function') { try { window.init(); } catch (appError) { console.error('[NONNA APP]', appName, appError); } }
           emit('nonna_app_ready', { app: appName, db: DB, degraded: true });
           return DB;
         } catch (degradedError) { console.error('[NONNA DEGRADED]', degradedError); }
@@ -139,7 +139,7 @@
         emit('nonna_db_fallback', { db: DB, error });
         if (APPS[appName]) {
           await loadScript(APPS[appName]);
-          if (typeof init === 'function') { try { init(); } catch (appError) { console.error('[NONNA APP]', appName, appError); } }
+          if (typeof window.init === 'function') { try { window.init(); } catch (appError) { console.error('[NONNA APP]', appName, appError); } }
         }
         return DB;
       }
