@@ -5,9 +5,11 @@
  */
 (function () {
   const scriptTag = document.currentScript;
+  // loader.js lives in js/firebase; resolve the site root (works on GitHub Pages
+  // subpaths as well as local previews).
   const BASE = new URL('../../', scriptTag && scriptTag.src ? scriptTag.src : location.href).href;
   const APPS = {
-    cliente: new URL('cliente/js/app.js?v=6', BASE).href,
+    cliente: new URL('cliente/js/app.js?v=3', BASE).href,
     motoboy: new URL('motoboy/js/motoboy.js?v=3', BASE).href,
     pizzaria: new URL('pizzaria/js/painel.js?v=3', BASE).href,
     garcom: new URL('garcom/js/garcom.js?v=4', BASE).href,
@@ -25,7 +27,7 @@
     window.dispatchEvent(new CustomEvent(name, { detail: detail || {} }));
   }
 
-  function loadScript(src) {
+  function loadScript(src, timeoutMs = 15000) {
     return new Promise((resolve, reject) => {
       const target = new URL(src, location.href);
       const existing = [...document.scripts].find(s => {
@@ -37,8 +39,14 @@
       const s = document.createElement('script');
       s.src = src;
       s.async = false;
-      s.onload = resolve;
-      s.onerror = () => reject(new Error('Falha ao carregar ' + src));
+      let settled = false;
+      const finish = (fn, value) => { if (settled) return; settled = true; clearTimeout(timer); fn(value); };
+      const timer = setTimeout(() => {
+        s.remove();
+        finish(reject, new Error('Tempo limite ao carregar recurso Nonna'));
+      }, timeoutMs);
+      s.onload = () => finish(resolve);
+      s.onerror = () => finish(reject, new Error('Falha ao carregar recurso Nonna'));
       document.head.appendChild(s);
     });
   }
@@ -48,11 +56,10 @@
       state.status = 'loading-firebase';
       emit('nonna_boot_status', state);
 
-      // O Cliente público usa exclusivamente a API; não deve depender do SDK Firebase.
-      const firebaseActive = typeof FIREBASE_ATIVO !== 'undefined' && FIREBASE_ATIVO && appName !== 'cliente';
+      const firebaseActive = typeof FIREBASE_ATIVO !== 'undefined' && FIREBASE_ATIVO;
       if (!firebaseActive) {
-        await loadScript(BASE + 'js/nonna-api-client.js?v=1');
-        await loadScript(BASE + 'js/firebase/operational-guards.js?v=1');
+        await loadScript(BASE + 'js/nonna-api-client.js?v=2');
+        await loadScript(BASE + 'js/firebase/operational-guards.js?v=2');
         await loadScript(BASE + 'js/firebase/db-adapter.js?v=37');
         await loadScript(BASE + 'js/branding.js?v=1');
         window.DB = DB;
@@ -69,8 +76,8 @@
         await loadScript(BASE + 'js/firebase/auth.js');
         await loadScript(BASE + 'js/firebase/staff-auth.js?v=6');
         await loadScript(BASE + 'js/firebase/firebase-storage.js');
-        await loadScript(BASE + 'js/nonna-api-client.js?v=1');
-        await loadScript(BASE + 'js/firebase/operational-guards.js?v=1');
+        await loadScript(BASE + 'js/nonna-api-client.js?v=2');
+        await loadScript(BASE + 'js/firebase/operational-guards.js?v=2');
         await loadScript(BASE + 'js/firebase/db-adapter.js?v=37');
         await loadScript(BASE + 'js/branding.js?v=1');
         window.DB = DB;
@@ -93,8 +100,8 @@
         await loadScript(APPS[appName]);
         // Alguns módulos registram DOMContentLoaded; como são carregados depois
         // desse evento, inicializamos explicitamente quando a função global existir.
-        if (typeof window.init === 'function') {
-          try { window.init(); } catch (appError) { console.error('[NONNA APP]', appName, appError); }
+        if (typeof init === 'function') {
+          try { init(); } catch (appError) { console.error('[NONNA APP]', appName, appError); }
         }
         emit('nonna_app_ready', { app: appName, db: DB });
       }
@@ -114,7 +121,7 @@
           if (typeof DB._setConnection === 'function') DB._setConnection('firebase', 'degraded');
           window.NONNA_DB_READY = Promise.resolve(DB);
           if (APPS[appName]) await loadScript(APPS[appName]);
-          if (typeof window.init === 'function') { try { window.init(); } catch (appError) { console.error('[NONNA APP]', appName, appError); } }
+          if (typeof init === 'function') { try { init(); } catch (appError) { console.error('[NONNA APP]', appName, appError); } }
           emit('nonna_app_ready', { app: appName, db: DB, degraded: true });
           return DB;
         } catch (degradedError) { console.error('[NONNA DEGRADED]', degradedError); }
